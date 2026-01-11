@@ -95,14 +95,7 @@ end
 function PlayerService.SetupRemoteEvents()
 	local remoteEvents = ReplicatedStorage:WaitForChild("RemoteEvents")
 
-	-- LogOn Request
-	local logOnRequest = remoteEvents:WaitForChild("LogOnRequest")
-	logOnRequest.OnServerEvent:Connect(function(player)
-		print(string.format("[%s %s][LogOnRequest] Received from %s", MODULE_NAME, VERSION, player.Name))
-		PlayerService.LogOnPlayer(player)
-	end)
-
-	-- LogOff Request
+	-- LogOff Request (LogOn is now automatic on PlayerAdded)
 	local logOffRequest = remoteEvents:WaitForChild("LogOffRequest")
 	logOffRequest.OnServerEvent:Connect(function(player)
 		print(string.format("[%s %s][LogOffRequest] Received from %s", MODULE_NAME, VERSION, player.Name))
@@ -129,9 +122,12 @@ function PlayerService.OnPlayerAdded(player)
 
 	currentPlayer = player
 
-	-- Player is connected but not logged in yet (still in ScreenSaver)
-	print(string.format("[%s %s][OnPlayerAdded] Player %s connected. Awaiting LogOn request.",
+	-- Automatically start boot sequence when player connects
+	print(string.format("[%s %s][OnPlayerAdded] Player %s connected. Starting boot sequence...",
 		MODULE_NAME, VERSION, player.Name))
+
+	-- Start boot sequence (it will handle state transition internally)
+	PlayerService.LogOnPlayer(player)
 end
 
 function PlayerService.OnPlayerRemoving(player)
@@ -156,7 +152,7 @@ function PlayerService.LogOnPlayer(player)
 	-- Request state change: LoggedOff → Initializing
 	local success = GameStateManager.RequestStateChange(
 		GameStateManager.States.Initializing,
-		{ player = player }
+		player
 	)
 
 	if not success then
@@ -178,7 +174,7 @@ function PlayerService.LogOnPlayer(player)
 		-- Revert to LoggedOff state
 		GameStateManager.RequestStateChange(
 			GameStateManager.States.LoggedOff,
-			{ player = player }
+			player
 		)
 
 		return false
@@ -196,7 +192,7 @@ function PlayerService.LogOffPlayer(player)
 	-- Request state change: InGame → LoggedOff
 	local success = GameStateManager.RequestStateChange(
 		GameStateManager.States.LoggedOff,
-		{ player = player }
+		player
 	)
 
 	if success then

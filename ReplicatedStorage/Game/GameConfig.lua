@@ -43,7 +43,7 @@ local GameConfig = {
 	GameSubtitle = "Orbital Silence",
 	Version = "0.1",
 	VersionTag = "EPIC 1",
-	Developer = "KOSMICMAZER",
+	Developer = "KosmicMazer",
 
 	-- ============================================================================
 	-- INITIAL STATE FOR NEW PLAYERS

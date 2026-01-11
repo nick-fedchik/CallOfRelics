@@ -152,14 +152,24 @@ function GameStateManager.RequestStateChange(newState, context)
 	stateChangedEvent:Fire(oldState, newState, context)
 
 	-- 5. Notify client (if player context exists)
-	if context and context.player then
+	-- Context can be either a Player object or a table with .player field
+	local player = nil
+	if context then
+		if typeof(context) == "Instance" and context:IsA("Player") then
+			player = context
+		elseif type(context) == "table" and context.player then
+			player = context.player
+		end
+	end
+
+	if player then
 		local remoteEvents = ReplicatedStorage:FindFirstChild("RemoteEvents")
 		if remoteEvents then
 			local stateChangedRemote = remoteEvents:FindFirstChild("StateChanged")
 			if stateChangedRemote then
-				stateChangedRemote:FireClient(context.player, oldState, newState)
+				stateChangedRemote:FireClient(player, oldState, newState)
 				print(string.format("[%s %s][RequestStateChange] State change sent to client: %s",
-					MODULE_NAME, VERSION, context.player.Name))
+					MODULE_NAME, VERSION, player.Name))
 			end
 		end
 	end

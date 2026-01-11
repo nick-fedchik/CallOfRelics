@@ -40,6 +40,24 @@ ChangeLog:
 local VERSION = "0.1"
 local MODULE_NAME = "ClientBootstrap"
 
+-- ============================================================================
+-- PREVENT DOUBLE EXECUTION
+-- ============================================================================
+
+-- Check if already initialized (prevents double-run in StarterPlayerScripts)
+local RunService = game:GetService("RunService")
+if not RunService:IsClient() then return end
+
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+-- Use a unique attribute to prevent double initialization
+if player:GetAttribute("ClientBootstrapInitialized") then
+	warn("[ClientBootstrap] Already initialized - skipping duplicate run")
+	return
+end
+player:SetAttribute("ClientBootstrapInitialized", true)
+
 print("================================================================================")
 print("CALL OF RELICS: ORBITAL SILENCE - CLIENT")
 print("Client Boot Sequence Started")
@@ -50,11 +68,7 @@ print("=========================================================================
 -- SERVICES
 -- ============================================================================
 
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StarterGui = game:GetService("StarterGui")
-
-local player = Players.LocalPlayer
 
 -- ============================================================================
 -- CONFIGURATION
@@ -66,12 +80,6 @@ StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Health, false)
 StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
 
 -- ============================================================================
--- WAIT FOR DEPENDENCIES
--- ============================================================================
-
-local playerGui = player:WaitForChild("PlayerGui")
-
--- ============================================================================
 -- LOAD CLIENT MODULES
 -- ============================================================================
 
@@ -79,6 +87,7 @@ local StarterPlayerScripts = script.Parent.Parent
 local UI = StarterPlayerScripts:WaitForChild("UI")
 
 local ScreenSaverUI = require(UI:WaitForChild("ScreenSaverUI"))
+local StatusBarUI = require(UI:WaitForChild("StatusBarUI"))
 local UIManager = require(UI:WaitForChild("UIManager"))
 
 -- ============================================================================
@@ -96,15 +105,22 @@ local function Boot()
 		error("[ClientBootstrap] CRITICAL: ScreenSaverUI initialization failed!")
 	end
 
-	print(string.format("[%s %s][Boot] Phase 2: Initializing UIManager", MODULE_NAME, VERSION))
+	print(string.format("[%s %s][Boot] Phase 2: Initializing StatusBar UI", MODULE_NAME, VERSION))
 
-	success = UIManager.Initialize(ScreenSaverUI)
+	success = StatusBarUI.Initialize()
+	if not success then
+		error("[ClientBootstrap] CRITICAL: StatusBarUI initialization failed!")
+	end
+
+	print(string.format("[%s %s][Boot] Phase 3: Initializing UIManager", MODULE_NAME, VERSION))
+
+	success = UIManager.Initialize(ScreenSaverUI, StatusBarUI)
 	if not success then
 		error("[ClientBootstrap] CRITICAL: UIManager initialization failed!")
 	end
 
-	print(string.format("[%s %s][Boot] Phase 3: UI systems ready", MODULE_NAME, VERSION))
-	print(string.format("[%s %s][Boot] Phase 4: Showing ScreenSaver", MODULE_NAME, VERSION))
+	print(string.format("[%s %s][Boot] Phase 4: UI systems ready", MODULE_NAME, VERSION))
+	print(string.format("[%s %s][Boot] Phase 5: Showing ScreenSaver", MODULE_NAME, VERSION))
 
 	ScreenSaverUI.Show()
 

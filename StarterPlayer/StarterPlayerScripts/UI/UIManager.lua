@@ -56,6 +56,7 @@ local player = Players.LocalPlayer
 -- ============================================================================
 
 local ScreenSaverUI = nil -- Will be set during Initialize
+local StatusBarUI = nil -- Will be set during Initialize
 
 -- ============================================================================
 -- STATE
@@ -67,10 +68,11 @@ local currentState = "LoggedOff"
 -- INITIALIZATION
 -- ============================================================================
 
-function UIManager.Initialize(screenSaverModule)
+function UIManager.Initialize(screenSaverModule, statusBarModule)
 	print(string.format("[%s %s][Initialize] UIManager initializing", MODULE_NAME, VERSION))
 
 	ScreenSaverUI = screenSaverModule
+	StatusBarUI = statusBarModule
 
 	-- Setup state change listener
 	UIManager.SetupStateListener()
@@ -106,20 +108,29 @@ function UIManager.OnStateChanged(oldState, newState)
 
 	-- Handle UI transitions based on state
 	if newState == "LoggedOff" then
-		-- Show ScreenSaver
+		-- Show ScreenSaver, hide StatusBar
 		if ScreenSaverUI then
+			ScreenSaverUI.Reset() -- Reset to initial state
 			ScreenSaverUI.Show()
+		end
+		if StatusBarUI then
+			StatusBarUI.Hide()
 		end
 
 	elseif newState == "Initializing" then
-		-- Hide ScreenSaver, show loading (future)
+		-- Boot sequence is running (Stages 1-4)
+		-- ScreenSaver stays visible and shows boot stages
+		-- StatusBar stays hidden
+		print(string.format("[%s %s][OnStateChanged] Boot sequence active...", MODULE_NAME, VERSION))
+
+	elseif newState == "InGame" then
+		-- Hide ScreenSaver, show StatusBar
 		if ScreenSaverUI then
 			ScreenSaverUI.Hide()
 		end
-		print(string.format("[%s %s][OnStateChanged] Loading game...", MODULE_NAME, VERSION))
-
-	elseif newState == "InGame" then
-		-- Show InGame UI (future)
+		if StatusBarUI then
+			StatusBarUI.Show()
+		end
 		print(string.format("[%s %s][OnStateChanged] Player is now in game!", MODULE_NAME, VERSION))
 	end
 end
