@@ -27,3 +27,6 @@ Thumbs.db
 *.json
 # Ignore node_modules if present
 node_modules/
+.github
+*-workspace
+nul 
