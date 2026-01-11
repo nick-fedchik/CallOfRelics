@@ -86,4 +86,12 @@ print(string.format("[%s %s] Created: LogOffRequest", MODULE_NAME, VERSION))
 local stateChanged = CreateRemoteEvent("StateChanged")
 print(string.format("[%s %s] Created: StateChanged", MODULE_NAME, VERSION))
 
+-- Boot Stage Update (Server → Client)
+local bootStageUpdate = CreateRemoteEvent("BootStageUpdate")
+print(string.format("[%s %s] Created: BootStageUpdate", MODULE_NAME, VERSION))
+
+-- Confirm Game Start (Client → Server)
+local confirmGameStart = CreateRemoteEvent("ConfirmGameStart")
+print(string.format("[%s %s] Created: ConfirmGameStart", MODULE_NAME, VERSION))
+
 print(string.format("[%s %s] RemoteEvents setup complete", MODULE_NAME, VERSION))

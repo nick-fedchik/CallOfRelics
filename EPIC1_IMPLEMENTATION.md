@@ -33,7 +33,8 @@ EPIC 1 establishes the foundation of the game's architecture:
 ### Server-Side Components
 
 #### 1. **GameStateManager.lua**
-- **Location:** `ServerScriptService/GameStateManager.lua`
+- **Location:** `ServerScriptService/Core/GameStateManager.lua`
+- **Category:** Core (Architectural foundation)
 - **Purpose:** Single source of truth for game state (TDD Section 2.5)
 - **Responsibilities:**
   - Manages global states: `LoggedOff`, `Initializing`, `InGame`
@@ -42,7 +43,8 @@ EPIC 1 establishes the foundation of the game's architecture:
   - Enforces forbidden transitions
 
 #### 2. **ServerBootstrap.server.lua**
-- **Location:** `ServerScriptService/ServerBootstrap.server.lua`
+- **Location:** `ServerScriptService/Core/ServerBootstrap.server.lua`
+- **Category:** Core (Entry point)
 - **Purpose:** Main server initialization script (TDD Section 4.3)
 - **Responsibilities:**
   - Boots the game in controlled sequence
@@ -51,7 +53,8 @@ EPIC 1 establishes the foundation of the game's architecture:
   - Handles boot failures safely
 
 #### 3. **PlayerService.lua**
-- **Location:** `ServerScriptService/PlayerService.lua`
+- **Location:** `ServerScriptService/Services/PlayerService.lua`
+- **Category:** Service (Player management)
 - **Purpose:** Manages player lifecycle
 - **Responsibilities:**
   - Handles player connections/disconnections
@@ -60,7 +63,8 @@ EPIC 1 establishes the foundation of the game's architecture:
   - Manages safe disconnects
 
 #### 4. **RemoteEventsSetup.server.lua**
-- **Location:** `ServerScriptService/RemoteEventsSetup.server.lua`
+- **Location:** `ServerScriptService/Setup/RemoteEventsSetup.server.lua`
+- **Category:** Setup (Infrastructure)
 - **Purpose:** Creates RemoteEvents for client-server communication
 - **Responsibilities:**
   - Creates `RemoteEvents` folder in ReplicatedStorage
@@ -307,16 +311,32 @@ ScreenSaver Active - Waiting for player input
 
 ```
 ServerScriptService/
-├── GameStateManager.lua
-├── ServerBootstrap.server.lua
-├── PlayerService.lua
-└── RemoteEventsSetup.server.lua
+├── Core/
+│   ├── GameStateManager.lua
+│   └── ServerBootstrap.server.lua
+├── Services/
+│   └── PlayerService.lua
+├── Systems/
+│   └── (empty, prepared for future)
+└── Setup/
+    └── RemoteEventsSetup.server.lua
 
 StarterPlayer/StarterPlayerScripts/
 ├── ClientBootstrap.client.lua
 ├── ScreenSaverUI.lua
 └── UIManager.lua
 ```
+
+### Folder Structure Notes
+
+Структура ServerScriptService організована відповідно до TDD розділу 13.3.2:
+
+- **Core/** — Архітектурне ядро (координатор станів, bootstrap)
+- **Services/** — Довготривалі сервіси (PlayerService)
+- **Systems/** — Функціональні системи (поки порожня, для EPIC 2+)
+- **Setup/** — Ініціалізаційні скрипти (RemoteEventsSetup)
+
+Детальний опис структури: [Docs/FOLDER_STRUCTURE.md](Docs/FOLDER_STRUCTURE.md)
 
 ---
 

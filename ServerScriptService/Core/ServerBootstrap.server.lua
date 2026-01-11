@@ -42,8 +42,7 @@ local VERSION = "0.1"
 local MODULE_NAME = "ServerBootstrap"
 
 print("================================================================================")
-print("CALL OF RELICS: ORBITAL SILENCE")
-print("Server Boot Sequence Started")
+print("SERVER BOOT SEQUENCE STARTED")
 print(string.format("[%s %s] Initializing...", MODULE_NAME, VERSION))
 print("================================================================================")
 
@@ -52,15 +51,18 @@ print("=========================================================================
 -- ============================================================================
 
 local ServerScriptService = game:GetService("ServerScriptService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Players = game:GetService("Players")
 
 -- ============================================================================
 -- LOAD CORE MODULES
 -- ============================================================================
 
-local GameStateManager = require(ServerScriptService:WaitForChild("GameStateManager"))
-local PlayerService = require(ServerScriptService:WaitForChild("PlayerService"))
+-- Core modules (same folder)
+local Core = script.Parent
+local GameStateManager = require(Core:WaitForChild("GameStateManager"))
+
+-- Services
+local Services = ServerScriptService:WaitForChild("Services")
+local PlayerService = require(Services:WaitForChild("PlayerService"))
 
 -- ============================================================================
 -- BOOT SEQUENCE (TDD Section 4.3)
@@ -82,15 +84,23 @@ local function Boot()
 		warn("[ServerBootstrap] WARNING: Expected LoggedOff state!")
 	end
 
-	print(string.format("[%s %s][Boot] Phase 2: Initializing PlayerService", MODULE_NAME, VERSION))
+	print(string.format("[%s %s][Boot] Phase 2: Initializing ProfileService", MODULE_NAME, VERSION))
+
+	local ProfileService = require(Services:WaitForChild("ProfileService"))
+	success = ProfileService.Initialize()
+	if not success then
+		error("[ServerBootstrap] CRITICAL: ProfileService initialization failed!")
+	end
+
+	print(string.format("[%s %s][Boot] Phase 3: Initializing PlayerService", MODULE_NAME, VERSION))
 
 	success = PlayerService.Initialize()
 	if not success then
 		error("[ServerBootstrap] CRITICAL: PlayerService initialization failed!")
 	end
 
-	print(string.format("[%s %s][Boot] Phase 3: Core systems ready", MODULE_NAME, VERSION))
-	print(string.format("[%s %s][Boot] Phase 4: ScreenSaver active", MODULE_NAME, VERSION))
+	print(string.format("[%s %s][Boot] Phase 4: Core systems ready", MODULE_NAME, VERSION))
+	print(string.format("[%s %s][Boot] Phase 5: ScreenSaver active", MODULE_NAME, VERSION))
 
 	print("================================================================================")
 	print("BOOT COMPLETE")

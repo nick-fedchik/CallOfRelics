@@ -57,7 +57,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 -- DEPENDENCIES
 -- ============================================================================
 
-local GameStateManager = require(ServerScriptService:WaitForChild("GameStateManager"))
+local Core = ServerScriptService:WaitForChild("Core")
+local GameStateManager = require(Core:WaitForChild("GameStateManager"))
 
 -- ============================================================================
 -- STATE
@@ -167,21 +168,25 @@ function PlayerService.LogOnPlayer(player)
 	print(string.format("[%s %s][LogOnPlayer] Starting session for %s",
 		MODULE_NAME, VERSION, player.Name))
 
-	-- Boot player into game (will be implemented in next phase)
-	-- For now, just transition to InGame
-	task.wait(1) -- Simulate boot time
+	-- Start 4-stage boot sequence
+	local BootSequence = require(Core:WaitForChild("BootSequence"))
+	local bootSuccess = BootSequence.StartBoot(player)
 
-	success = GameStateManager.RequestStateChange(
-		GameStateManager.States.InGame,
-		{ player = player }
-	)
+	if not bootSuccess then
+		warn(string.format("[%s %s][LogOnPlayer] Boot sequence failed for %s", MODULE_NAME, VERSION, player.Name))
 
-	if success then
-		print(string.format("[%s %s][LogOnPlayer] Player %s is now in game",
-			MODULE_NAME, VERSION, player.Name))
+		-- Revert to LoggedOff state
+		GameStateManager.RequestStateChange(
+			GameStateManager.States.LoggedOff,
+			{ player = player }
+		)
+
+		return false
 	end
 
-	return success
+	-- Boot sequence handles InGame transition when Stage 4 completes (after player clicks "Почати гру")
+	print(string.format("[%s %s][LogOnPlayer] Boot sequence initiated for %s", MODULE_NAME, VERSION, player.Name))
+	return true
 end
 
 function PlayerService.LogOffPlayer(player)

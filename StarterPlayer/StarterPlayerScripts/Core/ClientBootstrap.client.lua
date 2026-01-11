@@ -75,8 +75,11 @@ local playerGui = player:WaitForChild("PlayerGui")
 -- LOAD CLIENT MODULES
 -- ============================================================================
 
-local ScreenSaverUI = require(script.Parent:WaitForChild("ScreenSaverUI"))
-local UIManager = require(script.Parent:WaitForChild("UIManager"))
+local StarterPlayerScripts = script.Parent.Parent
+local UI = StarterPlayerScripts:WaitForChild("UI")
+
+local ScreenSaverUI = require(UI:WaitForChild("ScreenSaverUI"))
+local UIManager = require(UI:WaitForChild("UIManager"))
 
 -- ============================================================================
 -- BOOT SEQUENCE

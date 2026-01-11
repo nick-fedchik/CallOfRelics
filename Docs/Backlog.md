@@ -268,7 +268,51 @@ Sprint Backlog формується **інкрементально**.
 - Spawn player on ship
 - Define safe save point
 - Display planet from orbit
-
+ServerStorage
+└── Planets
+    └── Planet_1
+        ├── Orbit
+        │   ├── StarterPlayer
+        │   │   ├── StarterCharacterScript
+        │   │   └── StarterPlayerScript
+        │   ├── ReplicatedStorage
+        │   ├── ServerScriptService
+        │   └── Workspace
+        │       ├── Lighting
+        │       │   └── Sky
+        │       └── SpaceShip
+        │           ├── Configuration
+        │           │   ├── MaxShield
+        │           │   ├── MaxHull
+        │           │   ├── ExplosionSize
+        │           │   ├── Description
+        │           │   ├── Class
+        │           │   └── Mass
+        │           ├── ShipParts (багато частин та зварних з'єднань)
+        │           ├── TurretPlate (5 шт.)
+        │           ├── PilotSeat
+        │           ├── Seat (4 шт.)
+        │           ├── DockPoint
+        │           └── CenterPoint
+        └── Surface
+            ├── Location1
+            │   ├── Workspace
+            │   │   └── Lighting
+            │   │       └── Sky
+            │   ├── ServerScriptService
+            │   ├── ReplicatedStorage
+            │   └── StarterPlayer
+            │       ├── StarterCharacterScript
+            │       └── StarterPlayerScript
+            └── Location2
+                ├── Workspace
+                │   └── Lighting
+                │       └── Sky
+                ├── ServerScriptService
+                ├── ReplicatedStorage
+                └── StarterPlayer
+                    ├── StarterCharacterScript
+                    └── StarterPlayerScript
 ---
 
 ### Sprint 3 — First Planet & Scanning
