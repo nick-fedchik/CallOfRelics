@@ -41,10 +41,10 @@ ChangeLog:
 local VERSION = "0.1"
 local MODULE_NAME = "ServerBootstrap"
 
-print("================================================================================")
+
 print("SERVER BOOT SEQUENCE STARTED")
 print(string.format("[%s %s] Initializing...", MODULE_NAME, VERSION))
-print("================================================================================")
+
 
 -- ============================================================================
 -- CORE SERVICES
@@ -102,11 +102,11 @@ local function Boot()
 	print(string.format("[%s %s][Boot] Phase 4: Core systems ready", MODULE_NAME, VERSION))
 	print(string.format("[%s %s][Boot] Phase 5: ScreenSaver active", MODULE_NAME, VERSION))
 
-	print("================================================================================")
+
 	print("BOOT COMPLETE")
 	print("Game State: LoggedOff (ScreenSaver)")
 	print("Waiting for player login...")
-	print("================================================================================")
+
 end
 
 -- ============================================================================
@@ -116,10 +116,8 @@ end
 local bootSuccess, bootError = pcall(Boot)
 
 if not bootSuccess then
-	warn("================================================================================")
 	warn("BOOT FAILED!")
 	warn("Error: " .. tostring(bootError))
 	warn("Game cannot start. Check logs for details.")
-	warn("================================================================================")
 	error("Boot sequence failed. Game cannot continue.")
 end
