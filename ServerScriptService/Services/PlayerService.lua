@@ -198,7 +198,17 @@ function PlayerService.LogOffPlayer(player)
 	if success then
 		print(string.format("[%s %s][LogOffPlayer] Player %s logged off. Returning to ScreenSaver.",
 			MODULE_NAME, VERSION, player.Name))
-		currentPlayer = nil
+
+		-- DON'T clear currentPlayer - player is still connected!
+		-- Just restart Boot Sequence for re-login
+
+		-- Wait a brief moment for UI to reset
+		task.wait(0.5)
+
+		-- Restart boot sequence automatically
+		print(string.format("[%s %s][LogOffPlayer] Restarting boot sequence for %s",
+			MODULE_NAME, VERSION, player.Name))
+		PlayerService.LogOnPlayer(player)
 	end
 
 	return success
