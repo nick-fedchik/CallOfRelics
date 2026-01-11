@@ -8,17 +8,17 @@ Top status bar UI for InGame state (like Windows 95 taskbar).
 Shows current planet, location, and Exit button.
 
 Version:
-0.2
+0.3
 
 Layout:
 ┌──────────────────────────────────────────────────────────────────────────┐
-│ [Планета: Planet_1] [Локація: Космічний Корабель]              [Вихід] │
+│                    [Планета: Planet_1] [Локація: Космічний Корабель] [Вихід] │
 └──────────────────────────────────────────────────────────────────────────┘
 
 Features:
-- Planet name (left side, after Roblox UI)
-- Location name (left side, after planet)
-- Exit button (right side, away from Roblox UI)
+- Planet name (right side, before location)
+- Location name (right side, before exit button)
+- Exit button (right side, furthest right)
 - Always created, shown/hidden by state
 
 State Management:
@@ -118,12 +118,12 @@ local function CreateStatusBarUI()
 	corner.CornerRadius = UDim.new(0, 4)
 	corner.Parent = exit
 
-	-- Planet label (left side, after Roblox UI)
+	-- Planet label (right side, before location)
 	local planet = Instance.new("TextLabel")
 	planet.Name = "PlanetLabel"
 	planet.Size = UDim2.new(0, 200, 0, 35)
-	planet.Position = UDim2.new(0, 10, 0.5, 0)
-	planet.AnchorPoint = Vector2.new(0, 0.5)
+	planet.Position = UDim2.new(1, -550, 0.5, 0)
+	planet.AnchorPoint = Vector2.new(1, 0.5)
 	planet.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 	planet.BorderSizePixel = 0
 	planet.Text = "Планета: Planet_1"
@@ -138,12 +138,12 @@ local function CreateStatusBarUI()
 	cornerPlanet.CornerRadius = UDim.new(0, 4)
 	cornerPlanet.Parent = planet
 
-	-- Location label (left side, after planet)
+	-- Location label (right side, before exit button)
 	local location = Instance.new("TextLabel")
 	location.Name = "LocationLabel"
 	location.Size = UDim2.new(0, 220, 0, 35)
-	location.Position = UDim2.new(0, 220, 0.5, 0)
-	location.AnchorPoint = Vector2.new(0, 0.5)
+	location.Position = UDim2.new(1, -340, 0.5, 0)
+	location.AnchorPoint = Vector2.new(1, 0.5)
 	location.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 	location.BorderSizePixel = 0
 	location.Text = "Локація: Космічний Корабель"
