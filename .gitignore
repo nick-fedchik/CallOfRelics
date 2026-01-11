@@ -1,0 +1,29 @@
+# Roblox project .gitignore
+# Ignore Roblox Studio temporary files and system files
+*.rbxl
+*.rbxlx
+*.rbxm
+*.rbxmx
+*.rbxl.autosave
+*.rbxlx.autosave
+*.rbxm.autosave
+*.rbxmx.autosave
+*.log
+*.tmp
+*.bak
+*.lock
+Thumbs.db
+.DS_Store
+.vscode/
+# Ignore user-specific files
+*.local
+*.swp
+*.swo
+# Ignore Roblox Studio backup files
+*.backup
+# Ignore Roblox Studio plugin data
+*.rbxplugin
+# Ignore Roblox Studio settings
+*.json
+# Ignore node_modules if present
+node_modules/
