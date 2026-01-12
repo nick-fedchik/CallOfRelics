@@ -353,6 +353,7 @@ local function CreateErrorStateElements(parent)
 	errorIcon.TextColor3 = Color3.fromRGB(255, 100, 100)
 	errorIcon.TextSize = 64
 	errorIcon.Font = Enum.Font.GothamBold
+	errorIcon.TextTransparency = 1 -- Hidden initially
 	errorIcon.ZIndex = 6
 	errorIcon.Parent = container
 
@@ -368,6 +369,7 @@ local function CreateErrorStateElements(parent)
 	text.TextSize = 22
 	text.Font = Enum.Font.Gotham
 	text.TextWrapped = true
+	text.TextTransparency = 1 -- Hidden initially
 	text.ZIndex = 6
 	text.Parent = container
 
@@ -378,10 +380,12 @@ local function CreateErrorStateElements(parent)
 	button.Position = UDim2.new(0.5, 0, 1, -70)
 	button.AnchorPoint = Vector2.new(0.5, 0)
 	button.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
+	button.BackgroundTransparency = 1 -- Hidden initially
 	button.Text = "Спробувати знову"
 	button.TextColor3 = Color3.fromRGB(255, 255, 255)
 	button.TextSize = 20
 	button.Font = Enum.Font.GothamBold
+	button.TextTransparency = 1 -- Hidden initially
 	button.AutoButtonColor = false
 	button.ZIndex = 6
 	button.BorderSizePixel = 0
@@ -649,15 +653,44 @@ local function ShowStage3(stageData)
 		-- Show error container
 		errorText.Text = stageData.errorMessage or "Невідома помилка"
 		errorContainer.Visible = true
+
+		-- Fade in error container background
 		TweenService:Create(
 			errorContainer,
 			TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 			{BackgroundTransparency = 0.1}
 		):Play()
 
+		-- Fade in error text and icon (find them as children)
+		local errorIcon = errorContainer:FindFirstChild("ErrorIcon")
+		if errorIcon then
+			TweenService:Create(
+				errorIcon,
+				TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{TextTransparency = 0}
+			):Play()
+		end
+
+		TweenService:Create(
+			errorText,
+			TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{TextTransparency = 0}
+		):Play()
+
 		-- Show or hide retry button based on canRetry
 		if stageData.canRetry then
 			retryButton.Visible = true
+			-- Fade in retry button
+			TweenService:Create(
+				retryButton,
+				TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{BackgroundTransparency = 0}
+			):Play()
+			TweenService:Create(
+				retryButton,
+				TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{TextTransparency = 0}
+			):Play()
 		else
 			retryButton.Visible = false
 		end
@@ -788,6 +821,14 @@ function ScreenSaverUI.Reset()
 
 	-- Hide error state
 	errorContainer.Visible = false
+	errorContainer.BackgroundTransparency = 1
+	local errorIcon = errorContainer:FindFirstChild("ErrorIcon")
+	if errorIcon then
+		errorIcon.TextTransparency = 1
+	end
+	errorText.TextTransparency = 1
+	retryButton.BackgroundTransparency = 1
+	retryButton.TextTransparency = 1
 
 	-- Hide Stage 4 elements
 	startButton.BackgroundTransparency = 1
