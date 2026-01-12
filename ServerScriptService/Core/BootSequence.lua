@@ -176,10 +176,9 @@ local function Stage3_ProfileLoading(player)
 		print(string.format("[%s %s][Stage3] NEW PLAYER: %s — Profile created with planet %s",
 			MODULE_NAME, VERSION, player.Name, profile.currentPlanet))
 	else
+		local lastLoginStr = profile.lastLogin and os.date("%Y-%m-%d %H:%M:%S", profile.lastLogin) or "Unknown"
 		print(string.format("[%s %s][Stage3] RETURNING PLAYER: %s — Last login: %s, Current planet: %s",
-			MODULE_NAME, VERSION, player.Name,
-			os.date("%Y-%m-%d %H:%M:%S", profile.lastLogin),
-			profile.currentPlanet))
+			MODULE_NAME, VERSION, player.Name, lastLoginStr, profile.currentPlanet))
 	end
 
 	-- Send success to client
