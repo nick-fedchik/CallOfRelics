@@ -6,15 +6,17 @@ KOSMICMAZER — BootSequence
 Purpose:
 Orchestrates the 4-stage boot sequence for players entering the game.
 Sends stage updates to client via BootStageUpdate RemoteEvent.
+Integrates LocationService to load player's initial location (Orbit).
 
 Version:
-0.1
+0.4
 
 Features:
 - Stage 1: Send game configuration (name, version)
 - Stage 2: Send player information (avatar, name)
 - Stage 3: Load/create player profile via ProfileService
-- Stage 4: Prepare game space, wait for player confirmation
+- Stage 4: Load initial location (Orbit) and prepare game space
+- Spawn player in PilotSeat when "Почати гру" clicked
 - Handles stage timing based on GameConfig
 - Waits for ConfirmGameStart before transitioning to InGame
 
@@ -24,6 +26,7 @@ API:
 Calls to:
 - GameConfig (ReplicatedStorage)
 - ProfileService
+- LocationService
 - GameStateManager
 - RemoteEvents (BootStageUpdate)
 
@@ -37,17 +40,21 @@ Events:
 Dependencies:
 - GameConfig
 - ProfileService
+- LocationService
 - GameStateManager
 - RemoteEvents folder
 
 ChangeLog:
+- 0.4: Integrated LocationService - load Orbit and spawn player (2026-01-12)
+- 0.3: Enhanced boot sequence with dynamic progress (2026-01-12)
+- 0.2: Added ProfileService integration (2026-01-11)
 - 0.1: Initial 4-stage boot sequence implementation (2026-01-11)
 ================================================================================
 ]]
 
 local BootSequence = {}
 
-local VERSION = "0.1"
+local VERSION = "0.4"
 local MODULE_NAME = "BootSequence"
 
 -- ============================================================================
@@ -65,6 +72,7 @@ local GameConfig = require(ReplicatedStorage:WaitForChild("Game"):WaitForChild("
 
 local Services = ServerScriptService:WaitForChild("Services")
 local ProfileService = require(Services:WaitForChild("ProfileService"))
+local LocationService = require(Services:WaitForChild("LocationService"))
 
 local Core = ServerScriptService:WaitForChild("Core")
 local GameStateManager = require(Core:WaitForChild("GameStateManager"))
@@ -215,6 +223,18 @@ local function Stage4_ReadyState(player, profile)
 	print(string.format("  - Explored Locations: %d", exploredCount))
 	print(string.format("  - Ship Energy: %d", profile.shipState.energyLevel))
 
+	-- CRITICAL: Load initial location (Orbit of current planet)
+	print(string.format("[%s %s][Stage4] Loading initial location: %s/Orbit",
+		MODULE_NAME, VERSION, profile.currentPlanet))
+
+	local loadSuccess = LocationService.LoadLocation(player, profile.currentPlanet, "Orbit")
+
+	if not loadSuccess then
+		warn(string.format("[%s %s][Stage4] Failed to load location for %s",
+			MODULE_NAME, VERSION, player.Name))
+		-- TODO: Handle location load failure (return to ScreenSaver or retry)
+	end
+
 	-- Send ready state to client
 	local stageData = {
 		ready = true,
@@ -289,6 +309,9 @@ ConfirmGameStart.OnServerEvent:Connect(function(player)
 	end
 
 	print(string.format("[%s %s][ConfirmGameStart] Player %s confirmed game start — transitioning to InGame", MODULE_NAME, VERSION, player.Name))
+
+	-- CRITICAL: Spawn player in loaded location
+	LocationService.SpawnPlayerInLocation(player, "auto")
 
 	-- Transition to InGame state
 	local success = GameStateManager.RequestStateChange(

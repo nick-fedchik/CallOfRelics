@@ -8,10 +8,11 @@ Main server initialization script. Boots the game in controlled sequence.
 Implements Boot phase from TDD Section 4.3.
 
 Version:
-0.1
+0.2
 
 Features:
 - Initializes core services in correct order
+- Initializes LocationService for level loading
 - Sets initial game state to LoggedOff
 - Prepares ScreenSaver environment
 - Handles boot failures safely
@@ -21,6 +22,8 @@ API:
 
 Calls to:
 - GameStateManager
+- ProfileService
+- LocationService
 - PlayerService
 
 Called from:
@@ -31,14 +34,17 @@ Events:
 
 Dependencies:
 - GameStateManager
+- ProfileService
+- LocationService
 - PlayerService
 
 ChangeLog:
+- 0.2: Added LocationService initialization (2026-01-12)
 - 0.1: Initial boot sequence implementation (2026-01-11)
 ================================================================================
 ]]
 
-local VERSION = "0.1"
+local VERSION = "0.2"
 local MODULE_NAME = "ServerBootstrap"
 
 
@@ -92,15 +98,23 @@ local function Boot()
 		error("[ServerBootstrap] CRITICAL: ProfileService initialization failed!")
 	end
 
-	print(string.format("[%s %s][Boot] Phase 3: Initializing PlayerService", MODULE_NAME, VERSION))
+	print(string.format("[%s %s][Boot] Phase 3: Initializing LocationService", MODULE_NAME, VERSION))
+
+	local LocationService = require(Services:WaitForChild("LocationService"))
+	success = LocationService.Initialize()
+	if not success then
+		error("[ServerBootstrap] CRITICAL: LocationService initialization failed!")
+	end
+
+	print(string.format("[%s %s][Boot] Phase 4: Initializing PlayerService", MODULE_NAME, VERSION))
 
 	success = PlayerService.Initialize()
 	if not success then
 		error("[ServerBootstrap] CRITICAL: PlayerService initialization failed!")
 	end
 
-	print(string.format("[%s %s][Boot] Phase 4: Core systems ready", MODULE_NAME, VERSION))
-	print(string.format("[%s %s][Boot] Phase 5: ScreenSaver active", MODULE_NAME, VERSION))
+	print(string.format("[%s %s][Boot] Phase 5: Core systems ready", MODULE_NAME, VERSION))
+	print(string.format("[%s %s][Boot] Phase 6: ScreenSaver active", MODULE_NAME, VERSION))
 
 
 	print("BOOT COMPLETE")
