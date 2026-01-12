@@ -27,6 +27,7 @@
 5. [Комунікація Client-Server](#комунікація-client-server)
 6. [Roblox API Best Practices](#roblox-api-best-practices)
 7. [Уроки з Помилок](#уроки-з-помилок)
+8. [Epic 1 - Повна Імплементація](#epic-1---повна-імплементація)
 
 ---
 
@@ -1074,14 +1075,303 @@ Key Changes:
 
 ---
 
+## Epic 1 - Повна Імплементація
+
+### Огляд
+
+**Status:** ✅ Complete
+**Version:** 0.5
+**Date:** 2026-01-12
+
+Epic 1 встановлює фундамент архітектури гри:
+- Повний lifecycle management
+- Координація глобальних станів
+- 4-stage boot sequence з progress tracking
+- Error handling з retry mechanism
+- Player LogOn/LogOff flow
+
+### User Stories (Реалізовано)
+
+✅ Гравець бачить ScreenSaver з прогресом завантаження перед входом
+✅ Гравець може увійти та почати нову сесію
+✅ Гравець може вийти та повернутись до ScreenSaver
+✅ Гра коректно обробляє несподівані відключення
+✅ Гра ініціалізується в чистому детермінованому стані
+
+### Архітектура
+
+#### Server Components
+
+**1. GameStateManager.lua** (Core)
+- Single source of truth для game state
+- Manages: `LoggedOff`, `Initializing`, `InGame`
+- Validates state transitions
+- Broadcasts state changes
+
+**2. BootSequence.lua** (Core)
+- 4-stage server-driven boot sequence
+- Dynamic progress calculation (25%, 50%, 75%, 100%)
+- Error handling with retry support
+- Stage 1: Game Configuration
+- Stage 2: Player Information
+- Stage 3: Profile Loading (with error state)
+- Stage 4: Ready State
+
+**3. ServerBootstrap.server.lua** (Core)
+- Main server entry point
+- Initializes GameStateManager
+- Initializes PlayerService
+- Handles boot failures safely
+
+**4. PlayerService.lua** (Services)
+- Player lifecycle management
+- LogOn/LogOff processing
+- Single-player enforcement
+- Safe disconnect handling
+
+**5. ProfileService.lua** (Services)
+- DataStore integration
+- Player profile management
+- New/returning player detection
+- Graceful degradation without DataStore
+
+**6. RemoteEventsSetup.server.lua** (Setup)
+- Creates RemoteEvents infrastructure
+- Events: `StateChanged`, `BootStageUpdate`, `ConfirmGameStart`, `EnterGame`, `LogOff`, `StartGame`, `RetryBootStage`
+
+#### Client Components
+
+**7. ClientBootstrap.client.lua** (Core)
+- Main client entry point
+- Initializes ScreenSaverUI
+- Initializes StatusBarUI
+- Initializes UIManager
+- Disables default Roblox UI
+
+**8. ScreenSaverUI.lua** (UI) - v0.5
+- Progressive/cumulative boot UI
+- 1200px wide progress bar (bold, 16px height, rounded)
+- Server-driven progress tracking
+- Error state with retry button
+- 1 second pause at 100% before button
+- Removed spinner (clean text only)
+- Removed "Готовність 100%" text
+
+**9. StatusBarUI.lua** (UI)
+- In-game status bar
+- Player name, game state, version info
+- Right-aligned elements
+
+**10. UIManager.lua** (UI)
+- Coordinates UI state transitions
+- Listens to server state changes
+- Shows/hides UI based on game state
+
+### Game Flow
+
+#### Boot Sequence (4 Stages)
+
+```
+Stage 1 (25%): Game Configuration
+├── Game name, subtitle, version
+└── Progress bar появляється
+
+Stage 2 (50%): Player Information
+├── Player avatar завантажується
+├── Player name відображається
+└── Progress → 50%
+
+Stage 3 (75%): Profile Loading
+├── DataStore read
+├── New/returning player detection
+├── Success → progress 75% + "Ініціалізація експедиції..."
+└── Error → retry button + error message
+
+Stage 4 (100%): Ready State
+├── Progress → 100%
+├── 1 second pause
+├── Progress bar зникає
+└── "Почати гру" button з'являється
+```
+
+#### LogOn Flow
+
+```
+1. Player → Space/Click on ScreenSaver
+2. ScreenSaverUI → ConfirmGameStart → Server
+3. Server → State: LoggedOff → Initializing
+4. Server → BootSequence (4 stages)
+5. Server → State: Initializing → InGame
+6. Client → Hide ScreenSaver, Show StatusBar
+```
+
+#### LogOff Flow
+
+```
+1. Player → LogOff (via StatusBar або disconnect)
+2. Server → State: InGame → LoggedOff
+3. Server → ScreenSaverUI.Reset() → Client
+4. Client → Show ScreenSaver
+5. Ready for next player
+```
+
+### State Machine
+
+```
+┌─────────────┐
+│  LoggedOff  │ ◄──────────────────┐
+└──────┬──────┘                    │
+       │ LogOn                     │
+       ▼                           │
+┌──────────────┐                   │
+│ Initializing │                   │
+│ (4 stages)   │                   │
+└──────┬───────┘                   │
+       │ Boot Complete      LogOff │
+       ▼                           │
+┌─────────────┐                    │
+│   InGame    │────────────────────┘
+└─────────────┘
+```
+
+**Allowed Transitions:**
+- `LoggedOff` → `Initializing` ✅
+- `Initializing` → `InGame` ✅
+- `Initializing` → `LoggedOff` ✅ (on error)
+- `InGame` → `LoggedOff` ✅
+
+**Forbidden Transitions:**
+- `LoggedOff` → `InGame` ❌ (must go through Initializing)
+- `InGame` → `Initializing` ❌ (would break session)
+
+### Technical Highlights
+
+#### Cumulative UI Pattern
+```lua
+-- Stage 1: Game info + Progress bar (25%)
+-- Stage 2: + Player avatar + Progress (50%)
+-- Stage 3: + Loading text + Progress (75%)
+-- Stage 4: Progress (100%) → pause → button
+-- NO flickering, NO black screens
+```
+
+#### Server-Driven Progress
+```lua
+local function CalculateStageProgress(stageNumber)
+    local totalStages = #GameConfig.BootStages
+    return math.floor((stageNumber / totalStages) * 100)
+end
+
+-- Easy to extend: додати 5-й stage = автоматично 20% per stage
+```
+
+#### Error State with Retry
+```lua
+-- Stage 3 може fail (DataStore issues)
+if not success then
+    BootStageUpdate:FireClient(player, 3, {
+        success = false,
+        errorMessage = "Не вдалося завантажити профіль",
+        canRetry = true,
+        progress = 75
+    })
+end
+
+-- Retry button → RetryBootStage:FireServer(3)
+```
+
+#### Graceful Degradation
+```lua
+-- ProfileService: якщо DataStore unavailable
+if not datastoreEnabled then
+    warn("DataStore unavailable - using temporary profile")
+    return true, CreateTemporaryProfile(), true
+end
+```
+
+### Files Structure
+
+```
+ServerScriptService/
+├── Core/
+│   ├── GameStateManager.lua (v0.2)
+│   ├── BootSequence.lua (v0.3)
+│   └── ServerBootstrap.server.lua (v0.2)
+├── Services/
+│   ├── PlayerService.lua (v0.2)
+│   └── ProfileService.lua (v0.2)
+└── Setup/
+    └── RemoteEventsSetup.server.lua (v0.3)
+
+StarterPlayer/StarterPlayerScripts/
+├── Core/
+│   └── ClientBootstrap.client.lua (v0.3)
+└── UI/
+    ├── ScreenSaverUI.lua (v0.5) ⭐ NEW
+    ├── StatusBarUI.lua (v0.2)
+    └── UIManager.lua (v0.2)
+
+ReplicatedStorage/
+└── Game/
+    └── GameConfig.lua (v0.3)
+```
+
+### Testing Checklist
+
+#### Manual Testing ✅
+
+- [x] Server boots successfully
+- [x] 4-stage boot sequence displays correctly
+- [x] Progress bar: 0% → 25% → 50% → 75% → 100%
+- [x] Progress bar bold (16px height) and visible
+- [x] 1 second pause after 100% works
+- [x] "Почати гру" button appears after pause
+- [x] Avatar loads correctly
+- [x] State transitions logged correctly
+- [x] Player disconnect triggers LogOff
+- [x] ScreenSaver resets on LogOff
+- [x] StatusBar shows during InGame
+- [x] Second player rejected (single-player)
+
+#### Error State Testing (Partial)
+
+- [x] Error UI created with proper transparency
+- [ ] Error state displays correctly (needs more testing)
+- [ ] Retry button works (needs testing)
+
+### Compliance
+
+- [x] All scripts have standardized headers
+- [x] Version numbers in all modules
+- [x] Logging follows standard format
+- [x] State machine follows FSM pattern
+- [x] Error handling with pcall()
+- [x] Single-player constraint enforced
+- [x] Server authoritative (client read-only)
+- [x] Clean initialization sequence
+- [x] No silent failures
+
+### Next Steps (Epic 2+)
+
+1. **Full error state testing** - Verify error UI and retry mechanism
+2. **Space Ship Context** - Ship location, spawn points
+3. **Contextual States** - World context, Orbital context
+4. **Enhanced UI** - LogOff button, context indicators
+5. **Unit Tests** - Critical module coverage
+
+---
+
 ## 📝 Історія Змін
 
 **2026-01-12**:
+- ✅ **EPIC 1 COMPLETE**: Merged ScreenSaverUI-dev → main (v0.5)
+- ✅ Consolidated EPIC1_IMPLEMENTATION.md → KB.md (section 8)
 - ✅ Consolidated studio setup from RESTRUCTURE_CLIENT.md, ROBLOX_STUDIO_SETUP.md, SETUP_SCRIPT_SYNC.md
 - ✅ Додано секцію "Налаштування Studio" з детальними Script Sync інструкціями
 - ✅ Phase 2 & 3 завершено: progress bar (1200px, bold, 16px height, rounded corners)
 - ✅ Error state з retry mechanism
 - ✅ Видалено spinner, залишено тільки loading text
+- ✅ Cleaned up dev version files
 
 **2026-01-11**:
 - ✅ Phase 1 (Server): 4-stage boot sequence implementation
