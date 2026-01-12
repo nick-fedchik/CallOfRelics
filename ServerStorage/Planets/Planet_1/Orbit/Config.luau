@@ -184,7 +184,7 @@ local OrbitConfig = {
     
     -- Location-specific settings
     settings = {
-        gravity = Vector3.new(0, 0, 0),
+        gravity = Vector3.new(0, -196.2, 0),
         atmosphereEnabled = true,
         lightingPreset = "Space",
         maxPlayers = 16,

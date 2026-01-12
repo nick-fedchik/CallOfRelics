@@ -261,11 +261,11 @@ function LocationService.LoadLocation(player, planetId, locationName)
 	-- Step 6: Apply location settings
 	local settings = locationConfig.getSettings()
 	if settings then
-		-- Apply gravity
+		-- Apply gravity (use absolute value, Workspace.Gravity expects positive number)
 		if settings.gravity then
-			Workspace.Gravity = settings.gravity.Y
+			Workspace.Gravity = math.abs(settings.gravity.Y)
 			print(string.format("[%s %s][LoadLocation] Set gravity: %s",
-				MODULE_NAME, VERSION, tostring(settings.gravity.Y)))
+				MODULE_NAME, VERSION, tostring(Workspace.Gravity)))
 		end
 	end
 
@@ -353,22 +353,27 @@ function LocationService.SpawnPlayerInLocation(player, spawnType)
 	local spawnPoint, foundSpawnType = FindSpawnPoint()
 
 	if foundSpawnType == "PilotSeat" and spawnPoint then
-		-- Spawn in PilotSeat
-		task.wait(0.1) -- Wait for character to fully load
+		-- Spawn IN PilotSeat (sitting)
+		task.wait(0.2) -- Wait for character to fully load
 
-		-- Position character near seat first
-		humanoidRootPart.CFrame = spawnPoint.CFrame + Vector3.new(0, 3, 0)
-		task.wait(0.1)
+		-- Configure seat
+		if spawnPoint:IsA("VehicleSeat") then
+			spawnPoint.Disabled = false
+			spawnPoint.MaxSpeed = 0
+			print(string.format("[%s %s][SpawnPlayer] PilotSeat configured: Disabled=%s, MaxSpeed=%d",
+				MODULE_NAME, VERSION, tostring(spawnPoint.Disabled), spawnPoint.MaxSpeed))
+		end
 
-		-- Sit in seat (use Seat:Sit() method, not Humanoid.SeatPart)
+		-- Sit player in seat
 		if spawnPoint:IsA("Seat") or spawnPoint:IsA("VehicleSeat") then
 			spawnPoint:Sit(humanoid)
-			print(string.format("[%s %s][SpawnPlayer] ✓ %s seated in PilotSeat",
+			task.wait(0.3)
+
+			print(string.format("[%s %s][SpawnPlayer] ✓ %s spawned in PilotSeat",
 				MODULE_NAME, VERSION, player.Name))
 		else
-			warn(string.format("[%s %s][SpawnPlayer] PilotSeat is not a Seat/VehicleSeat!",
+			warn(string.format("[%s %s][SpawnPlayer] PilotSeat is not a Seat or VehicleSeat!",
 				MODULE_NAME, VERSION))
-			return false
 		end
 
 		return true

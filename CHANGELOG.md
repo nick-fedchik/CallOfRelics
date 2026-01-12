@@ -43,10 +43,13 @@
 ### Changed
 - Boot sequence Stage 4 now loads game level before showing "Почати гру"
 - Player spawns directly in PilotSeat inside SpaceShip (not default spawn)
+- Orbit location uses standard Roblox gravity (196.2) instead of zero gravity
 
 ### Fixed
 - LocationService.Initialize() missing return value (v0.6.0 hotfix)
 - LocationService.SpawnPlayerInLocation() incorrect Seat API usage (use Seat:Sit() instead of Humanoid.SeatPart)
+- Workspace.Gravity setting now uses absolute value (math.abs) for correct physics
+- Player spawn in PilotSeat with proper sitting mechanics
 
 ### Architecture Improvements
 - **TDD 5.6 Compliance** — Complete context cleanup on location unload
