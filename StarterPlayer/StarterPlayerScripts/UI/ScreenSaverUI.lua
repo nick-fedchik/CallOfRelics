@@ -78,15 +78,22 @@ local avatarFrame = nil
 local avatarImage = nil
 local playerNameLabel = nil
 
--- Stage 3 elements (Loading)
-local loadingContainer = nil
-local loadingSpinner = nil
-local loadingText = nil
+-- Progress bar elements (shown from Stage 1)
+local progressBarContainer = nil
 local progressBarBg = nil
 local progressBarFill = nil
+local progressPercentLabel = nil
 
--- Stage 4 elements (Ready)
-local readyText = nil
+-- Stage 3 elements (Loading text only, no spinner)
+local loadingContainer = nil
+local loadingText = nil
+
+-- Error state elements
+local errorContainer = nil
+local errorText = nil
+local retryButton = nil
+
+-- Stage 4 elements (Button only, no ready text)
 local startButton = nil
 
 -- ============================================================================

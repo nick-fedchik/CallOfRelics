@@ -84,41 +84,70 @@ local ConfirmGameStart = RemoteEvents:WaitForChild("ConfirmGameStart")
 local activeBootSessions = {} -- [player.UserId] = {stage, profile, waitingForConfirm}
 
 -- ============================================================================
+-- PROGRESS CALCULATION
+-- ============================================================================
+
+local function CalculateStageProgress(stageNumber)
+	local totalStages = #GameConfig.BootStages
+	local progress = math.floor((stageNumber / totalStages) * 100)
+
+	return {
+		stageNumber = stageNumber,
+		totalStages = totalStages,
+		progressPercent = progress,
+	}
+end
+
+-- ============================================================================
 -- STAGE FUNCTIONS
 -- ============================================================================
 
 local function Stage1_GameConfiguration(player)
 	print(string.format("[%s %s][Stage1] Sending game configuration to %s", MODULE_NAME, VERSION, player.Name))
 
+	local progressData = CalculateStageProgress(1)
+
 	local stageData = {
 		gameName = GameConfig.GameName,
 		gameSubtitle = GameConfig.GameSubtitle,
 		version = GameConfig.Version,
-		versionTag = GameConfig.VersionTag
+		versionTag = GameConfig.VersionTag,
+		-- Progress data for client
+		progress = progressData.progressPercent,
+		totalStages = progressData.totalStages,
+		stageNumber = progressData.stageNumber,
 	}
 
 	BootStageUpdate:FireClient(player, 1, stageData)
 
-	task.wait(GameConfig.Stage1Duration)
+	task.wait(GameConfig.BootStages[1].duration)
 end
 
 local function Stage2_PlayerInformation(player)
 	print(string.format("[%s %s][Stage2] Player connected: %s (UserId: %d, DisplayName: %s)",
 		MODULE_NAME, VERSION, player.Name, player.UserId, player.DisplayName))
 
+	local progressData = CalculateStageProgress(2)
+
 	local stageData = {
 		playerName = player.Name,
 		displayName = player.DisplayName,
-		userId = player.UserId
+		userId = player.UserId,
+		-- Progress data
+		progress = progressData.progressPercent,
+		totalStages = progressData.totalStages,
+		stageNumber = progressData.stageNumber,
 	}
 
 	BootStageUpdate:FireClient(player, 2, stageData)
 
-	task.wait(GameConfig.Stage2Duration)
+	task.wait(GameConfig.BootStages[2].duration)
 end
 
 local function Stage3_ProfileLoading(player)
 	print(string.format("[%s %s][Stage3] Loading profile for %s", MODULE_NAME, VERSION, player.Name))
+
+	local progressData = CalculateStageProgress(3)
 
 	-- Load or create profile
 	local success, profile, isNewPlayer = ProfileService.LoadProfile(player)
@@ -126,10 +155,17 @@ local function Stage3_ProfileLoading(player)
 	if not success then
 		warn(string.format("[%s %s][Stage3] Profile loading failed for %s", MODULE_NAME, VERSION, player.Name))
 
+		-- Send error state to client
 		BootStageUpdate:FireClient(player, 3, {
 			success = false,
 			isNewPlayer = false,
-			error = "Failed to load profile"
+			error = "ProfileLoadFailed",
+			errorMessage = GameConfig.ErrorMessages.ProfileLoadFailed,
+			canRetry = GameConfig.ErrorRetryEnabled,
+			-- Still include progress for UI consistency
+			progress = progressData.progressPercent,
+			totalStages = progressData.totalStages,
+			stageNumber = progressData.stageNumber,
 		})
 
 		return false, nil
@@ -146,22 +182,28 @@ local function Stage3_ProfileLoading(player)
 			profile.currentPlanet))
 	end
 
-	-- Send to client
+	-- Send success to client
 	local stageData = {
 		success = true,
 		isNewPlayer = isNewPlayer,
-		currentPlanet = profile.currentPlanet
+		currentPlanet = profile.currentPlanet,
+		-- Progress data
+		progress = progressData.progressPercent,
+		totalStages = progressData.totalStages,
+		stageNumber = progressData.stageNumber,
 	}
 
 	BootStageUpdate:FireClient(player, 3, stageData)
 
-	task.wait(GameConfig.Stage3Duration)
+	task.wait(GameConfig.BootStages[3].duration)
 
 	return true, profile
 end
 
 local function Stage4_ReadyState(player, profile)
 	print(string.format("[%s %s][Stage4] Preparing game space for %s", MODULE_NAME, VERSION, player.Name))
+
+	local progressData = CalculateStageProgress(4)
 
 	-- Log current game state
 	local exploredCount = 0
@@ -179,7 +221,11 @@ local function Stage4_ReadyState(player, profile)
 		ready = true,
 		currentPlanet = profile.currentPlanet,
 		exploredLocations = exploredCount,
-		shipEnergy = profile.shipState.energyLevel
+		shipEnergy = profile.shipState.energyLevel,
+		-- Progress data (100%)
+		progress = progressData.progressPercent,
+		totalStages = progressData.totalStages,
+		stageNumber = progressData.stageNumber,
 	}
 
 	BootStageUpdate:FireClient(player, 4, stageData)
@@ -259,6 +305,44 @@ ConfirmGameStart.OnServerEvent:Connect(function(player)
 
 	-- Clean up session
 	activeBootSessions[player.UserId] = nil
+end)
+
+-- ============================================================================
+-- RETRY HANDLER
+-- ============================================================================
+
+local RetryBootStage = RemoteEvents:WaitForChild("RetryBootStage")
+
+RetryBootStage.OnServerEvent:Connect(function(player, stageNumber)
+	print(string.format("[%s %s][RetryBootStage] Player %s requested retry for stage %d",
+		MODULE_NAME, VERSION, player.Name, stageNumber))
+
+	local session = activeBootSessions[player.UserId]
+
+	if not session then
+		warn(string.format("[%s %s][RetryBootStage] No active session for %s", MODULE_NAME, VERSION, player.Name))
+		return
+	end
+
+	-- Only allow retry for Stage 3 (profile loading)
+	if stageNumber ~= 3 then
+		warn(string.format("[%s %s][RetryBootStage] Invalid retry stage %d for %s",
+			MODULE_NAME, VERSION, stageNumber, player.Name))
+		return
+	end
+
+	-- Retry Stage 3
+	print(string.format("[%s %s][RetryBootStage] Retrying Stage 3 for %s", MODULE_NAME, VERSION, player.Name))
+
+	local profileSuccess, profile = Stage3_ProfileLoading(player)
+
+	if profileSuccess then
+		-- Continue to Stage 4
+		Stage4_ReadyState(player, profile)
+	else
+		-- Stage 3 will send error state to client
+		warn(string.format("[%s %s][RetryBootStage] Retry failed for %s", MODULE_NAME, VERSION, player.Name))
+	end
 end)
 
 -- ============================================================================

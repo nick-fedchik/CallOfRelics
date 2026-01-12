@@ -55,13 +55,37 @@ local GameConfig = {
 	-- BOOT SEQUENCE CONFIGURATION
 	-- ============================================================================
 
-	BootStageDuration = 1.5, -- seconds per stage (base duration)
+	-- Boot sequence stages (dynamic, can add more stages)
+	BootStages = {
+		{
+			name = "GameConfiguration",
+			duration = 1.5,
+		},
+		{
+			name = "PlayerInformation",
+			duration = 1.5,
+		},
+		{
+			name = "ProfileLoading",
+			duration = 2.0,
+		},
+		{
+			name = "ReadyState",
+			duration = 0, -- Waits for user input
+		},
+	},
 
-	-- Stage-specific duration multipliers
-	Stage1Duration = 1.5, -- Game Configuration display
-	Stage2Duration = 1.5, -- Player Information display
-	Stage3Duration = 2.0, -- Profile Loading (longer for DataStore)
-	Stage4Duration = 0,   -- Ready State (waits for user input)
+	-- Additional timing
+	ProgressBarPauseBeforeButton = 1.0, -- Pause after 100% before showing button
+
+	-- Error handling configuration
+	ErrorRetryEnabled = true,
+	ErrorRetryMaxAttempts = 3,
+	ErrorMessages = {
+		ProfileLoadFailed = "Не вдалося завантажити профіль гравця",
+		DataStoreUnavailable = "Сервіси зберігання даних недоступні",
+		UnknownError = "Невідома помилка ініціалізації",
+	}
 
 	-- ============================================================================
 	-- FUTURE: More configuration as game expands

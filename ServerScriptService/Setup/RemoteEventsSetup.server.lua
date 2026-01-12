@@ -94,4 +94,8 @@ print(string.format("[%s %s] Created: BootStageUpdate", MODULE_NAME, VERSION))
 local confirmGameStart = CreateRemoteEvent("ConfirmGameStart")
 print(string.format("[%s %s] Created: ConfirmGameStart", MODULE_NAME, VERSION))
 
+-- Retry Boot Stage (Client → Server)
+local retryBootStage = CreateRemoteEvent("RetryBootStage")
+print(string.format("[%s %s] Created: RetryBootStage", MODULE_NAME, VERSION))
+
 print(string.format("[%s %s] RemoteEvents setup complete", MODULE_NAME, VERSION))
