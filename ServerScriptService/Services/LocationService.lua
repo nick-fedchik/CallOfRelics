@@ -179,7 +179,7 @@ end
 function LocationService.Initialize()
 	if isInitialized then
 		warn(string.format("[%s %s][Initialize] Already initialized", MODULE_NAME, VERSION))
-		return
+		return true
 	end
 
 	print(string.format("[%s %s] 🚀 Initializing LocationService...", MODULE_NAME, VERSION))
@@ -193,6 +193,7 @@ function LocationService.Initialize()
 
 	isInitialized = true
 	print(string.format("[%s %s] ✓ LocationService initialized", MODULE_NAME, VERSION))
+	return true
 end
 
 function LocationService.LoadLocation(player, planetId, locationName)

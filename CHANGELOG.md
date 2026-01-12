@@ -8,6 +8,59 @@
 
 ---
 
+## [0.6.0] - 2026-01-12 - Location Loading System
+
+### Added - Location Management
+
+#### Server-Side
+- **LocationService.lua (v0.1)** — Complete location loading system
+  - LoadLocation(player, planetId, locationName) — Load level from ServerStorage
+  - UnloadLocation(player) — Complete context cleanup (TDD 5.6)
+  - SpawnPlayerInLocation(player, spawnType) — Spawn in PilotSeat or SpawnLocation
+  - ClearWorkspace() — Clear all models and lighting
+  - Track current location per player
+  - Support for Orbit and Surface location types
+- **BootSequence.lua (v0.4)** — LocationService integration
+  - Stage 4: Load initial location (Planet_1/Orbit)
+  - Spawn player in SpaceShip PilotSeat on game start
+- **ServerBootstrap.server.lua (v0.2)** — LocationService initialization
+  - Phase 3: Initialize LocationService before PlayerService
+
+#### ServerStorage Structure
+- **Planets/Planet_1/Config.luau** — Main planet configuration
+  - Planet metadata, structure, settings
+  - Helper functions: getLocation(), getAllLocations()
+- **Planets/Planet_1/Orbit/Config.luau** — Orbital location config
+  - SpaceShip model (483 parts, torpedoes, turrets, pilot seat)
+  - Planet model with atmosphere and cloud layers
+  - Zero gravity settings, space combat enabled
+- **Planets/Planet_1/Surface/Location1/Config.luau** — Surface location 1
+  - Standard gravity, spawn points, baseplate
+  - Helper functions: findObject(), getSettings()
+- **Planets/Planet_1/Surface/Location2/Config.luau** — Surface location 2
+  - Identical structure to Location1
+
+### Changed
+- Boot sequence Stage 4 now loads game level before showing "Почати гру"
+- Player spawns directly in PilotSeat inside SpaceShip (not default spawn)
+
+### Fixed
+- LocationService.Initialize() missing return value (v0.6.0 hotfix)
+
+### Architecture Improvements
+- **TDD 5.6 Compliance** — Complete context cleanup on location unload
+- **TDD 3.2 Service Pattern** — LocationService as coordinating service
+- **Modular Level Structure** — Each location self-contained with Config
+- **Config-Driven Content** — Helper functions for querying structure/settings
+
+### Next Steps
+- Test location loading in Roblox Studio
+- Verify SpaceShip and Planet models appear in Workspace
+- Verify player spawns in PilotSeat
+- Implement location transitions (Orbit ↔ Surface)
+
+---
+
 ## [0.5.0] - 2026-01-12 - EPIC 1 COMPLETE ✅
 
 ### Added - Phase 2 & 3: Enhanced Boot Sequence
