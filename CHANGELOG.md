@@ -6,6 +6,98 @@
 
 ## [Unreleased]
 
+---
+
+## [0.5.0] - 2026-01-12 - EPIC 1 COMPLETE ✅
+
+### Added - Phase 2 & 3: Enhanced Boot Sequence
+
+#### Server-Side
+- **BootSequence.lua (v0.3)** — 4-stage server-driven boot sequence
+  - Dynamic progress calculation (25%, 50%, 75%, 100%)
+  - Error handling with retry support
+  - Stage 1: Game Configuration
+  - Stage 2: Player Information
+  - Stage 3: Profile Loading (with error state)
+  - Stage 4: Ready State
+- **ProfileService.lua (v0.2)** — DataStore integration
+  - Player profile management
+  - New/returning player detection
+  - Graceful degradation without DataStore
+- **GameConfig.lua (v0.3)** — BootStages configuration
+  - Dynamic stage definitions
+  - Error messages configuration
+  - Retry settings
+
+#### Client-Side
+- **ScreenSaverUI.lua (v0.5)** — Progressive boot UI ⭐ MAJOR UPDATE
+  - 1200px wide progress bar (3x wider)
+  - 16px height progress bar (2x taller, bold)
+  - Rounded corners (8px radius)
+  - Brighter blue color (RGB 120,180,255)
+  - Server-driven progress tracking (0% → 25% → 50% → 75% → 100%)
+  - Error state with red alert + retry button
+  - 1 second pause at 100% before button
+  - Cumulative/progressive UI pattern (no flickering)
+- **StatusBarUI.lua (v0.2)** — Right-aligned elements fix
+- **UIManager.lua (v0.2)** — State-based UI coordination
+
+#### RemoteEvents
+- `BootStageUpdate` — Server → Client progress updates
+- `ConfirmGameStart` — Client → Server game start confirmation
+- `RetryBootStage` — Client → Server retry request
+
+#### Documentation
+- **Docs/KB.md** — Comprehensive Knowledge Base (1190 lines)
+  - Section 1: Studio Setup (Script Sync, API Services)
+  - Section 2: Architectural Patterns
+  - Section 3: State Management
+  - Section 4: UI/UX Patterns
+  - Section 5: Client-Server Communication
+  - Section 6: Roblox API Best Practices
+  - Section 7: Lessons Learned
+  - Section 8: Epic 1 Complete Implementation ⭐ NEW
+
+### Changed
+- **ScreenSaverUI**: Removed spinning dots animation (cleaner UX)
+- **ScreenSaverUI**: Removed "Готовність 100%" text (button is self-explanatory)
+- **GameConfig**: Replaced individual stage durations with BootStages array
+- **ClientBootstrap.client.lua (v0.3)**: Switched from dev to main ScreenSaverUI
+
+### Removed
+- `ScreenSaverUI-dev.lua` — Merged into main version
+- `EPIC1_IMPLEMENTATION.md` — Consolidated into KB.md
+- `EPIC1_4STAGE_IMPLEMENTATION.md` — Superseded by current implementation
+- `PHASE_2_3_PLAN.md` — Completed and integrated
+- `TEST_REPORT_FULL_CYCLE.md` — Superseded by KB.md testing checklist
+
+### Fixed
+- Progress bar transparency initialization (all elements start at transparency = 1)
+- Error state transparency for icon, text, and button
+- StatusBar element alignment (moved to right side)
+
+### Architecture Improvements
+- **Cumulative UI Pattern** — Elements accumulate stage by stage (no black screens)
+- **Server-Driven Progress** — Easy to extend (add 5th stage = auto 20% per stage)
+- **Error Recovery** — Graceful error handling with user retry option
+- **Modular Boot Sequence** — Each stage is independent and testable
+
+### Testing
+- [x] 4-stage boot sequence (25% → 50% → 75% → 100%)
+- [x] Progress bar visibility and animations
+- [x] 1 second pause after 100%
+- [x] Avatar loading
+- [x] State transitions
+- [x] LogOff → ScreenSaver reset
+- [x] StatusBar display in InGame
+- [x] Single-player enforcement
+- [ ] Error state display (partial - needs more testing)
+- [ ] Retry button functionality (needs testing)
+
+---
+
+## [0.2.0] - 2026-01-11 - Structure Refactoring
+
 ### Added
 - Структура папок ServerScriptService (Core, Services, Systems, Setup)
 - Документація структури проєкту (Docs/FOLDER_STRUCTURE.md)
