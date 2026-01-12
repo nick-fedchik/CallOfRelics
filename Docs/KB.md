@@ -20,12 +20,216 @@
 
 ## 📚 Зміст
 
-1. [Архітектурні Рішення](#архітектурні-рішення)
-2. [State Management](#state-management)
-3. [UI/UX Паттерни](#uiux-паттерни)
-4. [Комунікація Client-Server](#комунікація-client-server)
-5. [Roblox API Best Practices](#roblox-api-best-practices)
-6. [Уроки з Помилок](#уроки-з-помилок)
+1. [Налаштування Studio](#налаштування-studio)
+2. [Архітектурні Рішення](#архітектурні-рішення)
+3. [State Management](#state-management)
+4. [UI/UX Паттерни](#uiux-паттерни)
+5. [Комунікація Client-Server](#комунікація-client-server)
+6. [Roblox API Best Practices](#roblox-api-best-practices)
+7. [Уроки з Помилок](#уроки-з-помилок)
+
+---
+
+## Налаштування Studio
+
+### Крок 1: Створення Якірних Папок (Anchor Folders)
+
+**Важливо:** Script Sync вимагає, щоб папки існували в Studio **перед** синхронізацією файлів.
+
+#### ServerScriptService
+
+1. У **Explorer** знайти **ServerScriptService**
+2. Правий клік → **Insert Object → Folder**
+3. Створити папки:
+   - `Core` - серверне ядро (GameStateManager, BootSequence, ServerBootstrap)
+   - `Services` - бізнес-логіка (PlayerService, ProfileService)
+   - `Setup` - ініціалізаційні скрипти (RemoteEventsSetup, DataStoreSetup)
+   - `Systems` - ігрові системи (порожня для майбутніх EPIC)
+
+#### StarterPlayer → StarterPlayerScripts
+
+1. У **Explorer** знайти **StarterPlayer → StarterPlayerScripts**
+2. Створити папки:
+   - `Core` - клієнтське ядро (ClientBootstrap)
+   - `UI` - UI модулі (ScreenSaverUI, StatusBarUI, UIManager)
+   - `Systems` - клієнтські системи (порожня для майбутніх EPIC)
+
+#### ReplicatedStorage
+
+1. У **Explorer** знайти **ReplicatedStorage**
+2. Створити папки:
+   - `Game` - спільні конфіги (GameConfig)
+   - `Modules` - спільні модулі (порожня)
+
+**Примітка:** Папка `RemoteEvents` створюється автоматично скриптом `RemoteEventsSetup.server.lua`
+
+---
+
+### Крок 2: Налаштування Script Sync
+
+#### Активація Script Sync
+
+1. У Roblox Studio: **View → Script Sync**
+2. Натиснути **Configure** або **Choose Folder**
+3. Вибрати корінь проєкту: `d:\Code\Roblox\CallOfRelics`
+4. Натиснути **Enable Sync** або **Start Sync**
+
+#### Конвенція Розширень Файлів
+
+Script Sync визначає тип скрипта за розширенням:
+
+- `.lua` → **ModuleScript** (require для використання)
+- `.server.lua` → **Script** (server-side, автовиконання)
+- `.client.lua` → **LocalScript** (client-side, автовиконання)
+
+**Приклади:**
+- `GameConfig.lua` → ModuleScript
+- `RemoteEventsSetup.server.lua` → Script (server)
+- `ClientBootstrap.client.lua` → LocalScript (client)
+
+#### Перевірка Синхронізації
+
+**Тест 1: Файлова система → Studio**
+1. У VS Code додати коментар у будь-який `.lua` файл
+2. Зберегти файл (Ctrl+S)
+3. Перевірити у Studio, що зміни з'явилися
+
+**Тест 2: Studio → Файлова система**
+1. У Studio створити тестовий ModuleScript у `Core/`
+2. Перевірити у VS Code, що файл з'явився
+3. Видалити тестовий модуль
+
+**Якщо обидва тести пройшли — синхронізація працює! ✅**
+
+---
+
+### Крок 3: Увімкнення API Services
+
+#### Налаштування Game Settings
+
+1. **Home → Game Settings** (або Alt+S)
+2. **Security → Allow HTTP Requests** → ✅ Увімкнути
+   - Потрібно для завантаження avatar thumbnails
+3. **Security → Enable Studio Access to API Services** → ✅ Увімкнути
+   - Потрібно для DataStore (збереження профілів)
+
+#### Перевірка DataStore
+
+Виконати у Command Bar:
+
+```lua
+local DataStoreService = game:GetService("DataStoreService")
+local testStore = DataStoreService:GetDataStore("TestStore")
+print("DataStore enabled:", testStore ~= nil)
+```
+
+**Очікуваний результат:** `DataStore enabled: true`
+
+---
+
+### Крок 4: Очікувана Структура Після Синхронізації
+
+```
+ServerScriptService/
+├── Core/
+│   ├── GameStateManager (ModuleScript)
+│   ├── BootSequence (ModuleScript)
+│   └── ServerBootstrap (Script)
+├── Services/
+│   ├── PlayerService (ModuleScript)
+│   └── ProfileService (ModuleScript)
+├── Setup/
+│   └── RemoteEventsSetup (Script)
+└── Systems/
+    (порожня)
+
+StarterPlayer/StarterPlayerScripts/
+├── Core/
+│   └── ClientBootstrap (LocalScript)
+├── UI/
+│   ├── ScreenSaverUI (ModuleScript)
+│   ├── ScreenSaverUI-dev (ModuleScript) -- dev version для тестування
+│   ├── StatusBarUI (ModuleScript)
+│   └── UIManager (ModuleScript)
+└── Systems/
+    (порожня)
+
+ReplicatedStorage/
+├── Game/
+│   └── GameConfig (ModuleScript)
+├── Modules/
+│   (порожня)
+└── RemoteEvents/ (створюється при запуску)
+    ├── StateChanged (RemoteEvent)
+    ├── BootStageUpdate (RemoteEvent)
+    ├── EnterGame (RemoteEvent)
+    ├── LogOff (RemoteEvent)
+    ├── StartGame (RemoteEvent)
+    └── RetryBootStage (RemoteEvent)
+```
+
+---
+
+### Troubleshooting: Script Sync
+
+#### Проблема: "Infinite yield possible on WaitForChild"
+
+**Причина:** Anchor folders не створені в Studio
+
+**Рішення:**
+1. Створити всі папки в Studio вручну (Core, Services, UI тощо)
+2. Перезапустити Script Sync
+3. Перезапустити Studio якщо потрібно
+
+#### Проблема: Файли не з'являються
+
+**Причина:** Неправильний root path або папки відсутні
+
+**Рішення:**
+1. Перевірити root path у Script Sync window
+2. Створити anchor folders в Studio
+3. Stop → Start Script Sync
+
+#### Проблема: Скрипти у неправильному місці
+
+**Причина:** Folder structure mismatch
+
+**Рішення:**
+1. Перевірити, що файлова структура відповідає Studio structure
+2. Переміщувати файли в файловій системі, а не в Studio
+3. Script Sync автоматично оновить Studio
+
+#### Проблема: Зміни не синхронізуються
+
+**Причина:** Script Sync зупинено або конфлікт
+
+**Рішення:**
+1. Перевірити статус Script Sync (має бути "Up to date")
+2. Якщо конфлікт: вибрати "Use filesystem version" (рекомендовано)
+3. Restart Script Sync
+
+---
+
+### Troubleshooting: DataStore
+
+#### Проблема: "DataStore request was throttled"
+
+**Причина:** Забагато запитів у Studio testing mode
+
+**Рішення:**
+- Додати `task.wait(1)` між DataStore викликами
+- Кешувати дані замість повторних reads
+- Це нормально для Studio - в production не буде проблеми
+
+#### Проблема: "502: API Services rejected request"
+
+**Причина:** API Services не увімкнені або немає інтернету
+
+**Рішення:**
+1. Увімкнути "Studio Access to API Services"
+2. Перевірити інтернет з'єднання
+3. Перезапустити Studio
+4. Гра працюватиме з тимчасовими in-memory профілями
 
 ---
 
@@ -870,7 +1074,29 @@ Key Changes:
 
 ---
 
-**Дата останнього оновлення**: 2026-01-11
+## 📝 Історія Змін
+
+**2026-01-12**:
+- ✅ Consolidated studio setup from RESTRUCTURE_CLIENT.md, ROBLOX_STUDIO_SETUP.md, SETUP_SCRIPT_SYNC.md
+- ✅ Додано секцію "Налаштування Studio" з детальними Script Sync інструкціями
+- ✅ Phase 2 & 3 завершено: progress bar (1200px, bold, 16px height, rounded corners)
+- ✅ Error state з retry mechanism
+- ✅ Видалено spinner, залишено тільки loading text
+
+**2026-01-11**:
+- ✅ Phase 1 (Server): 4-stage boot sequence implementation
+- ✅ GameStateManager FSM з валідацією переходів
+- ✅ ProfileService з DataStore
+- ✅ Cumulative UI pattern
+- ✅ StatusBar alignment fix
+- ✅ Auto-restart boot sequence after LogOff
+
+**Початкова версія**:
+- Створено базу знань з успішних рішень EPIC 1
+
+---
+
+**Дата останнього оновлення**: 2026-01-12
 **Автори**: KOSMICMAZER + Claude Sonnet 4.5
 **Статус**: Active Development
 
