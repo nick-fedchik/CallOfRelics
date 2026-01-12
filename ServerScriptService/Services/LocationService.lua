@@ -360,12 +360,17 @@ function LocationService.SpawnPlayerInLocation(player, spawnType)
 		humanoidRootPart.CFrame = spawnPoint.CFrame + Vector3.new(0, 3, 0)
 		task.wait(0.1)
 
-		-- Sit in seat
-		humanoid.Sit = true
-		humanoid.SeatPart = spawnPoint
+		-- Sit in seat (use Seat:Sit() method, not Humanoid.SeatPart)
+		if spawnPoint:IsA("Seat") or spawnPoint:IsA("VehicleSeat") then
+			spawnPoint:Sit(humanoid)
+			print(string.format("[%s %s][SpawnPlayer] ✓ %s seated in PilotSeat",
+				MODULE_NAME, VERSION, player.Name))
+		else
+			warn(string.format("[%s %s][SpawnPlayer] PilotSeat is not a Seat/VehicleSeat!",
+				MODULE_NAME, VERSION))
+			return false
+		end
 
-		print(string.format("[%s %s][SpawnPlayer] ✓ %s spawned in PilotSeat",
-			MODULE_NAME, VERSION, player.Name))
 		return true
 
 	elseif foundSpawnType == "SpawnLocation" and spawnPoint then
