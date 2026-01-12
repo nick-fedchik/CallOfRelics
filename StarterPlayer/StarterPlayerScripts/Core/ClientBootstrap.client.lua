@@ -86,8 +86,7 @@ StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
 local StarterPlayerScripts = script.Parent.Parent
 local UI = StarterPlayerScripts:WaitForChild("UI")
 
--- TEMPORARY: Using dev version for testing Phase 2 & 3
-local ScreenSaverUI = require(UI:WaitForChild("ScreenSaverUI-dev"))
+local ScreenSaverUI = require(UI:WaitForChild("ScreenSaverUI"))
 local StatusBarUI = require(UI:WaitForChild("StatusBarUI"))
 local UIManager = require(UI:WaitForChild("UIManager"))
 

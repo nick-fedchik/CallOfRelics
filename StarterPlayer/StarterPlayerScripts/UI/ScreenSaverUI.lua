@@ -1,23 +1,31 @@
 --[[
 ================================================================================
-KOSMICMAZER — ScreenSaverUI (Накопичувальна версія)
+KOSMICMAZER — ScreenSaverUI
 ================================================================================
 
 Purpose:
-Progressive boot sequence screen saver that accumulates UI elements stage by stage.
+Progressive boot sequence screen saver with server-driven progress tracking.
 Each stage ADDS new elements, not replaces them.
 
 Version:
-0.4
+0.5
 
 Architecture:
 - Single container with all UI elements
 - Elements are hidden initially
 - Each stage shows additional elements with fade-in
-- Stage 1: Game name, subtitle, version
-- Stage 2: + Player avatar and name
-- Stage 3: + Loading spinner and text
-- Stage 4: + Ready text and Start button (hides spinner)
+- Stage 1: Game name, subtitle, version + PROGRESS BAR (25%)
+- Stage 2: + Player avatar and name + progress update (50%)
+- Stage 3: + Loading text (no spinner) + progress update (75%) OR error state
+- Stage 4: + Progress 100% → 1 sec pause → hide progress → Start button
+
+Key Changes (Phase 2 & 3):
+- Progress bar starts at Stage 1 (1200px wide, bottom position)
+- Dynamic progress calculation from server (25%, 50%, 75%, 100%)
+- Removed spinning dots - only loading text remains
+- Removed "Готовність 100%" text - button is self-explanatory
+- Error state with retry button for Stage 3 failures
+- 1 second pause after 100% before showing start button
 
 State Management:
 - LoggedOff: ScreenSaver visible, ready for boot sequence
@@ -29,10 +37,12 @@ Called from:
 - Server BootStageUpdate events
 
 Events:
-- BootStageUpdate (Server → Client): Show stage elements
+- BootStageUpdate (Server → Client): Show stage elements with progress data
 - ConfirmGameStart (Client → Server): Player clicked "Почати гру"
+- RetryBootStage (Client → Server): Player clicked retry after error
 
 ChangeLog:
+- 0.5: Phase 2 & 3 - Progress bar + error state + stage handler updates (2026-01-12)
 - 0.4: Complete rewrite with cumulative/progressive UI (2026-01-11)
 - 0.3: Crossfade transitions (2026-01-11)
 - 0.2: Multi-stage boot sequence (2026-01-11)
@@ -42,7 +52,7 @@ ChangeLog:
 
 local ScreenSaverUI = {}
 
-local VERSION = "0.4"
+local VERSION = "0.5"
 local MODULE_NAME = "ScreenSaverUI"
 
 -- ============================================================================
@@ -211,58 +221,92 @@ local function CreateStage2Elements(parent)
 end
 
 -- ============================================================================
--- UI CREATION - STAGE 3 ELEMENTS (Loading)
+-- UI CREATION - PROGRESS BAR ELEMENTS (Shown from Stage 1)
 -- ============================================================================
 
-local function CreateStage3Elements(parent)
-	-- Loading container
+local function CreateProgressBarElements(parent)
+	-- Container for progress bar (1200px wide, 3x original)
 	local container = Instance.new("Frame")
-	container.Name = "LoadingContainer"
-	container.Size = UDim2.new(0, 500, 0, 200)
-	container.Position = UDim2.new(0.5, 0, 0.7, 0)
+	container.Name = "ProgressBarContainer"
+	container.Size = UDim2.new(0, 1200, 0, 60)
+	container.Position = UDim2.new(0.5, 0, 0.85, 0) -- Bottom center
 	container.AnchorPoint = Vector2.new(0.5, 0.5)
 	container.BackgroundTransparency = 1
 	container.ZIndex = 2
 	container.Parent = parent
 
-	-- Spinner frame
-	local spinnerFrame = Instance.new("Frame")
-	spinnerFrame.Name = "SpinnerFrame"
-	spinnerFrame.Size = UDim2.new(0, 100, 0, 100)
-	spinnerFrame.Position = UDim2.new(0.5, 0, 0, 0)
-	spinnerFrame.AnchorPoint = Vector2.new(0.5, 0)
-	spinnerFrame.BackgroundTransparency = 1
-	spinnerFrame.ZIndex = 3
-	spinnerFrame.Parent = container
+	-- Progress bar background (BOLD - 16px height, 2x original)
+	local progressBg = Instance.new("Frame")
+	progressBg.Name = "ProgressBg"
+	progressBg.Size = UDim2.new(1, 0, 0, 16) -- Doubled from 8 to 16
+	progressBg.Position = UDim2.new(0.5, 0, 0.5, 0)
+	progressBg.AnchorPoint = Vector2.new(0.5, 0.5)
+	progressBg.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+	progressBg.BorderSizePixel = 0
+	progressBg.BackgroundTransparency = 1 -- Hidden initially
+	progressBg.ZIndex = 3
+	progressBg.Parent = container
 
-	-- Create 4 dots in circle
-	for i = 1, 4 do
-		local angle = (i - 1) * (math.pi / 2)
-		local x = math.cos(angle) * 30
-		local y = math.sin(angle) * 30
+	-- Add corner radius for smoother look
+	local bgCorner = Instance.new("UICorner")
+	bgCorner.CornerRadius = UDim.new(0, 8)
+	bgCorner.Parent = progressBg
 
-		local dot = Instance.new("Frame")
-		dot.Name = "Dot" .. i
-		dot.Size = UDim2.new(0, 12, 0, 12)
-		dot.Position = UDim2.new(0.5, x, 0.5, y)
-		dot.AnchorPoint = Vector2.new(0.5, 0.5)
-		dot.BackgroundColor3 = Color3.fromRGB(150, 150, 200)
-		dot.BorderSizePixel = 0
-		dot.BackgroundTransparency = 1 -- Hidden initially
-		dot.ZIndex = 4
-		dot.Parent = spinnerFrame
+	-- Progress bar fill (BOLD - brighter color)
+	local progressFill = Instance.new("Frame")
+	progressFill.Name = "ProgressFill"
+	progressFill.Size = UDim2.new(0, 0, 1, 0) -- Start at 0%
+	progressFill.BackgroundColor3 = Color3.fromRGB(120, 180, 255) -- Brighter blue
+	progressFill.BorderSizePixel = 0
+	progressFill.BackgroundTransparency = 1 -- Hidden initially
+	progressFill.ZIndex = 4
+	progressFill.Parent = progressBg
 
-		local corner = Instance.new("UICorner")
-		corner.CornerRadius = UDim.new(1, 0)
-		corner.Parent = dot
-	end
+	-- Add corner radius for fill
+	local fillCorner = Instance.new("UICorner")
+	fillCorner.CornerRadius = UDim.new(0, 8)
+	fillCorner.Parent = progressFill
+
+	-- Percent label
+	local percentLabel = Instance.new("TextLabel")
+	percentLabel.Name = "PercentLabel"
+	percentLabel.Size = UDim2.new(1, 0, 0, 30)
+	percentLabel.Position = UDim2.new(0.5, 0, 1, 10)
+	percentLabel.AnchorPoint = Vector2.new(0.5, 0)
+	percentLabel.BackgroundTransparency = 1
+	percentLabel.Text = "0%"
+	percentLabel.TextColor3 = Color3.fromRGB(150, 150, 180)
+	percentLabel.TextSize = 18
+	percentLabel.Font = Enum.Font.Gotham
+	percentLabel.TextTransparency = 1 -- Hidden initially
+	percentLabel.ZIndex = 3
+	percentLabel.Parent = container
+
+	return container, progressBg, progressFill, percentLabel
+end
+
+-- ============================================================================
+-- UI CREATION - STAGE 3 ELEMENTS (Loading)
+-- ============================================================================
+
+local function CreateStage3Elements(parent)
+	-- Loading container (simplified - text only, no spinner)
+	local container = Instance.new("Frame")
+	container.Name = "LoadingContainer"
+	container.Size = UDim2.new(0, 700, 0, 80)
+	container.Position = UDim2.new(0.5, 0, 0.7, 0)
+	container.AnchorPoint = Vector2.new(0.5, 0.5)
+	container.BackgroundTransparency = 1
+	container.Visible = false -- Hidden initially
+	container.ZIndex = 2
+	container.Parent = parent
 
 	-- Loading text
 	local text = Instance.new("TextLabel")
 	text.Name = "LoadingText"
-	text.Size = UDim2.new(1, 0, 0, 50)
-	text.Position = UDim2.new(0.5, 0, 0, 120)
-	text.AnchorPoint = Vector2.new(0.5, 0)
+	text.Size = UDim2.new(1, 0, 1, 0)
+	text.Position = UDim2.new(0.5, 0, 0.5, 0)
+	text.AnchorPoint = Vector2.new(0.5, 0.5)
 	text.BackgroundTransparency = 1
 	text.Text = "Ініціалізація експедиції..."
 	text.TextColor3 = Color3.fromRGB(200, 200, 220)
@@ -272,31 +316,103 @@ local function CreateStage3Elements(parent)
 	text.ZIndex = 3
 	text.Parent = container
 
-	-- Progress bar background
-	local progressBg = Instance.new("Frame")
-	progressBg.Name = "ProgressBg"
-	progressBg.Size = UDim2.new(0, 400, 0, 8)
-	progressBg.Position = UDim2.new(0.5, 0, 1, -20)
-	progressBg.AnchorPoint = Vector2.new(0.5, 0)
-	progressBg.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-	progressBg.BorderSizePixel = 0
-	progressBg.BackgroundTransparency = 1 -- Hidden initially
-	progressBg.ZIndex = 3
-	progressBg.Parent = container
+	return container, text
+end
 
-	-- Progress bar fill
-	local progressFill = Instance.new("Frame")
-	progressFill.Name = "ProgressFill"
-	progressFill.Size = UDim2.new(0.75, 0, 1, 0)
-	progressFill.BackgroundColor3 = Color3.fromRGB(100, 150, 200)
-	progressFill.BorderSizePixel = 0
-	progressFill.BackgroundTransparency = 1 -- Hidden initially
-	progressFill.ZIndex = 4
-	progressFill.Parent = progressBg
+-- ============================================================================
+-- UI CREATION - ERROR STATE ELEMENTS
+-- ============================================================================
 
-	container.Visible = false -- Hidden initially
+local function CreateErrorStateElements(parent)
+	-- Error container
+	local container = Instance.new("Frame")
+	container.Name = "ErrorContainer"
+	container.Size = UDim2.new(0, 800, 0, 250)
+	container.Position = UDim2.new(0.5, 0, 0.5, 0)
+	container.AnchorPoint = Vector2.new(0.5, 0.5)
+	container.BackgroundColor3 = Color3.fromRGB(40, 20, 20)
+	container.BorderSizePixel = 2
+	container.BorderColor3 = Color3.fromRGB(200, 50, 50)
+	container.BackgroundTransparency = 1 -- Hidden initially
+	container.Visible = false
+	container.ZIndex = 5
+	container.Parent = parent
 
-	return container, spinnerFrame, text, progressBg, progressFill
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 12)
+	corner.Parent = container
+
+	-- Error icon
+	local errorIcon = Instance.new("TextLabel")
+	errorIcon.Name = "ErrorIcon"
+	errorIcon.Size = UDim2.new(0, 80, 0, 80)
+	errorIcon.Position = UDim2.new(0.5, 0, 0, 30)
+	errorIcon.AnchorPoint = Vector2.new(0.5, 0)
+	errorIcon.BackgroundTransparency = 1
+	errorIcon.Text = "⚠"
+	errorIcon.TextColor3 = Color3.fromRGB(255, 100, 100)
+	errorIcon.TextSize = 64
+	errorIcon.Font = Enum.Font.GothamBold
+	errorIcon.TextTransparency = 1 -- Hidden initially
+	errorIcon.ZIndex = 6
+	errorIcon.Parent = container
+
+	-- Error text
+	local text = Instance.new("TextLabel")
+	text.Name = "ErrorText"
+	text.Size = UDim2.new(1, -40, 0, 60)
+	text.Position = UDim2.new(0.5, 0, 0, 120)
+	text.AnchorPoint = Vector2.new(0.5, 0)
+	text.BackgroundTransparency = 1
+	text.Text = "Помилка завантаження"
+	text.TextColor3 = Color3.fromRGB(255, 200, 200)
+	text.TextSize = 22
+	text.Font = Enum.Font.Gotham
+	text.TextWrapped = true
+	text.TextTransparency = 1 -- Hidden initially
+	text.ZIndex = 6
+	text.Parent = container
+
+	-- Retry button
+	local button = Instance.new("TextButton")
+	button.Name = "RetryButton"
+	button.Size = UDim2.new(0, 250, 0, 50)
+	button.Position = UDim2.new(0.5, 0, 1, -70)
+	button.AnchorPoint = Vector2.new(0.5, 0)
+	button.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
+	button.BackgroundTransparency = 1 -- Hidden initially
+	button.Text = "Спробувати знову"
+	button.TextColor3 = Color3.fromRGB(255, 255, 255)
+	button.TextSize = 20
+	button.Font = Enum.Font.GothamBold
+	button.TextTransparency = 1 -- Hidden initially
+	button.AutoButtonColor = false
+	button.ZIndex = 6
+	button.BorderSizePixel = 0
+	button.Parent = container
+
+	local buttonCorner = Instance.new("UICorner")
+	buttonCorner.CornerRadius = UDim.new(0, 8)
+	buttonCorner.Parent = button
+
+	-- Hover effects
+	button.MouseEnter:Connect(function()
+		TweenService:Create(
+			button,
+			TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{BackgroundColor3 = Color3.fromRGB(180, 70, 70)}
+		):Play()
+	end)
+
+	button.MouseLeave:Connect(function()
+		TweenService:Create(
+			button,
+			TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{BackgroundColor3 = Color3.fromRGB(150, 50, 50)}
+		):Play()
+	end)
+
+	return container, text, button
 end
 
 -- ============================================================================
@@ -304,32 +420,17 @@ end
 -- ============================================================================
 
 local function CreateStage4Elements(parent)
-	-- Ready text
-	local ready = Instance.new("TextLabel")
-	ready.Name = "ReadyText"
-	ready.Size = UDim2.new(0, 500, 0, 80)
-	ready.Position = UDim2.new(0.5, 0, 0.65, 0)
-	ready.AnchorPoint = Vector2.new(0.5, 0.5)
-	ready.BackgroundTransparency = 1
-	ready.Text = "Готовність 100%"
-	ready.TextColor3 = Color3.fromRGB(100, 200, 150)
-	ready.TextSize = 48
-	ready.Font = Enum.Font.GothamBold
-	ready.TextTransparency = 1 -- Hidden initially
-	ready.ZIndex = 2
-	ready.Parent = parent
-
-	-- Start button
+	-- NO "Готовність 100%" - only button (enlarged to 350x70)
 	local button = Instance.new("TextButton")
 	button.Name = "StartButton"
-	button.Size = UDim2.new(0, 300, 0, 60)
-	button.Position = UDim2.new(0.5, 0, 0.75, 0)
+	button.Size = UDim2.new(0, 350, 0, 70)
+	button.Position = UDim2.new(0.5, 0, 0.7, 0)
 	button.AnchorPoint = Vector2.new(0.5, 0.5)
 	button.BackgroundColor3 = Color3.fromRGB(50, 100, 150)
 	button.BorderSizePixel = 0
 	button.Text = "Почати гру"
 	button.TextColor3 = Color3.fromRGB(255, 255, 255)
-	button.TextSize = 28
+	button.TextSize = 32
 	button.Font = Enum.Font.GothamBold
 	button.AutoButtonColor = false
 	button.BackgroundTransparency = 1 -- Hidden initially
@@ -374,7 +475,7 @@ local function CreateStage4Elements(parent)
 		confirmGameStart:FireServer()
 	end)
 
-	return ready, button
+	return button -- No ready text
 end
 
 -- ============================================================================
@@ -392,11 +493,26 @@ local function CreateScreenSaverUI()
 	mainContainer = CreateMainContainer()
 	mainContainer.Parent = gui
 
-	-- Create all stage elements
+	-- Create all stage elements (updated function signatures)
 	gameNameLabel, gameSubtitleLabel, versionLabel = CreateStage1Elements(mainContainer)
 	avatarFrame, avatarImage, playerNameLabel = CreateStage2Elements(mainContainer)
-	loadingContainer, loadingSpinner, loadingText, progressBarBg, progressBarFill = CreateStage3Elements(mainContainer)
-	readyText, startButton = CreateStage4Elements(mainContainer)
+	progressBarContainer, progressBarBg, progressBarFill, progressPercentLabel = CreateProgressBarElements(mainContainer)
+	loadingContainer, loadingText = CreateStage3Elements(mainContainer)
+	errorContainer, errorText, retryButton = CreateErrorStateElements(mainContainer)
+	startButton = CreateStage4Elements(mainContainer)
+
+	-- Wire up retry button
+	retryButton.MouseButton1Click:Connect(function()
+		print(string.format("[%s %s][RetryButton] Player clicked retry", MODULE_NAME, VERSION))
+
+		-- Hide error container
+		errorContainer.Visible = false
+
+		-- Send retry request to server
+		local remoteEvents = ReplicatedStorage:WaitForChild("RemoteEvents")
+		local retryBootStage = remoteEvents:WaitForChild("RetryBootStage")
+		retryBootStage:FireServer(3) -- Retry Stage 3
+	end)
 
 	return gui
 end
@@ -432,6 +548,36 @@ local function FadeOut(element, duration, property)
 end
 
 -- ============================================================================
+-- PROGRESS BAR HELPERS
+-- ============================================================================
+
+local function UpdateProgressBar(progressPercent, duration)
+	duration = duration or 0.8
+
+	-- Animate progress fill
+	TweenService:Create(
+		progressBarFill,
+		TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		{Size = UDim2.new(progressPercent / 100, 0, 1, 0)}
+	):Play()
+
+	-- Update percent label
+	progressPercentLabel.Text = string.format("%d%%", progressPercent)
+end
+
+local function ShowProgressBar()
+	FadeIn(progressBarBg, 0.5, "BackgroundTransparency")
+	FadeIn(progressBarFill, 0.5, "BackgroundTransparency")
+	FadeIn(progressPercentLabel, 0.5)
+end
+
+local function HideProgressBar()
+	FadeOut(progressBarBg, 0.5, "BackgroundTransparency")
+	FadeOut(progressBarFill, 0.5, "BackgroundTransparency")
+	FadeOut(progressPercentLabel, 0.5)
+end
+
+-- ============================================================================
 -- STAGE HANDLERS (Progressive/Cumulative)
 -- ============================================================================
 
@@ -449,6 +595,12 @@ local function ShowStage1(stageData)
 	FadeIn(gameNameLabel, 0.6)
 	FadeIn(gameSubtitleLabel, 0.6)
 	FadeIn(versionLabel, 0.6)
+
+	-- Show progress bar
+	ShowProgressBar()
+	if stageData and stageData.progress then
+		UpdateProgressBar(stageData.progress, 1.0)
+	end
 end
 
 local function ShowStage2(stageData)
@@ -484,75 +636,108 @@ local function ShowStage2(stageData)
 	FadeIn(avatarFrame, 0.6, "BackgroundTransparency")
 	FadeIn(avatarImage, 0.6, "ImageTransparency")
 	FadeIn(playerNameLabel, 0.6)
+
+	-- Update progress bar
+	if stageData and stageData.progress then
+		UpdateProgressBar(stageData.progress, 1.0)
+	end
 end
 
 local function ShowStage3(stageData)
-	print(string.format("[%s %s][ShowStage3] Adding loading indicators", MODULE_NAME, VERSION))
+	print(string.format("[%s %s][ShowStage3] Stage 3 - Profile loading", MODULE_NAME, VERSION))
 
-	-- Update loading text
-	if stageData and stageData.success then
-		if stageData.isNewPlayer then
-			loadingText.Text = "Ініціалізація експедиції..."
-		else
-			loadingText.Text = "Відновлення експедиції..."
-		end
-	else
-		loadingText.Text = "Помилка завантаження профілю"
-		loadingText.TextColor3 = Color3.fromRGB(200, 100, 100)
-	end
+	-- Check for error state
+	if stageData and stageData.success == false then
+		print(string.format("[%s %s][ShowStage3] ERROR: %s", MODULE_NAME, VERSION, stageData.errorMessage or "Unknown error"))
 
-	-- Show loading container
-	loadingContainer.Visible = true
+		-- Show error container
+		errorText.Text = stageData.errorMessage or "Невідома помилка"
+		errorContainer.Visible = true
 
-	-- Fade in Stage 3 elements (Stages 1+2 stay visible!)
-	FadeIn(loadingText, 0.5)
-	FadeIn(progressBarBg, 0.5, "BackgroundTransparency")
-	FadeIn(progressBarFill, 0.5, "BackgroundTransparency")
+		-- Fade in error container background
+		TweenService:Create(
+			errorContainer,
+			TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{BackgroundTransparency = 0.1}
+		):Play()
 
-	-- Fade in spinner dots
-	for _, dot in ipairs(loadingSpinner:GetChildren()) do
-		if dot:IsA("Frame") then
-			FadeIn(dot, 0.5, "BackgroundTransparency")
-		end
-	end
-
-	-- Start spinner rotation
-	task.spawn(function()
-		while loadingContainer.Visible and loadingSpinner do
-			loadingSpinner.Rotation = (loadingSpinner.Rotation + 2) % 360
-			task.wait(0.03)
-		end
-	end)
-
-	-- Animate progress bar
-	task.spawn(function()
-		while loadingContainer.Visible and progressBarFill do
+		-- Fade in error text and icon (find them as children)
+		local errorIcon = errorContainer:FindFirstChild("ErrorIcon")
+		if errorIcon then
 			TweenService:Create(
-				progressBarFill,
-				TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
-				{Size = UDim2.new(0.95, 0, 1, 0)}
+				errorIcon,
+				TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{TextTransparency = 0}
 			):Play()
-			task.wait(1.5)
 		end
-	end)
+
+		TweenService:Create(
+			errorText,
+			TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{TextTransparency = 0}
+		):Play()
+
+		-- Show or hide retry button based on canRetry
+		if stageData.canRetry then
+			retryButton.Visible = true
+			-- Fade in retry button
+			TweenService:Create(
+				retryButton,
+				TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{BackgroundTransparency = 0}
+			):Play()
+			TweenService:Create(
+				retryButton,
+				TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{TextTransparency = 0}
+			):Play()
+		else
+			retryButton.Visible = false
+		end
+
+		return
+	end
+
+	-- Success case - show loading text
+	if stageData and stageData.isNewPlayer then
+		loadingText.Text = "Ініціалізація експедиції..."
+	else
+		loadingText.Text = "Відновлення експедиції..."
+	end
+
+	loadingContainer.Visible = true
+	FadeIn(loadingText, 0.5)
+
+	-- Update progress bar
+	if stageData and stageData.progress then
+		UpdateProgressBar(stageData.progress, 1.5)
+	end
 end
 
-local function ShowStage4()
+local function ShowStage4(stageData)
 	print(string.format("[%s %s][ShowStage4] Showing ready state", MODULE_NAME, VERSION))
 
-	-- Hide loading elements
-	FadeOut(loadingText, 0.4)
-	task.wait(0.2)
-	for _, dot in ipairs(loadingSpinner:GetChildren()) do
-		if dot:IsA("Frame") then
-			FadeOut(dot, 0.4, "BackgroundTransparency")
-		end
+	-- Update progress to 100%
+	if stageData and stageData.progress then
+		UpdateProgressBar(stageData.progress, 1.0)
 	end
-	task.wait(0.4)
-	loadingContainer.Visible = false
 
-	-- Fade in Stage 4 elements (Stages 1+2 stay visible!)
-	FadeIn(readyText, 0.6)
+	-- Hide loading text
+	if loadingContainer.Visible then
+		FadeOut(loadingText, 0.4)
+		task.wait(0.5)
+		loadingContainer.Visible = false
+	end
+
+	-- CRITICAL: 1 second pause after reaching 100%
+	print(string.format("[%s %s][ShowStage4] Pausing 1 second after 100%%", MODULE_NAME, VERSION))
+	task.wait(1.0)
+
+	-- Hide progress bar
+	HideProgressBar()
+	task.wait(0.5)
+
+	-- Show start button (no ready text)
 	FadeIn(startButton, 0.6, "BackgroundTransparency")
 	FadeIn(startButton, 0.6, "TextTransparency")
 
@@ -613,25 +798,51 @@ function ScreenSaverUI.Reset()
 	currentStage = 0
 	canInteract = false
 
-	-- Hide all elements instantly
+	-- Hide Stage 1 elements
 	gameNameLabel.TextTransparency = 1
 	gameSubtitleLabel.TextTransparency = 1
 	versionLabel.TextTransparency = 1
 
+	-- Hide Stage 2 elements
 	avatarFrame.BackgroundTransparency = 1
 	avatarImage.ImageTransparency = 1
 	avatarImage.Image = ""
 	playerNameLabel.TextTransparency = 1
 
+	-- Reset progress bar
+	progressBarBg.BackgroundTransparency = 1
+	progressBarFill.BackgroundTransparency = 1
+	progressBarFill.Size = UDim2.new(0, 0, 1, 0)
+	progressPercentLabel.TextTransparency = 1
+	progressPercentLabel.Text = "0%"
+
+	-- Hide Stage 3 elements
 	loadingContainer.Visible = false
 
-	readyText.TextTransparency = 1
+	-- Hide error state
+	errorContainer.Visible = false
+	errorContainer.BackgroundTransparency = 1
+	local errorIcon = errorContainer:FindFirstChild("ErrorIcon")
+	if errorIcon then
+		errorIcon.TextTransparency = 1
+	end
+	errorText.TextTransparency = 1
+	retryButton.BackgroundTransparency = 1
+	retryButton.TextTransparency = 1
+
+	-- Hide Stage 4 elements
 	startButton.BackgroundTransparency = 1
 	startButton.TextTransparency = 1
 end
 
 function ScreenSaverUI.ShowStage(stageNum, stageData)
 	print(string.format("[%s %s][ShowStage] Stage %d received", MODULE_NAME, VERSION, stageNum))
+
+	-- Log progress data
+	if stageData and stageData.progress then
+		print(string.format("[%s %s][ShowStage] Progress: %d%% (Stage %d/%d)",
+			MODULE_NAME, VERSION, stageData.progress, stageData.stageNumber, stageData.totalStages))
+	end
 
 	if stageNum == 1 then
 		ShowStage1(stageData)
@@ -640,7 +851,7 @@ function ScreenSaverUI.ShowStage(stageNum, stageData)
 	elseif stageNum == 3 then
 		ShowStage3(stageData)
 	elseif stageNum == 4 then
-		ShowStage4()
+		ShowStage4(stageData) -- Pass stageData
 	end
 
 	currentStage = stageNum
