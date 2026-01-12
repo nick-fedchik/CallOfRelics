@@ -235,10 +235,10 @@ local function CreateProgressBarElements(parent)
 	container.ZIndex = 2
 	container.Parent = parent
 
-	-- Progress bar background
+	-- Progress bar background (BOLD - 16px height, 2x original)
 	local progressBg = Instance.new("Frame")
 	progressBg.Name = "ProgressBg"
-	progressBg.Size = UDim2.new(1, 0, 0, 8)
+	progressBg.Size = UDim2.new(1, 0, 0, 16) -- Doubled from 8 to 16
 	progressBg.Position = UDim2.new(0.5, 0, 0.5, 0)
 	progressBg.AnchorPoint = Vector2.new(0.5, 0.5)
 	progressBg.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
@@ -247,15 +247,25 @@ local function CreateProgressBarElements(parent)
 	progressBg.ZIndex = 3
 	progressBg.Parent = container
 
-	-- Progress bar fill
+	-- Add corner radius for smoother look
+	local bgCorner = Instance.new("UICorner")
+	bgCorner.CornerRadius = UDim.new(0, 8)
+	bgCorner.Parent = progressBg
+
+	-- Progress bar fill (BOLD - brighter color)
 	local progressFill = Instance.new("Frame")
 	progressFill.Name = "ProgressFill"
 	progressFill.Size = UDim2.new(0, 0, 1, 0) -- Start at 0%
-	progressFill.BackgroundColor3 = Color3.fromRGB(100, 150, 200)
+	progressFill.BackgroundColor3 = Color3.fromRGB(120, 180, 255) -- Brighter blue
 	progressFill.BorderSizePixel = 0
 	progressFill.BackgroundTransparency = 1 -- Hidden initially
 	progressFill.ZIndex = 4
 	progressFill.Parent = progressBg
+
+	-- Add corner radius for fill
+	local fillCorner = Instance.new("UICorner")
+	fillCorner.CornerRadius = UDim.new(0, 8)
+	fillCorner.Parent = progressFill
 
 	-- Percent label
 	local percentLabel = Instance.new("TextLabel")
