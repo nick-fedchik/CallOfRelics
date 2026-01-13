@@ -28,6 +28,7 @@
 6. [Roblox API Best Practices](#roblox-api-best-practices)
 7. [Уроки з Помилок](#уроки-з-помилок)
 8. [Epic 1 - Повна Імплементація](#epic-1---повна-імплементація)
+9. [Seat Control System](#seat-control-system)
 
 ---
 
@@ -1351,6 +1352,10 @@ ReplicatedStorage/
 - [x] Clean initialization sequence
 - [x] No silent failures
 
+### Backlog
+
+- [ ] **Перейменувати сидіння в моделі SpaceShip** - В моделі сидіння називаються `Seat`, потрібно перейменувати на `Seat1`, `Seat2`, `Seat3`, `Seat4` щоб система Seat Control розпізнавала їх і показувала UI
+
 ### Next Steps (Epic 2+)
 
 1. **Full error state testing** - Verify error UI and retry mechanism
@@ -1362,6 +1367,20 @@ ReplicatedStorage/
 ---
 
 ## 📝 Історія Змін
+
+**2026-01-13**:
+- ✅ **Seat Control System** - повна система керування сидіннями корабля
+- ✅ 5 сидінь: PilotSeat, SurfaceScannerSeat, DeepSpaceScannerSeat, SystemsConsoleSeat, PersonalTerminalSeat
+- ✅ SeatConfig.lua - конфігурація сидінь з FOV, display names, functionality
+- ✅ SeatService.lua - серверна логіка керування сидіннями
+- ✅ SeatController.client.lua - клієнтський детектор сидінь
+- ✅ SeatUIManager.lua - менеджер UI модулів для кожного сидіння
+- ✅ 5 UI модулів: PilotUI, SurfaceScannerUI, DeepSpaceScannerUI, SystemsConsoleUI, PersonalTerminalUI
+- ✅ CameraController - інтеграція з SeatConfig для FOV per seat
+- ✅ RemoteEvents: SeatOccupied, SeatVacated, SeatActionRequest, SeatActionResponse
+- ✅ Fix: Player spawn in PilotSeat з ModelStreamingMode.Persistent
+- ✅ Fix: Ship anchoring для запобігання падінню в low gravity
+- ✅ Fix: VehicleSeat MaxSpeed=0, TurnSpeed=0 для стаціонарного корабля
 
 **2026-01-12**:
 - ✅ **EPIC 1 COMPLETE**: Merged ScreenSaverUI-dev → main (v0.5)
@@ -1386,8 +1405,205 @@ ReplicatedStorage/
 
 ---
 
-**Дата останнього оновлення**: 2026-01-12
-**Автори**: KOSMICMAZER + Claude Sonnet 4.5
+## Seat Control System
+
+### Огляд
+
+**Status:** ✅ Implemented
+**Version:** 0.1
+**Date:** 2026-01-13
+
+Система керування сидіннями корабля. Коли гравець сідає в сидіння, відкривається відповідний UI для керування пристроєм.
+
+### 5 Сидінь на Кораблі
+
+| Seat Name | Type | Display Name | UI Module | Функціонал |
+|-----------|------|--------------|-----------|------------|
+| PilotSeat | VehicleSeat | Пілотське крісло | PilotUI | Керування кораблем |
+| SurfaceScannerSeat | Seat | Сканер поверхні | SurfaceScannerUI | Сканування поверхні планети |
+| DeepSpaceScannerSeat | Seat | Сканер глибокого космосу | DeepSpaceScannerUI | Сканування далекого космосу |
+| SystemsConsoleSeat | Seat | Консоль систем | SystemsConsoleUI | Керування щитами, енергією, життєзабезпеченням |
+| PersonalTerminalSeat | Seat | Особистий термінал | PersonalTerminalUI | Інвентар, журнал, місії |
+
+### Архітектура
+
+```
+Player sits in seat
+       ↓
+[Client] CameraController detects Humanoid.Seated
+       ↓
+[Client] SeatController identifies seat type from SeatConfig
+       ↓
+[Client] SeatController fires SeatOccupied to Server
+       ↓
+[Server] SeatService validates and records seat state
+       ↓
+[Client] SeatUIManager shows seat-specific UI
+       ↓
+Player stands up → reverse flow, UI hidden
+```
+
+### Файли Системи
+
+#### Configuration
+- `ReplicatedStorage/Game/SeatConfig.lua` - конфігурація всіх сидінь
+
+#### Server
+- `ServerScriptService/Services/SeatService.lua` - серверний сервіс
+
+#### Client
+- `StarterPlayer/StarterPlayerScripts/Core/SeatController.client.lua` - детекція сидінь
+- `StarterPlayer/StarterPlayerScripts/UI/SeatUIManager.lua` - менеджер UI
+
+#### UI Modules
+- `StarterPlayer/StarterPlayerScripts/UI/SeatUI/PilotUI.lua`
+- `StarterPlayer/StarterPlayerScripts/UI/SeatUI/SurfaceScannerUI.lua`
+- `StarterPlayer/StarterPlayerScripts/UI/SeatUI/DeepSpaceScannerUI.lua`
+- `StarterPlayer/StarterPlayerScripts/UI/SeatUI/SystemsConsoleUI.lua`
+- `StarterPlayer/StarterPlayerScripts/UI/SeatUI/PersonalTerminalUI.lua`
+
+### RemoteEvents
+
+| Event | Direction | Purpose |
+|-------|-----------|---------|
+| SeatOccupied | Client → Server | Нотифікація про сідання |
+| SeatVacated | Client → Server | Нотифікація про вставання |
+| SeatActionRequest | Client → Server | Запит на дію (сканування, тощо) |
+| SeatActionResponse | Server → Client | Відповідь на дію |
+
+### SeatConfig API
+
+```lua
+-- Отримати повну конфігурацію сидіння
+local config = SeatConfig.GetSeatConfig("PilotSeat")
+-- Returns: {displayName, uiModule, seatType, camera, functionality}
+
+-- Отримати налаштування камери
+local cameraSettings = SeatConfig.GetCameraSettings("PilotSeat")
+-- Returns: {mode, fov, minZoom, maxZoom}
+
+-- Отримати назву UI модуля
+local uiModule = SeatConfig.GetUIModule("PilotSeat")
+-- Returns: "PilotUI"
+
+-- Перевірити чи сидіння відоме
+local isKnown = SeatConfig.IsSeatKnown("PilotSeat")
+-- Returns: true/false
+```
+
+### Розширюваність
+
+#### Додати Нове Сидіння
+
+1. Додати запис в `SeatConfig.Seats`:
+```lua
+NewSeat = {
+    displayName = "Нове сидіння",
+    uiModule = "NewSeatUI",
+    seatType = "Seat",
+    camera = { fov = 60, minZoom = 2, maxZoom = 20 },
+    functionality = { someFeature = true }
+}
+```
+
+2. Створити UI модуль `SeatUI/NewSeatUI.lua` з методами:
+   - `Initialize()` - створити UI
+   - `Show(seatConfig)` - показати UI
+   - `Hide()` - сховати UI
+
+3. Додати сидіння в модель SpaceShip з відповідним ім'ям
+
+#### Додати Нову Дію для Сидіння
+
+1. В UI модулі:
+```lua
+SeatActionRequest:FireServer("SeatName", "ActionName", {data})
+```
+
+2. На сервері:
+```lua
+SeatService.RegisterActionHandler("SeatName", "ActionName", function(player, data)
+    -- Handle action
+    return {success = true, result = ...}
+end)
+```
+
+3. В UI обробити відповідь:
+```lua
+SeatActionResponse.OnClientEvent:Connect(function(seatName, action, result)
+    if seatName == "SeatName" and action == "ActionName" then
+        -- Handle result
+    end
+end)
+```
+
+### Player Spawn в PilotSeat
+
+#### Проблема: Моделі зникають після копіювання
+
+**Рішення:** ModelStreamingMode.Persistent
+```lua
+if clone:IsA("Model") then
+    clone.ModelStreamingMode = Enum.ModelStreamingMode.Persistent
+end
+```
+
+#### Проблема: Корабель падає в низькій гравітації
+
+**Рішення:** Anchoring всіх частин (крім сидінь)
+```lua
+for _, part in ipairs(clone:GetDescendants()) do
+    if part:IsA("BasePart") and not part:IsA("Seat") and not part:IsA("VehicleSeat") then
+        part.Anchored = true
+    end
+end
+```
+
+#### Проблема: Корабель рухається при натисканні WASD
+
+**Рішення:** Вимкнути рух VehicleSeat
+```lua
+if spawnPoint:IsA("VehicleSeat") then
+    spawnPoint.Disabled = false
+    spawnPoint.MaxSpeed = 0  -- Корабель стоїть на орбіті
+    spawnPoint.TurnSpeed = 0
+end
+```
+
+### Camera per Seat
+
+CameraController автоматично застосовує FOV з SeatConfig:
+
+```lua
+local cameraSettings = SeatConfig.GetCameraSettings(seat.Name)
+if cameraSettings and cameraSettings.fov then
+    camera.FieldOfView = cameraSettings.fov
+end
+```
+
+При вставанні FOV скидається до 70 (default).
+
+### Testing Checklist
+
+- [ ] SeatConfig завантажується без помилок
+- [ ] RemoteEvents створені (SeatOccupied, SeatVacated, SeatActionRequest, SeatActionResponse)
+- [ ] SeatService ініціалізується
+- [ ] SeatController детектить сідання в PilotSeat при спавні
+- [ ] PilotUI показується автоматично при спавні
+- [ ] UI ховається при вставанні
+- [ ] Сідання в інші сидіння показує правильний UI
+- [ ] Камера застосовує правильний FOV для кожного сидіння
+
+**Примітка:** Потрібно перейменувати PassengerSeat1-4 в моделі SpaceShip на:
+- SurfaceScannerSeat
+- DeepSpaceScannerSeat
+- SystemsConsoleSeat
+- PersonalTerminalSeat
+
+---
+
+**Дата останнього оновлення**: 2026-01-13
+**Автори**: KOSMICMAZER + Claude Opus 4.5
 **Статус**: Active Development
 
 ---

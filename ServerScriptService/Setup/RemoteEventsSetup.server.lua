@@ -98,4 +98,24 @@ print(string.format("[%s %s] Created: ConfirmGameStart", MODULE_NAME, VERSION))
 local retryBootStage = CreateRemoteEvent("RetryBootStage")
 print(string.format("[%s %s] Created: RetryBootStage", MODULE_NAME, VERSION))
 
+-- ============================================================================
+-- SEAT SYSTEM EVENTS
+-- ============================================================================
+
+-- Seat Occupied (Client → Server)
+local seatOccupied = CreateRemoteEvent("SeatOccupied")
+print(string.format("[%s %s] Created: SeatOccupied", MODULE_NAME, VERSION))
+
+-- Seat Vacated (Client → Server)
+local seatVacated = CreateRemoteEvent("SeatVacated")
+print(string.format("[%s %s] Created: SeatVacated", MODULE_NAME, VERSION))
+
+-- Seat Action Request (Client → Server)
+local seatActionRequest = CreateRemoteEvent("SeatActionRequest")
+print(string.format("[%s %s] Created: SeatActionRequest", MODULE_NAME, VERSION))
+
+-- Seat Action Response (Server → Client)
+local seatActionResponse = CreateRemoteEvent("SeatActionResponse")
+print(string.format("[%s %s] Created: SeatActionResponse", MODULE_NAME, VERSION))
+
 print(string.format("[%s %s] RemoteEvents setup complete", MODULE_NAME, VERSION))

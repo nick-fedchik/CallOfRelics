@@ -113,8 +113,16 @@ local function Boot()
 		error("[ServerBootstrap] CRITICAL: PlayerService initialization failed!")
 	end
 
-	print(string.format("[%s %s][Boot] Phase 5: Core systems ready", MODULE_NAME, VERSION))
-	print(string.format("[%s %s][Boot] Phase 6: ScreenSaver active", MODULE_NAME, VERSION))
+	print(string.format("[%s %s][Boot] Phase 5: Initializing SeatService", MODULE_NAME, VERSION))
+
+	local SeatService = require(Services:WaitForChild("SeatService"))
+	success = SeatService.Initialize()
+	if not success then
+		error("[ServerBootstrap] CRITICAL: SeatService initialization failed!")
+	end
+
+	print(string.format("[%s %s][Boot] Phase 6: Core systems ready", MODULE_NAME, VERSION))
+	print(string.format("[%s %s][Boot] Phase 7: ScreenSaver active", MODULE_NAME, VERSION))
 
 
 	print("BOOT COMPLETE")

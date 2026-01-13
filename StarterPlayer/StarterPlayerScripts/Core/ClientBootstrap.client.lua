@@ -85,10 +85,13 @@ StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
 
 local StarterPlayerScripts = script.Parent.Parent
 local UI = StarterPlayerScripts:WaitForChild("UI")
+local Core = StarterPlayerScripts:WaitForChild("Core")
 
 local ScreenSaverUI = require(UI:WaitForChild("ScreenSaverUI"))
 local StatusBarUI = require(UI:WaitForChild("StatusBarUI"))
 local UIManager = require(UI:WaitForChild("UIManager"))
+local SeatUIManager = require(UI:WaitForChild("SeatUIManager"))
+local SeatController = require(Core:WaitForChild("SeatController"))
 
 -- ============================================================================
 -- BOOT SEQUENCE
@@ -119,8 +122,22 @@ local function Boot()
 		error("[ClientBootstrap] CRITICAL: UIManager initialization failed!")
 	end
 
-	print(string.format("[%s %s][Boot] Phase 4: UI systems ready", MODULE_NAME, VERSION))
-	print(string.format("[%s %s][Boot] Phase 5: Showing ScreenSaver", MODULE_NAME, VERSION))
+	print(string.format("[%s %s][Boot] Phase 4: Initializing SeatUIManager", MODULE_NAME, VERSION))
+
+	success = SeatUIManager.Initialize()
+	if not success then
+		error("[ClientBootstrap] CRITICAL: SeatUIManager initialization failed!")
+	end
+
+	print(string.format("[%s %s][Boot] Phase 5: Initializing SeatController", MODULE_NAME, VERSION))
+
+	success = SeatController.Initialize(SeatUIManager)
+	if not success then
+		error("[ClientBootstrap] CRITICAL: SeatController initialization failed!")
+	end
+
+	print(string.format("[%s %s][Boot] Phase 6: UI systems ready", MODULE_NAME, VERSION))
+	print(string.format("[%s %s][Boot] Phase 7: Showing ScreenSaver", MODULE_NAME, VERSION))
 
 	ScreenSaverUI.Show()
 
