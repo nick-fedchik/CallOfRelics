@@ -109,10 +109,26 @@ local function CopyModelsToWorkspace(locationWorkspaceFolder)
 	for _, child in ipairs(locationWorkspaceFolder:GetChildren()) do
 		if child.Name ~= "Lighting" then -- Lighting handled separately
 			local clone = child:Clone()
+
+			-- Set ModelStreamingMode to Persistent to prevent streaming from removing models
+			if clone:IsA("Model") then
+				clone.ModelStreamingMode = Enum.ModelStreamingMode.Persistent
+
+				-- Anchor all parts in the model to prevent falling (except seats)
+				for _, part in ipairs(clone:GetDescendants()) do
+					if part:IsA("BasePart") and not part:IsA("Seat") and not part:IsA("VehicleSeat") then
+						part.Anchored = true
+					end
+				end
+				print(string.format("[%s %s][CopyModels] Copied & Anchored: %s (%s) [Persistent]",
+					MODULE_NAME, VERSION, child.Name, child.ClassName))
+			else
+				print(string.format("[%s %s][CopyModels] Copied: %s (%s)",
+					MODULE_NAME, VERSION, child.Name, child.ClassName))
+			end
+
 			clone.Parent = Workspace
 			table.insert(copiedModels, clone)
-			print(string.format("[%s %s][CopyModels] Copied: %s (%s)",
-				MODULE_NAME, VERSION, child.Name, child.ClassName))
 		end
 	end
 
@@ -149,6 +165,12 @@ end
 
 local function FindSpawnPoint(locationName)
 	-- Find SpawnLocation or PilotSeat in Workspace
+
+	-- DEBUG: List all Workspace children
+	print(string.format("[%s %s][FindSpawn] DEBUG: Workspace children:", MODULE_NAME, VERSION))
+	for _, child in ipairs(Workspace:GetChildren()) do
+		print(string.format("  - %s (%s)", child.Name, child.ClassName))
+	end
 
 	-- Try to find SpaceShip.PilotSeat first (for Orbit)
 	local spaceShip = Workspace:FindFirstChild("SpaceShip")
@@ -250,6 +272,12 @@ function LocationService.LoadLocation(player, planetId, locationName)
 
 	local copiedModels = CopyModelsToWorkspace(workspaceFolder)
 	local copiedLighting = CopyLightingObjects(lightingFolder)
+
+	-- DEBUG: Verify models are in Workspace after copy
+	print(string.format("[%s %s][LoadLocation] DEBUG: After copy, Workspace children:", MODULE_NAME, VERSION))
+	for _, child in ipairs(Workspace:GetChildren()) do
+		print(string.format("  - %s (%s)", child.Name, child.ClassName))
+	end
 
 	-- Track spawned content
 	spawnedContent[player] = {
@@ -356,12 +384,13 @@ function LocationService.SpawnPlayerInLocation(player, spawnType)
 		-- Spawn IN PilotSeat (sitting)
 		task.wait(0.2) -- Wait for character to fully load
 
-		-- Configure seat
+		-- Configure seat - disable movement but allow sitting/standing
 		if spawnPoint:IsA("VehicleSeat") then
 			spawnPoint.Disabled = false
-			spawnPoint.MaxSpeed = 0
-			print(string.format("[%s %s][SpawnPlayer] PilotSeat configured: Disabled=%s, MaxSpeed=%d",
-				MODULE_NAME, VERSION, tostring(spawnPoint.Disabled), spawnPoint.MaxSpeed))
+			spawnPoint.MaxSpeed = 0  -- Prevent ship from moving (ship is parked in orbit)
+			spawnPoint.TurnSpeed = 0 -- Prevent ship from turning
+			print(string.format("[%s %s][SpawnPlayer] PilotSeat configured: Disabled=%s, MaxSpeed=%d, TurnSpeed=%d",
+				MODULE_NAME, VERSION, tostring(spawnPoint.Disabled), spawnPoint.MaxSpeed, spawnPoint.TurnSpeed))
 		end
 
 		-- Sit player in seat
