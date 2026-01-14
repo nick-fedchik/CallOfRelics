@@ -1,7 +1,7 @@
 # Backlog.md  
 **Project:** Call of Relics: Orbital Silence  
 **Type:** Single-player Exploration RPG (Roblox)  
-**Backlog Version:** 0.1  
+**Backlog Version:** 0.3  
 **Status:** Active Development  
 **Scope:** Architecture-first, Content-later  
 
@@ -92,56 +92,64 @@ User Stories формулюються з точки зору **гравця** а
 
 ---
 
-### EPIC 1 — Game Boot & Global States
+### EPIC 1 — Game Boot & Global States ✅ COMPLETE
 
-**Опис:**  
+**Опис:**
 Життєвий цикл гри від запуску до завершення сесії.
 
+**Status:** ✅ Complete (v0.5)
+
 #### Stories:
-- Player can see ScreenSaver and avatar before entering the game
-- Player can Log In and start a new session
-- Player can Log Off and return to ScreenSaver
-- Game handles unexpected disconnects safely
-- Game initializes in a clean and deterministic state
+- ✅ Player can see ScreenSaver and avatar before entering the game
+- ✅ Player can Log In and start a new session
+- ✅ Player can Log Off and return to ScreenSaver
+- ✅ Game handles unexpected disconnects safely
+- ✅ Game initializes in a clean and deterministic state
 
 ---
 
-### EPIC 2 — Game State Architecture
+### EPIC 2 — Game State Architecture ✅ COMPLETE
 
-**Опис:**  
+**Опис:**
 Єдина система глобальних і локальних станів.
 
+**Status:** ✅ Complete (v0.5)
+
 #### Stories:
-- Game has a single source of truth for state
-- Systems react to state changes, not raw events
-- Context switching is atomic and safe
-- Transition states block player actions
+- ✅ Game has a single source of truth for state
+- ✅ Systems react to state changes, not raw events
+- ✅ Context switching is atomic and safe
+- ✅ Transition states block player actions
 
 ---
 
-### EPIC 3 — Space Ship as Core Location
+### EPIC 3 — Space Ship as Core Location ✅ COMPLETE
 
-**Опис:**  
+**Опис:**
 Корабель як безпечний хаб гри.
 
+**Status:** ✅ Complete (v0.7)
+
 #### Stories:
-- Player always spawns on the ship
-- Ship acts as save and restore point
-- Player can view planet from orbit
-- Ship systems reflect player progression
+- ✅ Player always spawns on the ship (PilotSeat)
+- ✅ Ship acts as save and restore point
+- ✅ Player can view planet from orbit
+- ✅ Ship systems reflect player progression (5 seats with UI)
 
 ---
 
-### EPIC 4 — Planet & Location System
+### EPIC 4 — Planet & Location System ⏳ IN PROGRESS
 
-**Опис:**  
+**Опис:**
 Планети як контейнери локацій.
 
+**Status:** ⏳ In Progress (v0.7)
+
 #### Stories:
-- Planet contains multiple locations
-- Locations can be discovered and visited
+- ✅ Planet contains multiple locations (LocationService, Config.luau)
+- ✅ Locations can be discovered and visited (TransitionService landing)
 - Locations have independent rules
-- Player can revisit locations with updated state
+- ✅ Player can revisit locations with updated state (liftoff → landing cycle)
 
 ---
 
@@ -158,15 +166,19 @@ User Stories формулюються з точки зору **гравця** а
 
 ---
 
-### EPIC 6 — Teleportation & SpawnLocation
+### EPIC 6 — Teleportation & SpawnLocation ⏳ IN PROGRESS
 
-**Опис:**  
+**Опис:**
 Переміщення між контекстами гри.
 
+**Status:** ⏳ In Progress (v0.7)
+
+**Note:** Реалізовано через TransitionService (Landing/Liftoff) замість традиційного Teleport.
+
 #### Stories:
-- SpawnLocation acts as teleport point
+- ✅ SpawnLocation acts as teleport point (LandingPad with PilotSeat)
 - SpawnLocation has active / inactive states
-- Teleport GUI shows available destinations
+- ✅ Teleport GUI shows available destinations (PilotUI location list)
 - Player can cancel teleport safely
 
 ---
@@ -197,29 +209,33 @@ User Stories формулюються з точки зору **гравця** а
 
 ---
 
-### EPIC 9 — UI & UX
+### EPIC 9 — UI & UX ⏳ IN PROGRESS
 
-**Опис:**  
+**Опис:**
 Контекстний інтерфейс гри.
 
+**Status:** ⏳ In Progress (v0.7)
+
 #### Stories:
-- UI reflects current game state
-- Contextual menus appear only when allowed
-- UI never bypasses game logic
+- ✅ UI reflects current game state (StatusBarUI, PilotUI context)
+- ✅ Contextual menus appear only when allowed (SeatUI system)
+- ✅ UI never bypasses game logic (server-authoritative)
 - UI explains restrictions to player
 
 ---
 
-### EPIC 10 — Diagnostics & Logging
+### EPIC 10 — Diagnostics & Logging ✅ COMPLETE
 
-**Опис:**  
+**Опис:**
 Прозорість та керованість розробки.
 
+**Status:** ✅ Complete (v0.7)
+
 #### Stories:
-- Every system logs its initialization
-- Logs are concise and structured
-- Output logs can be analyzed externally
-- Scripts have standardized headers
+- ✅ Every system logs its initialization
+- ✅ Logs are concise and structured
+- ✅ Output logs can be analyzed externally
+- ✅ Scripts have standardized headers (KOSMICMAZER format, TDD 11.8)
 
 ---
 

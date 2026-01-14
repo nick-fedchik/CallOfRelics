@@ -121,8 +121,16 @@ local function Boot()
 		error("[ServerBootstrap] CRITICAL: SeatService initialization failed!")
 	end
 
-	print(string.format("[%s %s][Boot] Phase 6: Core systems ready", MODULE_NAME, VERSION))
-	print(string.format("[%s %s][Boot] Phase 7: ScreenSaver active", MODULE_NAME, VERSION))
+	print(string.format("[%s %s][Boot] Phase 6: Initializing TransitionService", MODULE_NAME, VERSION))
+
+	local TransitionService = require(Services:WaitForChild("TransitionService"))
+	success = TransitionService.Initialize()
+	if not success then
+		error("[ServerBootstrap] CRITICAL: TransitionService initialization failed!")
+	end
+
+	print(string.format("[%s %s][Boot] Phase 7: Core systems ready", MODULE_NAME, VERSION))
+	print(string.format("[%s %s][Boot] Phase 8: ScreenSaver active", MODULE_NAME, VERSION))
 
 
 	print("BOOT COMPLETE")

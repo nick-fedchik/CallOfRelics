@@ -92,6 +92,7 @@ local StatusBarUI = require(UI:WaitForChild("StatusBarUI"))
 local UIManager = require(UI:WaitForChild("UIManager"))
 local SeatUIManager = require(UI:WaitForChild("SeatUIManager"))
 local SeatController = require(Core:WaitForChild("SeatController"))
+local TransitionUI = require(UI:WaitForChild("TransitionUI"))
 
 -- ============================================================================
 -- BOOT SEQUENCE
@@ -136,8 +137,15 @@ local function Boot()
 		error("[ClientBootstrap] CRITICAL: SeatController initialization failed!")
 	end
 
-	print(string.format("[%s %s][Boot] Phase 6: UI systems ready", MODULE_NAME, VERSION))
-	print(string.format("[%s %s][Boot] Phase 7: Showing ScreenSaver", MODULE_NAME, VERSION))
+	print(string.format("[%s %s][Boot] Phase 6: Initializing TransitionUI", MODULE_NAME, VERSION))
+
+	success = TransitionUI.Initialize()
+	if not success then
+		error("[ClientBootstrap] CRITICAL: TransitionUI initialization failed!")
+	end
+
+	print(string.format("[%s %s][Boot] Phase 7: UI systems ready", MODULE_NAME, VERSION))
+	print(string.format("[%s %s][Boot] Phase 8: Showing ScreenSaver", MODULE_NAME, VERSION))
 
 	ScreenSaverUI.Show()
 

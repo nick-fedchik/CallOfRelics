@@ -1,7 +1,7 @@
 # Структура Проєкту — Call of Relics: Orbital Silence
 
-**Версія:** 1.0
-**Дата:** 2026-01-11
+**Версія:** 1.1
+**Дата:** 2026-01-14
 **Статус:** Рекомендовано
 
 ---
@@ -26,39 +26,45 @@
 
 ## Структура ServerScriptService
 
-### Поточна структура (файлова система)
+### Поточна структура (v0.7)
 
 ```
 ServerScriptService/
 ├── Core/
-│   ├── GameStateManager.lua
-│   ├── BootSequence.lua          -- EPIC 1
-│   └── ServerBootstrap.server.lua
+│   ├── GameStateManager.lua      -- Координатор станів (v0.2)
+│   ├── BootSequence.lua          -- 4-stage boot sequence (v0.4)
+│   └── ServerBootstrap.server.lua -- Точка входу (v0.2)
 │
 ├── Services/
-│   ├── PlayerService.lua
-│   └── ProfileService.lua        -- EPIC 1
+│   ├── PlayerService.lua         -- Життєвий цикл гравця (v0.2)
+│   ├── ProfileService.lua        -- DataStore профілі (v0.2)
+│   ├── LocationService.lua       -- Завантаження локацій (v0.2)
+│   ├── TransitionService.lua     -- Переходи Orbit↔Surface (v0.7) ← NEW
+│   └── SeatService.lua           -- Керування сидіннями (v0.1)
 │
 ├── Systems/
-│   └── (порожня, підготовлена для майбутнього)
+│   └── (підготовлено для майбутніх систем)
 │
 └── Setup/
-    └── RemoteEventsSetup.server.lua
+    └── RemoteEventsSetup.server.lua -- RemoteEvents (v0.4)
 ```
 
-### Майбутня структура (після розширення)
+### Майбутня структура
 
 ```
 ServerScriptService/
 ├── Core/
 │   ├── GameStateManager.lua
+│   ├── BootSequence.lua
 │   └── ServerBootstrap.server.lua
 │
 ├── Services/
 │   ├── PlayerService.lua
-│   ├── SaveService.lua           -- EPIC 2+
-│   ├── TeleportService.lua       -- EPIC 3+
-│   └── LocationService.lua       -- EPIC 3+
+│   ├── ProfileService.lua
+│   ├── LocationService.lua
+│   ├── TransitionService.lua
+│   ├── SeatService.lua
+│   └── SaveService.lua           -- EPIC 2+
 │
 ├── Systems/
 │   ├── ScanSystem.lua            -- EPIC 4+
@@ -77,18 +83,28 @@ ServerScriptService/
 
 ```
 ReplicatedStorage/
-├── Game/                 -- Конфігурація гри (EPIC 1)
-│   └── GameConfig.lua
+├── Game/                         -- Конфігурація гри
+│   ├── GameConfig.lua            -- Основна конфігурація (v0.3)
+│   ├── SeatConfig.lua            -- Конфігурація сидінь (v0.1)
+│   └── TransitionConfig.lua      -- Конфігурація переходів (v0.1) ← NEW
 │
-├── Modules/              -- Загальні модулі (клієнт + сервер)
+├── Modules/                      -- Загальні модулі
 │   └── (майбутнє)
 │
-└── RemoteEvents/         -- Створюється автоматично Setup скриптом
-    ├── LogOnRequest
-    ├── LogOffRequest
-    ├── StateChanged
-    ├── BootStageUpdate
-    └── ConfirmGameStart
+└── RemoteEvents/                 -- Створюється автоматично Setup скриптом
+    ├── StateChanged              -- Зміна стану гри
+    ├── BootStageUpdate           -- Прогрес boot sequence
+    ├── ConfirmGameStart          -- Підтвердження старту гри
+    ├── RetryBootStage            -- Повтор стадії boot
+    ├── SeatOccupied              -- Сів у сидіння
+    ├── SeatVacated               -- Встав з сидіння
+    ├── SeatActionRequest         -- Запит дії сидіння
+    ├── SeatActionResponse        -- Відповідь дії сидіння
+    ├── RequestLanding            -- Запит посадки ← NEW
+    ├── RequestLiftoff            -- Запит підйому ← NEW
+    ├── TransitionUpdate          -- Стан переходу ← NEW
+    ├── TransitionLandingCamera   -- Дані камери посадки ← NEW
+    └── AvailableLocationsResponse -- Список локацій ← NEW
 ```
 
 ### StarterPlayer/StarterPlayerScripts
@@ -96,13 +112,24 @@ ReplicatedStorage/
 ```
 StarterPlayer/StarterPlayerScripts/
 ├── Core/
-│   └── ClientBootstrap.client.lua
+│   ├── ClientBootstrap.client.lua -- Клієнтська ініціалізація (v0.3)
+│   ├── SeatController.client.lua  -- Детекція сидінь (v0.1)
+│   └── CameraController.lua       -- Керування камерою (v0.2)
 │
 ├── UI/
-│   ├── ScreenSaverUI.lua
-│   └── UIManager.lua
+│   ├── ScreenSaverUI.lua         -- Boot sequence UI (v0.5)
+│   ├── StatusBarUI.lua           -- In-game status bar (v0.2)
+│   ├── UIManager.lua             -- Координатор UI (v0.2)
+│   ├── SeatUIManager.lua         -- Менеджер UI сидінь (v0.1)
+│   ├── TransitionUI.lua          -- UI переходів (v0.4) ← NEW
+│   └── SeatUI/                   -- Модулі UI для кожного сидіння
+│       ├── PilotUI.lua           -- Пілотське крісло (v0.5)
+│       ├── SurfaceScannerUI.lua  -- Сканер поверхні (v0.1)
+│       ├── DeepSpaceScannerUI.lua -- Глибокий космос (v0.1)
+│       ├── SystemsConsoleUI.lua  -- Консоль систем (v0.1)
+│       └── PersonalTerminalUI.lua -- Особистий термінал (v0.1)
 │
-└── Systems/              -- Майбутні клієнтські системи
+└── Systems/                      -- Майбутні клієнтські системи
     └── (порожня)
 ```
 
@@ -110,8 +137,32 @@ StarterPlayer/StarterPlayerScripts/
 
 ```
 ServerStorage/
-└── Planets/              -- Контент: дані планет
-    └── (майбутнє)
+└── Planets/                      -- Контент планет (v0.7) ← EXPANDED
+    └── Planet_1/                 -- Планета Kepler-442b
+        ├── Config.luau           -- Конфігурація планети
+        ├── Orbit/                -- Орбітальна локація
+        │   ├── Config.luau       -- Конфіг орбіти (з animationData)
+        │   └── Workspace/        -- 3D об'єкти
+        │       ├── Lighting/     -- Sky, Atmosphere, Effects
+        │       ├── SpaceShip/    -- Модель корабля (PilotSeat, seats)
+        │       └── Planet/       -- Модель планети (Surface, CloudLayers)
+        │
+        └── Surface/              -- Поверхневі локації
+            ├── Location1/        -- "Зелена долина"
+            │   ├── Config.luau   -- Конфіг локації
+            │   └── Workspace/    -- 3D об'єкти
+            │       ├── Lighting/ -- Sky конфігурація
+            │       └── Baseplate/ -- Поверхня з зонами
+            │           ├── ExplorationZone   -- 80% території
+            │           ├── LandingZone       -- 20% території
+            │           ├── SpaceShipLandingPad -- Посадковий майданчик
+            │           │   ├── LandingLights/    -- Сигнальні вогні
+            │           │   └── LandingPadFrame/  -- Рамка та декор
+            │           └── ZoneWalls/        -- Стіни з мітками
+            │
+            └── Location2/        -- "Гірський хребет"
+                ├── Config.luau
+                └── Workspace/
 ```
 
 ---
@@ -318,6 +369,15 @@ ServerStorage/
 ---
 
 ## ChangeLog
+
+- **1.1** — Оновлення структури v0.7 (2026-01-14)
+  - Додано TransitionService.lua до Services/
+  - Додано TransitionConfig.lua до ReplicatedStorage/Game/
+  - Додано TransitionUI.lua до UI/
+  - Оновлено PilotUI.lua (v0.5) - context detection
+  - Розширено ServerStorage/Planets/ з повною структурою
+  - Додано RemoteEvents для Transition System
+  - Документовано структуру Location1 з зонами та посадковим майданчиком
 
 - **1.0** — Початкова версія структури (2026-01-11)
   - Створено папки Core, Services, Systems, Setup

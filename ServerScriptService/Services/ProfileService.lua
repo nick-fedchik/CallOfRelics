@@ -96,7 +96,7 @@ local function CreateDefaultProfile(player)
 
 		-- Game State
 		currentPlanet = GameConfig.StartPlanet,
-		exploredLocations = {},
+		exploredLocations = {"Location1"}, -- Default for debug (scanner bypassed)
 
 		-- Ship State
 		shipState = {

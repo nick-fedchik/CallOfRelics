@@ -88,10 +88,13 @@ local function ClearWorkspace()
 
 	-- Clear Lighting effects
 	local Lighting = game:GetService("Lighting")
+	print(string.format("[%s %s][ClearWorkspace] Lighting children before clear:", MODULE_NAME, VERSION))
 	for _, child in ipairs(Lighting:GetChildren()) do
+		print(string.format("  - %s (%s)", child.Name, child.ClassName))
 		if child:IsA("Sky") or child:IsA("Atmosphere") or child:IsA("BloomEffect")
 			or child:IsA("DepthOfFieldEffect") or child:IsA("SunRaysEffect") then
 			child:Destroy()
+			print(string.format("[%s %s][ClearWorkspace] Destroyed: %s", MODULE_NAME, VERSION, child.Name))
 		end
 	end
 
@@ -144,12 +147,29 @@ local function CopyLightingObjects(locationLightingFolder)
 	local Lighting = game:GetService("Lighting")
 	local copiedObjects = {}
 
+	-- DEBUG: Show source folder contents
+	print(string.format("[%s %s][CopyLighting] Source folder: %s, children count: %d",
+		MODULE_NAME, VERSION, locationLightingFolder:GetFullName(), #locationLightingFolder:GetChildren()))
+
 	for _, child in ipairs(locationLightingFolder:GetChildren()) do
 		local clone = child:Clone()
 		clone.Parent = Lighting
 		table.insert(copiedObjects, clone)
-		print(string.format("[%s %s][CopyLighting] Copied: %s (%s)",
-			MODULE_NAME, VERSION, child.Name, child.ClassName))
+
+		-- DEBUG: Show Sky properties if it's a Sky
+		if child:IsA("Sky") then
+			print(string.format("[%s %s][CopyLighting] Copied Sky with SkyboxBk: %s",
+				MODULE_NAME, VERSION, tostring(child.SkyboxBk)))
+		else
+			print(string.format("[%s %s][CopyLighting] Copied: %s (%s)",
+				MODULE_NAME, VERSION, child.Name, child.ClassName))
+		end
+	end
+
+	-- DEBUG: Show final Lighting contents
+	print(string.format("[%s %s][CopyLighting] Final Lighting children:", MODULE_NAME, VERSION))
+	for _, obj in ipairs(Lighting:GetChildren()) do
+		print(string.format("  - %s (%s)", obj.Name, obj.ClassName))
 	end
 
 	return copiedObjects
@@ -377,8 +397,26 @@ function LocationService.SpawnPlayerInLocation(player, spawnType)
 		return false
 	end
 
-	-- Find spawn point
+	-- Find spawn point (use requested type if specified)
 	local spawnPoint, foundSpawnType = FindSpawnPoint()
+
+	-- Override with specific spawn type if requested
+	if spawnType == "PilotSeat" then
+		local spaceShip = Workspace:FindFirstChild("SpaceShip")
+		if spaceShip then
+			local pilotSeat = spaceShip:FindFirstChild("PilotSeat", true)
+			if pilotSeat then
+				spawnPoint = pilotSeat
+				foundSpawnType = "PilotSeat"
+			end
+		end
+	elseif spawnType == "SpawnLocation" then
+		local sl = Workspace:FindFirstChild("SpawnLocation", true)
+		if sl then
+			spawnPoint = sl
+			foundSpawnType = "SpawnLocation"
+		end
+	end
 
 	if foundSpawnType == "PilotSeat" and spawnPoint then
 		-- Spawn IN PilotSeat (sitting)

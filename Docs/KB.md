@@ -1,8 +1,8 @@
 # Knowledge Base - Call of Relics
 > База знань успішних рішень, ефективних алгоритмів та перевірених практик
 
-**Версія**: 0.1
-**Остання оновлення**: 2026-01-11
+**Версія**: 0.2
+**Остання оновлення**: 2026-01-14
 
 ---
 
@@ -29,6 +29,8 @@
 7. [Уроки з Помилок](#уроки-з-помилок)
 8. [Epic 1 - Повна Імплементація](#epic-1---повна-імплементація)
 9. [Seat Control System](#seat-control-system)
+10. [Planet Location System](#planet-location-system)
+11. [Transition System](#transition-system)
 
 ---
 
@@ -1368,6 +1370,22 @@ ReplicatedStorage/
 
 ## 📝 Історія Змін
 
+**2026-01-14** (v0.2):
+- ✅ **Transition System** - повна система переходів Orbit ↔ Surface
+- ✅ TransitionService.lua (v0.7) — координація landing/liftoff sequences
+- ✅ TransitionUI.lua (v0.4) — loading screens, landing camera
+- ✅ TransitionConfig.lua — конфігурація анімацій та повідомлень
+- ✅ DisplayName system — локалізовані назви для UI
+- ✅ Lazy-loaded StatusBarUI integration у TransitionUI
+- ✅ Оптимізований Boot Sequence — завантаження перенесено в TransitionService.StartGameSequence()
+- ✅ PilotUI context detection (Orbit/Surface)
+- ✅ **Planet Location System** - документація структури локацій
+- ✅ Оновлено Config.luau з повною структурою Location1
+- ✅ ZoneWalls: LeftWall, RightWall, NearWall, FarWall з SurfaceGui labels
+- ✅ ExplorationZone (80%) та LandingZone (20%) з різними матеріалами
+- ✅ SpaceShipLandingPad з LandingLights та LandingPadFrame
+- ✅ Анімовані сигнальні вогні та освітлення рамки
+
 **2026-01-13**:
 - ✅ **Seat Control System** - повна система керування сидіннями корабля
 - ✅ 5 сидінь: PilotSeat, SurfaceScannerSeat, DeepSpaceScannerSeat, SystemsConsoleSeat, PersonalTerminalSeat
@@ -1602,9 +1620,413 @@ end
 
 ---
 
-**Дата останнього оновлення**: 2026-01-13
+**Дата останнього оновлення**: 2026-01-14
 **Автори**: KOSMICMAZER + Claude Opus 4.5
 **Статус**: Active Development
+
+---
+
+## Planet Location System
+
+### Огляд
+
+Система організації планетарних локацій. Кожна локація зберігається в `ServerStorage/Planets/` та містить власну конфігурацію, 3D об'єкти та скрипти.
+
+### Структура Planet_1/Surface/Location1
+
+```
+ServerStorage/Planets/Planet_1/Surface/Location1/
+├── Config.luau              # Конфігурація локації
+├── Workspace/               # 3D об'єкти
+│   ├── Lighting/
+│   │   └── Sky              # Sky конфігурація
+│   └── Baseplate/           # Основна поверхня (2048x16x2048)
+│       ├── Texture          # Текстура поверхні
+│       ├── ZoneWalls/       # Стіни з мітками зон
+│       │   ├── LeftWall     # Ліва стіна
+│       │   ├── RightWall    # Права стіна
+│       │   ├── NearWall     # Ближня стіна (біля Landing Zone)
+│       │   └── FarWall      # Дальня стіна
+│       ├── ExplorationZone  # Зона дослідження (80%)
+│       ├── LandingZone/     # Зона посадки (20%)
+│       │   └── Texture
+│       └── SpaceShipLandingPad/  # Посадковий майданчик
+│           ├── LandingLights/    # Сигнальні вогні
+│           │   ├── FrontLeftLight
+│           │   ├── FrontRightLight
+│           │   ├── BackLeftLight
+│           │   └── BackRightLight
+│           └── LandingPadFrame/  # Рамка та декор
+│               ├── LeftFrame, RightFrame, FrontFrame, BackFrame
+│               ├── FrontLeftCorner, FrontRightCorner
+│               ├── BackLeftCorner, BackRightCorner
+│               └── Stripe1, Stripe2, Stripe3
+├── ServerScriptService/     # Серверні скрипти локації
+├── ReplicatedStorage/       # Спільне сховище
+└── StarterPlayer/           # Player скрипти
+    ├── StarterCharacterScript/
+    └── StarterPlayerScript/
+```
+
+### Zone Configuration
+
+| Зона | Розмір | Покриття | Матеріал | Колір | Призначення |
+|------|--------|----------|----------|-------|-------------|
+| ExplorationZone | 2048×16×1638.4 | 80% | Grass | Bright green | Дослідження гравцем |
+| LandingZone | 2048×16×409.6 | 20% | Concrete | Bright blue | Посадка корабля |
+| SpaceShipLandingPad | 120×2×177.6 | - | Metal | Dark stone grey | Точка посадки |
+
+### SpaceShipLandingPad Features
+
+**Візуальні елементи:**
+- 4 кутові сигнальні вогні (оранжеві, блимаючі)
+- Cyan рамка з PointLight по периметру
+- 4 жовті кутові маркери з PointLight
+- 3 білі декоративні смуги
+
+**Розміри:**
+- Розмір: 120×2×177.6 studs
+- На 20% більше за розміри корабля для безпечної посадки
+
+### Config.luau API
+
+```lua
+local Config = require(path.to.Config)
+
+-- Отримати структуру локації
+local structure = Config.getStructure()
+
+-- Отримати налаштування
+local settings = Config.getSettings()
+-- settings.gravity, settings.atmosphereEnabled, settings.maxPlayers, etc.
+
+-- Отримати шлях до asset
+local baseplateAsset = Config.getAsset("baseplate")
+local landingPadAsset = Config.getAsset("spaceshipLandingPad")
+
+-- Знайти об'єкт за ім'ям
+local landingZone = Config.findObject("LandingZone")
+
+-- Отримати metadata
+local metadata = Config.getMetadata()
+-- metadata.locationId, metadata.biome, metadata.size, metadata.features
+```
+
+### Location Settings
+
+```lua
+settings = {
+    gravity = Vector3.new(0, -196.2, 0),  -- Стандартна гравітація
+    atmosphereEnabled = true,
+    lightingPreset = "Surface",
+    maxPlayers = 16,
+    respawnTime = 5,
+    vehicleEnabled = false,
+    combatEnabled = false,
+    environmentType = "Surface"
+}
+```
+
+### Metadata
+
+```lua
+metadata = {
+    locationId = "planet1_surface_location1",
+    description = "Primary surface location on Planet 1",
+    biome = "Grassland",
+    size = Vector3.new(2048, 16, 2048),
+    zoneConfiguration = {
+        landingZone = { coverage = "20%", position = "Near wall" },
+        explorationZone = { coverage = "80%", position = "Central area" }
+    },
+    features = {
+        "Zone boundary walls with labels",
+        "Dedicated spaceship landing pad",
+        "Animated signal lights",
+        "Distinct zone materials and colors"
+    },
+    spaceshipCompatibility = {
+        supported = true,
+        landingPadSize = "120 x 177.6 studs",
+        clearance = "20% larger than spaceship",
+        visualGuidance = "Blinking lights and illuminated frame"
+    }
+}
+```
+
+---
+
+## Transition System
+
+### Огляд
+
+**Status:** ✅ Implemented
+**Version:** 0.7
+**Date:** 2026-01-14
+
+Система переходів між локаціями (Orbit ↔ Surface). Включає анімації, заставки, та управління камерою.
+
+### Архітектура
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      TRANSITION FLOW                        │
+├─────────────────────────────────────────────────────────────┤
+│  Orbit (PilotUI) → Landing → Surface (PilotUI) → Liftoff    │
+│         │            ↓              │               ↓       │
+│         │       [Loading]           │          [Loading]    │
+│         │            ↓              │               ↓       │
+│         └───────────────────────────────────────────┘       │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Ключові Компоненти
+
+#### Server
+- **TransitionService.lua** — координатор переходів
+  - `StartGameSequence(player)` — початок гри (Orbit spawn)
+  - `StartLandingSequence(player, locationId)` — посадка на поверхню
+  - `StartLiftoffSequence(player)` — підйом на орбіту
+  - `GetAvailableLocations(player)` — список доступних локацій
+
+#### Client
+- **TransitionUI.lua** — UI анімацій та заставок
+  - `ShowLoadingScreen(message)` — заставка завантаження
+  - `ShowLandingCamera(data)` — камера посадки
+  - `Hide(restoreCamera)` — приховати та відновити камеру
+
+#### Configuration
+- **TransitionConfig.lua** — конфігурація часових параметрів та повідомлень
+
+### RemoteEvents
+
+| Event | Direction | Purpose |
+|-------|-----------|---------|
+| RequestLanding | Client → Server | Запит на посадку |
+| RequestLiftoff | Client → Server | Запит на підйом |
+| TransitionUpdate | Server → Client | Стан переходу |
+| TransitionLandingCamera | Server → Client | Дані камери посадки |
+| AvailableLocationsResponse | Server → Client | Список локацій |
+
+### Transition States
+
+```lua
+States = {
+    Idle = "idle",
+    GameStart = "gamestart",      -- Початок гри
+    Departure = "departure",      -- Відліт з орбіти
+    Loading = "loading",          -- Заставка
+    Approach = "approach",        -- Наближення
+    Landing = "landing",          -- Посадка
+    Complete = "complete",        -- Завершено
+    Liftoff = "liftoff",          -- Підйом
+    Ascending = "ascending",      -- Набір висоти
+}
+```
+
+### Landing Sequence Flow
+
+```
+1. [PilotUI] Гравець вибирає локацію
+       ↓
+2. [Client] RequestLanding → Server
+       ↓
+3. [Server] TransitionUpdate("loading", {message})
+       ↓
+4. [Client] ShowLoadingScreen("Приземлення на...")
+       ↓
+5. [Server] UnloadLocation → LoadLocation
+       ↓
+6. [Server] SpawnShipAbovePad → GetLandingCameraData
+       ↓
+7. [Server] TransitionLandingCamera → Client
+       ↓
+8. [Client] ShowLandingCamera (scriptable camera)
+       ↓
+9. [Server] AnimateShipLanding (TweenService)
+       ↓
+10. [Server] TransitionUpdate("complete", {displayNames})
+       ↓
+11. [Client] RestoreCamera + UpdateStatusBar
+```
+
+### Технічні Рішення
+
+#### ✅ Scriptable Camera для Landing
+
+**Проблема:** Стандартна камера Roblox слідує за персонажем.
+
+**Рішення:** Тимчасова scriptable камера під час посадки:
+
+```lua
+-- TransitionUI.lua
+function TransitionUI.ShowLandingCamera(data)
+    local camera = workspace.CurrentCamera
+
+    -- Зберегти оригінальний стан
+    originalCameraMode = camera.CameraType
+    originalCameraSubject = camera.CameraSubject
+
+    -- Переключити на scriptable
+    camera.CameraType = Enum.CameraType.Scriptable
+    camera.CFrame = CFrame.lookAt(data.cameraPosition, data.lookAtPosition)
+end
+
+function TransitionUI.RestoreCamera()
+    local camera = workspace.CurrentCamera
+    camera.CameraType = Enum.CameraType.Custom
+
+    local player = Players.LocalPlayer
+    if player.Character then
+        camera.CameraSubject = player.Character:FindFirstChild("Humanoid")
+    end
+end
+```
+
+**Переваги:**
+- Кінематографічний ефект під час посадки
+- Гравець бачить корабель зверху
+- Плавне відновлення після завершення
+
+#### ✅ DisplayName System для Локалізації
+
+**Проблема:** Технічні ID (Planet_1, Location1) не підходять для UI.
+
+**Рішення:** `displayName` у кожному Config.luau:
+
+```lua
+-- Planet1 Config
+displayName = "Kepler-442b"
+
+-- Orbit Config
+displayName = "Орбіта"
+
+-- Location1 Config
+displayName = "Зелена долина"
+```
+
+**Використання:**
+```lua
+-- TransitionService відправляє displayName у Complete state
+transitionUpdate:FireClient(player, States.Complete, {
+    planetDisplayName = "Kepler-442b",
+    locationDisplayName = "Орбіта"
+})
+
+-- TransitionUI оновлює StatusBar
+StatusBarUI.SetPlanet(data.planetDisplayName)
+StatusBarUI.SetLocation(data.locationDisplayName)
+```
+
+#### ✅ Lazy Loading UI Modules
+
+**Проблема:** Модулі UI можуть бути не ініціалізовані при першому виклику.
+
+**Рішення:** Lazy-loaded references:
+
+```lua
+local StatusBarUI = nil
+
+local function GetStatusBarUI()
+    if not StatusBarUI then
+        local UI = script.Parent
+        local statusBarModule = UI:FindFirstChild("StatusBarUI")
+        if statusBarModule then
+            StatusBarUI = require(statusBarModule)
+        end
+    end
+    return StatusBarUI
+end
+```
+
+**Переваги:**
+- Уникнення circular dependencies
+- Робота з ще не завантаженими модулями
+- Graceful degradation якщо модуль відсутній
+
+#### ✅ Оптимізований Boot Sequence
+
+**Проблема:** BootSequence Stage4 завантажував локацію, що сповільнювало відображення кнопки "Почати гру".
+
+**Рішення:** Перенести завантаження локації в TransitionService:
+
+```lua
+-- BootSequence Stage4 - тільки валідація assets
+local planetFolder = ServerStorage.Planets:FindFirstChild(profile.currentPlanet)
+if planetFolder and planetFolder:FindFirstChild("Orbit") then
+    print("✓ Assets validated")
+end
+
+-- TransitionService.StartGameSequence() - реальне завантаження
+function TransitionService.StartGameSequence(player)
+    -- 1. Показати loading screen
+    -- 2. Завантажити Orbit
+    -- 3. Spawn корабель
+    -- 4. Посадити гравця в PilotSeat
+    -- 5. Завершити перехід
+end
+```
+
+**Переваги:**
+- Швидше відображення кнопки "Почати гру"
+- Loading screen показує прогрес завантаження
+- Чітке розділення валідації та завантаження
+
+### PilotUI Context Detection
+
+```lua
+-- Визначення контексту на основі поточної локації
+function PilotUI.DetectContext()
+    local LocationService = require(Services:WaitForChild("LocationService"))
+    local currentLocation = LocationService.GetCurrentLocation(player)
+
+    if currentLocation and currentLocation.locationType == "Surface" then
+        return TransitionConfig.Contexts.Surface  -- Показати "На орбіту"
+    else
+        return TransitionConfig.Contexts.Orbit    -- Показати список локацій
+    end
+end
+```
+
+### Landing Camera Configuration
+
+```lua
+-- TransitionConfig.lua
+LandingCameraOffset = Vector3.new(-100, 150, -50),  -- Позиція камери відносно pad
+LandingCameraLookAt = Vector3.new(0, 0, 0),         -- Точка фокусу
+
+ShipSpawnHeight = 500,    -- Висота появи корабля
+ShipLandingHeight = 25,   -- Фінальна висота (центр корабля)
+LandingDuration = 4.0,    -- Тривалість анімації посадки
+```
+
+### Testing Checklist
+
+- [x] GameStart завантажує Orbit і спавнить гравця в PilotSeat
+- [x] PilotUI показує список локацій на орбіті
+- [x] Клік на локацію запускає посадку
+- [x] Loading screen показує повідомлення
+- [x] Камера переключається на посадковий вид
+- [x] Корабель анімовано приземляється
+- [x] Камера відновлюється після посадки
+- [x] StatusBar показує displayName планети та локації
+- [x] PilotUI на поверхні показує кнопку "На орбіту"
+- [x] Liftoff працює (зворотній процес)
+
+### Файлова Структура
+
+```
+ServerScriptService/Services/
+└── TransitionService.lua (v0.7)
+
+StarterPlayer/StarterPlayerScripts/UI/
+├── TransitionUI.lua (v0.4)
+└── SeatUI/
+    └── PilotUI.lua (v0.5)
+
+ReplicatedStorage/Game/
+└── TransitionConfig.lua (v0.1)
+```
 
 ---
 

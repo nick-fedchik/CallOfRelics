@@ -8,6 +8,92 @@
 
 ---
 
+## [0.7.0] - 2026-01-14 - Transition System (Orbit ↔ Surface)
+
+### Added - Location Transitions
+
+#### Server-Side
+- **TransitionService.lua (v0.7)** — Complete transition coordination
+  - `StartGameSequence(player)` — Initial game start (load Orbit, spawn in PilotSeat)
+  - `StartLandingSequence(player, locationId)` — Landing from Orbit to Surface
+  - `StartLiftoffSequence(player)` — Liftoff from Surface to Orbit
+  - `GetAvailableLocations(player)` — Return list of discovered locations
+  - Server-side ship animation with TweenService
+  - Landing camera data calculation
+
+#### Client-Side
+- **TransitionUI.lua (v0.4)** — Transition animations and UI
+  - Loading screen with localized messages
+  - Landing camera sequence (scriptable camera POV from landing pad)
+  - Camera restore after transition
+  - StatusBarUI integration for displayName updates
+- **PilotUI.lua (v0.5)** — Context-aware pilot interface
+  - Orbit context: Location selection menu
+  - Surface context: Liftoff button
+  - DisplayName localization for locations
+
+#### Configuration
+- **TransitionConfig.lua (v0.1)** — Transition parameters
+  - Animation durations (landing, liftoff, loading)
+  - Camera offsets for landing POV
+  - Ship spawn/landing heights
+  - Localized messages (Ukrainian)
+  - Transition states enum
+
+#### RemoteEvents (NEW)
+- `RequestLanding` — Client → Server: request landing on location
+- `RequestLiftoff` — Client → Server: request liftoff to orbit
+- `TransitionUpdate` — Server → Client: transition state updates
+- `TransitionLandingCamera` — Server → Client: landing camera data
+- `AvailableLocationsResponse` — Server → Client: list of locations
+- `RequestAvailableLocations` — Client → Server: request locations
+
+#### Planet Configuration
+- **Planet_1/Config.luau** — Added `displayName = "Kepler-442b"`
+- **Orbit/Config.luau** — Added `displayName = "Орбіта"`, `animationData` for transitions
+- **Location1/Config.luau** — Added `displayName = "Зелена долина"`
+- **Location2/Config.luau** — Added `displayName = "Гірський хребет"`
+
+### Changed
+- **BootSequence.lua (v0.4)** — Optimized boot sequence
+  - Stage 4 now only validates assets (doesn't load location)
+  - Location loading moved to TransitionService.StartGameSequence()
+  - Faster "Почати гру" button appearance
+- **StatusBarUI.lua** — Now displays `displayName` instead of technical IDs
+  - Planet: "Kepler-442b" instead of "Planet_1"
+  - Location: "Орбіта" instead of "Orbit"
+- **GameConfig.lua (v0.3)** — Updated version to 0.7, VersionTag to "Transition System"
+
+### Fixed
+- StatusBar displaying technical names (Planet_1) instead of displayName (Kepler-442b)
+- Camera not restoring properly after transition complete
+- PilotUI context detection on initial show
+
+### Architecture Improvements
+- **Scriptable Camera Pattern** — Cinematic landing view with camera restore
+- **DisplayName Localization** — All UI shows Ukrainian display names
+- **Lazy-loaded StatusBarUI** — Avoids circular dependencies in TransitionUI
+- **Server-authoritative Transitions** — All animations coordinated from server
+
+### Documentation
+- **KB.md (v0.2)** — Added Transition System section
+- **FOLDER_STRUCTURE.md (v1.1)** — Updated with new files and SS/Planets structure
+- **README_GUI_DEV.md** — Updated with TransitionUI and SeatUI documentation
+
+### Testing Checklist
+- [x] GameStart loads Orbit and spawns player in PilotSeat
+- [x] PilotUI shows location list on Orbit
+- [x] Clicking location starts landing sequence
+- [x] Loading screen shows localized message
+- [x] Landing camera shows ship from above
+- [x] Ship animates down to landing pad
+- [x] Camera restores after landing
+- [x] StatusBar shows displayName for planet and location
+- [x] PilotUI shows "На орбіту" button on Surface
+- [x] Liftoff sequence works (reverse process)
+
+---
+
 ## [0.6.0] - 2026-01-12 - Location Loading System
 
 ### Added - Location Management

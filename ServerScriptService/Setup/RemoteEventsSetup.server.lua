@@ -118,4 +118,28 @@ print(string.format("[%s %s] Created: SeatActionRequest", MODULE_NAME, VERSION))
 local seatActionResponse = CreateRemoteEvent("SeatActionResponse")
 print(string.format("[%s %s] Created: SeatActionResponse", MODULE_NAME, VERSION))
 
+-- ============================================================================
+-- TRANSITION SYSTEM EVENTS
+-- ============================================================================
+
+-- Request Landing (Client → Server)
+local requestLanding = CreateRemoteEvent("RequestLanding")
+print(string.format("[%s %s] Created: RequestLanding", MODULE_NAME, VERSION))
+
+-- Request Liftoff (Client → Server)
+local requestLiftoff = CreateRemoteEvent("RequestLiftoff")
+print(string.format("[%s %s] Created: RequestLiftoff", MODULE_NAME, VERSION))
+
+-- Transition Update (Server → Client)
+local transitionUpdate = CreateRemoteEvent("TransitionUpdate")
+print(string.format("[%s %s] Created: TransitionUpdate", MODULE_NAME, VERSION))
+
+-- Locations Available (Server → Client)
+local locationsAvailable = CreateRemoteEvent("LocationsAvailable")
+print(string.format("[%s %s] Created: LocationsAvailable", MODULE_NAME, VERSION))
+
+-- Request Available Locations (Client → Server)
+local requestLocations = CreateRemoteEvent("RequestLocations")
+print(string.format("[%s %s] Created: RequestLocations", MODULE_NAME, VERSION))
+
 print(string.format("[%s %s] RemoteEvents setup complete", MODULE_NAME, VERSION))

@@ -208,7 +208,7 @@ local function Stage3_ProfileLoading(player)
 end
 
 local function Stage4_ReadyState(player, profile)
-	print(string.format("[%s %s][Stage4] Preparing game space for %s", MODULE_NAME, VERSION, player.Name))
+	print(string.format("[%s %s][Stage4] Validating game assets for %s", MODULE_NAME, VERSION, player.Name))
 
 	local progressData = CalculateStageProgress(4)
 
@@ -223,19 +223,26 @@ local function Stage4_ReadyState(player, profile)
 	print(string.format("  - Explored Locations: %d", exploredCount))
 	print(string.format("  - Ship Energy: %d", profile.shipState.energyLevel))
 
-	-- CRITICAL: Load initial location (Orbit of current planet)
-	print(string.format("[%s %s][Stage4] Loading initial location: %s/Orbit",
-		MODULE_NAME, VERSION, profile.currentPlanet))
+	-- Validate that required assets exist (don't load yet - TransitionService will do that)
+	local ServerStorage = game:GetService("ServerStorage")
+	local planetFolder = ServerStorage.Planets:FindFirstChild(profile.currentPlanet)
 
-	local loadSuccess = LocationService.LoadLocation(player, profile.currentPlanet, "Orbit")
-
-	if not loadSuccess then
-		warn(string.format("[%s %s][Stage4] Failed to load location for %s",
-			MODULE_NAME, VERSION, player.Name))
-		-- TODO: Handle location load failure (return to ScreenSaver or retry)
+	if not planetFolder then
+		warn(string.format("[%s %s][Stage4] Planet folder not found: %s",
+			MODULE_NAME, VERSION, profile.currentPlanet))
+		-- TODO: Handle missing assets (error state)
+	else
+		local orbitFolder = planetFolder:FindFirstChild("Orbit")
+		if not orbitFolder then
+			warn(string.format("[%s %s][Stage4] Orbit folder not found for %s",
+				MODULE_NAME, VERSION, profile.currentPlanet))
+		else
+			print(string.format("[%s %s][Stage4] ✓ Assets validated for %s/Orbit",
+				MODULE_NAME, VERSION, profile.currentPlanet))
+		end
 	end
 
-	-- Send ready state to client
+	-- Send ready state to client (location NOT loaded yet - will load on "Почати гру")
 	local stageData = {
 		ready = true,
 		currentPlanet = profile.currentPlanet,
@@ -308,25 +315,31 @@ ConfirmGameStart.OnServerEvent:Connect(function(player)
 		return
 	end
 
-	print(string.format("[%s %s][ConfirmGameStart] Player %s confirmed game start — transitioning to InGame", MODULE_NAME, VERSION, player.Name))
+	print(string.format("[%s %s][ConfirmGameStart] Player %s confirmed game start — starting transition", MODULE_NAME, VERSION, player.Name))
 
-	-- CRITICAL: Spawn player in loaded location
-	LocationService.SpawnPlayerInLocation(player, "auto")
+	-- Clean up session first (to allow TransitionService to work)
+	activeBootSessions[player.UserId] = nil
 
-	-- Transition to InGame state
-	local success = GameStateManager.RequestStateChange(
+	-- Transition to InGame state (this hides ScreenSaver)
+	local stateSuccess = GameStateManager.RequestStateChange(
 		GameStateManager.States.InGame,
 		{ player = player }
 	)
 
-	if success then
-		print(string.format("[%s %s][ConfirmGameStart] Successfully transitioned %s to InGame", MODULE_NAME, VERSION, player.Name))
-	else
-		warn(string.format("[%s %s][ConfirmGameStart] Failed to transition %s to InGame", MODULE_NAME, VERSION, player.Name))
+	if not stateSuccess then
+		warn(string.format("[%s %s][ConfirmGameStart] Failed to transition %s to InGame state", MODULE_NAME, VERSION, player.Name))
+		return
 	end
 
-	-- Clean up session
-	activeBootSessions[player.UserId] = nil
+	-- Start game sequence via TransitionService (loads Orbit, spawns player)
+	local TransitionService = require(Services:WaitForChild("TransitionService"))
+	local transitionSuccess = TransitionService.StartGameSequence(player)
+
+	if transitionSuccess then
+		print(string.format("[%s %s][ConfirmGameStart] ✓ Game started for %s", MODULE_NAME, VERSION, player.Name))
+	else
+		warn(string.format("[%s %s][ConfirmGameStart] Transition failed for %s", MODULE_NAME, VERSION, player.Name))
+	end
 end)
 
 -- ============================================================================

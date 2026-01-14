@@ -2,7 +2,7 @@
     "languageMode": "strict",
     "lint": {
         "*": true,
-        "LocalUnused": "disabled"
+        "LocalUnused": true
     },
     "aliases": {
         "Shared": "src/ReplicatedStorage/Shared"

@@ -8,7 +8,7 @@ Centralized game configuration. Single source of truth for game identity and
 initial settings. Used during boot sequence and throughout game lifecycle.
 
 Version:
-0.1
+0.3
 
 Features:
 - Game name and version information
@@ -25,11 +25,14 @@ Calls to:
 Called from:
 - BootSequence (reads game identity and timing)
 - ProfileService (reads StartPlanet for new profiles)
+- TransitionService (reads game version)
 
 Dependencies:
 - None
 
 ChangeLog:
+- 0.3: Updated game version to 0.7, VersionTag to Transition System (2026-01-14)
+- 0.2: Added BootStages configuration (2026-01-12)
 - 0.1: Initial game configuration (2026-01-11)
 ================================================================================
 ]]
@@ -41,8 +44,8 @@ local GameConfig = {
 
 	GameName = "CALL OF RELICS",
 	GameSubtitle = "Orbital Silence",
-	Version = "0.1",
-	VersionTag = "EPIC 1",
+	Version = "0.7",
+	VersionTag = "Transition System",
 	Developer = "KosmicMazer",
 
 	-- ============================================================================
