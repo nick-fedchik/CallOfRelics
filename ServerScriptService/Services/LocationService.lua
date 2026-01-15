@@ -9,7 +9,7 @@ Handles workspace cleanup, content copying, and player spawning.
 Enforces TDD 5.6 "Complete Context Cleanup" principle.
 
 Version:
-0.1
+0.2
 
 Features:
 - Load location from ServerStorage.Planets structure
@@ -18,6 +18,7 @@ Features:
 - Spawn player in PilotSeat or SpawnLocation
 - Track current active location per player
 - Support for Orbit and Surface location types
+- Preserve SpaceShip and Player Characters across location transitions
 
 API:
 - Initialize() — Initialize service, must be called during boot
@@ -44,12 +45,13 @@ Dependencies:
 - Location Config.luau files
 
 ChangeLog:
+- 0.2: Preserve SpaceShip and Player Characters in ClearWorkspace (2026-01-15)
 - 0.1: Initial LocationService with Load/Unload/Spawn (2026-01-12)
 ================================================================================
 ]]
 
 local MODULE_NAME = "LocationService"
-local VERSION = "0.1"
+local VERSION = "0.2"
 
 local ServerStorage = game:GetService("ServerStorage")
 local Workspace = game:GetService("Workspace")
@@ -74,14 +76,32 @@ local spawnedContent = {}
 -- PRIVATE HELPERS
 -- ============================================================================
 
+local function IsPlayerCharacter(model)
+	-- Check if model is a player's character
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player.Character == model then
+			return true
+		end
+	end
+	return false
+end
+
 local function ClearWorkspace()
 	print(string.format("[%s %s][ClearWorkspace] Clearing Workspace and Lighting", MODULE_NAME, VERSION))
 
-	-- Clear workspace (keep Terrain, Camera)
+	-- Clear workspace (keep Terrain, Camera, SpaceShip, Player Characters)
 	for _, child in ipairs(Workspace:GetChildren()) do
 		if child:IsA("Model") or child:IsA("Part") or child:IsA("Folder") then
-			if child.Name ~= "Terrain" and child.Name ~= "Camera" then
+			-- Preserve essential objects
+			local shouldKeep = child.Name == "Terrain"
+				or child.Name == "Camera"
+				or child.Name == "SpaceShip"  -- Keep spaceship across all locations
+				or IsPlayerCharacter(child)    -- Keep player characters
+
+			if not shouldKeep then
 				child:Destroy()
+			else
+				print(string.format("[%s %s][ClearWorkspace] Preserved: %s", MODULE_NAME, VERSION, child.Name))
 			end
 		end
 	end
@@ -111,6 +131,21 @@ local function CopyModelsToWorkspace(locationWorkspaceFolder)
 
 	for _, child in ipairs(locationWorkspaceFolder:GetChildren()) do
 		if child.Name ~= "Lighting" then -- Lighting handled separately
+
+			-- Special handling for SpaceShip - reuse existing if present
+			if child.Name == "SpaceShip" then
+				local existingShip = Workspace:FindFirstChild("SpaceShip")
+				if existingShip then
+					-- Reposition existing ship to original location position
+					local templateCFrame = child:GetPivot()
+					existingShip:PivotTo(templateCFrame)
+					print(string.format("[%s %s][CopyModels] SpaceShip repositioned to original Orbit position",
+						MODULE_NAME, VERSION))
+					table.insert(copiedModels, existingShip)
+					continue -- Skip cloning
+				end
+			end
+
 			local clone = child:Clone()
 
 			-- Set ModelStreamingMode to Persistent to prevent streaming from removing models
@@ -342,11 +377,11 @@ function LocationService.UnloadLocation(player)
 	print(string.format("[%s %s][UnloadLocation] Unloading %s/%s for %s",
 		MODULE_NAME, VERSION, locationInfo.planetId, locationInfo.locationName, player.Name))
 
-	-- Cleanup spawned content
+	-- Cleanup spawned content (but preserve SpaceShip)
 	if spawnedContent[player] then
-		-- Destroy models
+		-- Destroy models (except SpaceShip - persists across locations)
 		for _, model in ipairs(spawnedContent[player].models) do
-			if model and model.Parent then
+			if model and model.Parent and model.Name ~= "SpaceShip" then
 				model:Destroy()
 			end
 		end
@@ -419,6 +454,13 @@ function LocationService.SpawnPlayerInLocation(player, spawnType)
 	end
 
 	if foundSpawnType == "PilotSeat" and spawnPoint then
+		-- Check if player is already sitting in this seat
+		if humanoid.SeatPart == spawnPoint then
+			print(string.format("[%s %s][SpawnPlayer] ✓ %s already seated in PilotSeat, skipping",
+				MODULE_NAME, VERSION, player.Name))
+			return true
+		end
+
 		-- Spawn IN PilotSeat (sitting)
 		task.wait(0.2) -- Wait for character to fully load
 

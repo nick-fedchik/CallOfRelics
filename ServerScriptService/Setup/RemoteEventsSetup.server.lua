@@ -8,7 +8,7 @@ Creates and configures RemoteEvents for client-server communication.
 Runs early in boot sequence.
 
 Version:
-0.1
+0.2
 
 Features:
 - Creates RemoteEvents folder in ReplicatedStorage
@@ -32,11 +32,12 @@ Dependencies:
 - None
 
 ChangeLog:
+- 0.2: Rename RequestLiftoff → RequestLaunch (2026-01-15)
 - 0.1: Initial RemoteEvents setup (2026-01-11)
 ================================================================================
 ]]
 
-local VERSION = "0.1"
+local VERSION = "0.2"
 local MODULE_NAME = "RemoteEventsSetup"
 
 print(string.format("[%s %s] Setting up RemoteEvents...", MODULE_NAME, VERSION))
@@ -126,9 +127,9 @@ print(string.format("[%s %s] Created: SeatActionResponse", MODULE_NAME, VERSION)
 local requestLanding = CreateRemoteEvent("RequestLanding")
 print(string.format("[%s %s] Created: RequestLanding", MODULE_NAME, VERSION))
 
--- Request Liftoff (Client → Server)
-local requestLiftoff = CreateRemoteEvent("RequestLiftoff")
-print(string.format("[%s %s] Created: RequestLiftoff", MODULE_NAME, VERSION))
+-- Request Launch (Client → Server)
+local requestLaunch = CreateRemoteEvent("RequestLaunch")
+print(string.format("[%s %s] Created: RequestLaunch", MODULE_NAME, VERSION))
 
 -- Transition Update (Server → Client)
 local transitionUpdate = CreateRemoteEvent("TransitionUpdate")
@@ -141,5 +142,21 @@ print(string.format("[%s %s] Created: LocationsAvailable", MODULE_NAME, VERSION)
 -- Request Available Locations (Client → Server)
 local requestLocations = CreateRemoteEvent("RequestLocations")
 print(string.format("[%s %s] Created: RequestLocations", MODULE_NAME, VERSION))
+
+-- Transition Landing Camera (Server → Client)
+local transitionLandingCamera = CreateRemoteEvent("TransitionLandingCamera")
+print(string.format("[%s %s] Created: TransitionLandingCamera", MODULE_NAME, VERSION))
+
+-- ============================================================================
+-- PROFILE SYSTEM EVENTS
+-- ============================================================================
+
+-- Profile Update (Server → Client) - Push profile changes to client
+local profileUpdate = CreateRemoteEvent("ProfileUpdate")
+print(string.format("[%s %s] Created: ProfileUpdate", MODULE_NAME, VERSION))
+
+-- Request Profile Sync (Client → Server) - Client requests current profile
+local requestProfileSync = CreateRemoteEvent("RequestProfileSync")
+print(string.format("[%s %s] Created: RequestProfileSync", MODULE_NAME, VERSION))
 
 print(string.format("[%s %s] RemoteEvents setup complete", MODULE_NAME, VERSION))

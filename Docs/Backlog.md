@@ -1,7 +1,7 @@
 # Backlog.md  
 **Project:** Call of Relics: Orbital Silence  
 **Type:** Single-player Exploration RPG (Roblox)  
-**Backlog Version:** 0.3  
+**Backlog Version:** 0.4  
 **Status:** Active Development  
 **Scope:** Architecture-first, Content-later  
 
@@ -196,16 +196,18 @@ User Stories формулюються з точки зору **гравця** а
 
 ---
 
-### EPIC 8 — Progression & Persistence
+### EPIC 8 — Progression & Persistence ✅ COMPLETE
 
-**Опис:**  
+**Опис:**
 Довготривалий прогрес гравця.
 
+**Status:** ✅ Complete (v0.8)
+
 #### Stories:
-- Player progress is saved reliably
-- Player returns to last known safe state
-- Resources may be lost on failure
-- Knowledge is never lost
+- ✅ Player progress is saved reliably (auto-save + event saves)
+- ✅ Player returns to last known safe state (lastSafeState in profile)
+- ✅ Resources may be lost on failure (RemoveResources API)
+- ✅ Knowledge is never lost (AddKnowledge only, no removal)
 
 ---
 

@@ -5,23 +5,24 @@ KOSMICMAZER — TransitionService
 
 Purpose:
 Coordinates location transitions between Orbit and Surface locations.
-Manages landing and liftoff sequences with client-server synchronization.
+Manages landing and launch sequences with client-server synchronization.
 
 Version:
-0.1
+0.3
 
 Features:
 - StartLandingSequence(player, locationId) — Orbit → Surface transition
-- StartLiftoffSequence(player) — Surface → Orbit transition
+- StartLaunchSequence(player) — Surface → Orbit transition
 - GetAvailableLocations(player) — Get explored locations from profile
 - GetCurrentContext(player) — Returns "Orbit" or "Surface"
 - GetTransitionState(player) — Returns current transition state
 - Server-driven animation coordination via RemoteEvents
+- Preserves SpaceShip across location transitions (reuses instead of respawning)
 
 API:
 - Initialize() — Setup event handlers
 - StartLandingSequence(player, locationId) → boolean
-- StartLiftoffSequence(player) → boolean
+- StartLaunchSequence(player) → boolean
 - GetAvailableLocations(player) → {locations}
 - GetCurrentContext(player) → "Orbit" | "Surface" | nil
 - GetTransitionState(player) → state | nil
@@ -32,7 +33,7 @@ Calls to:
 - TransitionConfig (Timing parameters)
 
 Called from:
-- RemoteEvents: RequestLanding, RequestLiftoff, RequestLocations
+- RemoteEvents: RequestLanding, RequestLaunch, RequestLocations
 
 Events:
 - Fires: TransitionUpdate, LocationsAvailable
@@ -44,12 +45,16 @@ Dependencies:
 - ServerStorage.Planets structure
 
 ChangeLog:
+- 0.5: Rename Liftoff → Launch (StartLaunchSequence, States.Launch/Ascent) (2026-01-15)
+- 0.4: Two-phase landing animation, remove unused AnimateShipLanding (2026-01-15)
+- 0.3: Preserve SpaceShip across transitions, skip respawn if seated (2026-01-15)
+- 0.2: EPIC 8 - ProfileService integration for progression tracking (2026-01-15)
 - 0.1: Initial TransitionService (2026-01-14)
 ================================================================================
 ]]
 
 local MODULE_NAME = "TransitionService"
-local VERSION = "0.1"
+local VERSION = "0.5"
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
@@ -100,7 +105,7 @@ local remoteEvents
 local transitionUpdate
 local locationsAvailable
 local requestLanding
-local requestLiftoff
+local requestLaunch
 local requestLocations
 
 -- ============================================================================
@@ -219,7 +224,24 @@ local function SpawnShipAboveLandingPad(player, locationId)
 	print(string.format("[%s %s][SpawnShip] Found landing pad: %s at WORLD pos %s (local: %s)",
 		MODULE_NAME, VERSION, landingPad.Name, tostring(padWorldPosition), tostring(landingPad.Position)))
 
-	-- Get SpaceShip from Orbit location
+	-- Check if SpaceShip already exists in Workspace (preserved from Orbit)
+	local existingShip = Workspace:FindFirstChild("SpaceShip")
+	if existingShip then
+		print(string.format("[%s %s][SpawnShip] SpaceShip already exists, repositioning for landing",
+			MODULE_NAME, VERSION))
+
+		-- Reposition existing ship above landing pad
+		local spawnHeight = TransitionConfig.ShipSpawnHeight
+		local startPosition = padWorldPosition + Vector3.new(0, spawnHeight, 0)
+		existingShip:PivotTo(CFrame.new(startPosition) * CFrame.Angles(0, 0, 0))
+
+		print(string.format("[%s %s][SpawnShip] Ship repositioned to %s (height %d above pad)",
+			MODULE_NAME, VERSION, tostring(startPosition), spawnHeight))
+
+		return existingShip, landingPad
+	end
+
+	-- Get SpaceShip from Orbit location (fallback if not preserved)
 	local planetFolder = ServerStorage.Planets:FindFirstChild("Planet_1")
 	if not planetFolder then return nil end
 
@@ -254,85 +276,6 @@ local function SpawnShipAboveLandingPad(player, locationId)
 		MODULE_NAME, VERSION, tostring(startPosition), spawnHeight))
 
 	return ship, landingPad
-end
-
-local function AnimateShipLanding(ship, landingPad, duration)
-	if not ship or not landingPad then return end
-
-	local primaryPart = ship.PrimaryPart or ship:FindFirstChildWhichIsA("BasePart")
-	if not primaryPart then return end
-
-	-- Calculate end position using WORLD position of landing pad
-	local padWorldPosition = landingPad.CFrame.Position
-	local landingHeight = TransitionConfig.ShipLandingHeight
-	local endPosition = padWorldPosition + Vector3.new(0, landingHeight, 0)
-
-	print(string.format("[%s %s][AnimateLanding] Landing to WORLD pos %s",
-		MODULE_NAME, VERSION, tostring(endPosition)))
-
-	-- Create tween for ship descent
-	local tweenInfo = TweenInfo.new(
-		duration,
-		Enum.EasingStyle.Quad,
-		Enum.EasingDirection.Out
-	)
-
-	-- We need to move the entire model, so we'll use PivotTo in a loop
-	local startCFrame = ship:GetPivot()
-	local endCFrame = CFrame.new(endPosition) * startCFrame.Rotation
-
-	local startTime = os.clock()
-
-	while os.clock() - startTime < duration do
-		local alpha = (os.clock() - startTime) / duration
-		alpha = 1 - (1 - alpha) ^ 2 -- Quad easing out
-
-		local currentCFrame = startCFrame:Lerp(endCFrame, alpha)
-		ship:PivotTo(currentCFrame)
-
-		task.wait()
-	end
-
-	-- Final position
-	ship:PivotTo(endCFrame)
-
-	print(string.format("[%s %s][AnimateLanding] Ship landed on pad", MODULE_NAME, VERSION))
-end
-
-local function AnimateShipLiftoff(ship, duration)
-	if not ship then return end
-
-	local primaryPart = ship.PrimaryPart or ship:FindFirstChildWhichIsA("BasePart")
-	if not primaryPart then return end
-
-	-- Current position (on landing pad)
-	local startCFrame = ship:GetPivot()
-	local startPosition = startCFrame.Position
-
-	-- End position (high above, out of view)
-	local liftoffHeight = TransitionConfig.ShipSpawnHeight -- Same height as spawn
-	local endPosition = startPosition + Vector3.new(0, liftoffHeight, 0)
-	local endCFrame = CFrame.new(endPosition) * startCFrame.Rotation
-
-	print(string.format("[%s %s][AnimateLiftoff] Lifting from %s to %s",
-		MODULE_NAME, VERSION, tostring(startPosition), tostring(endPosition)))
-
-	local startTime = os.clock()
-
-	while os.clock() - startTime < duration do
-		local alpha = (os.clock() - startTime) / duration
-		alpha = alpha * alpha -- Quad easing in (accelerating ascent)
-
-		local currentCFrame = startCFrame:Lerp(endCFrame, alpha)
-		ship:PivotTo(currentCFrame)
-
-		task.wait()
-	end
-
-	-- Final position
-	ship:PivotTo(endCFrame)
-
-	print(string.format("[%s %s][AnimateLiftoff] Ship ascended", MODULE_NAME, VERSION))
 end
 
 local function GetPlanetDisplayName(planetId)
@@ -438,7 +381,7 @@ function TransitionService.Initialize()
 	transitionUpdate = remoteEvents:WaitForChild("TransitionUpdate", 5)
 	locationsAvailable = remoteEvents:WaitForChild("LocationsAvailable", 5)
 	requestLanding = remoteEvents:WaitForChild("RequestLanding", 5)
-	requestLiftoff = remoteEvents:WaitForChild("RequestLiftoff", 5)
+	requestLaunch = remoteEvents:WaitForChild("RequestLaunch", 5)
 	requestLocations = remoteEvents:WaitForChild("RequestLocations", 5)
 
 	-- Setup event handlers
@@ -446,8 +389,8 @@ function TransitionService.Initialize()
 		TransitionService.StartLandingSequence(player, locationId)
 	end)
 
-	requestLiftoff.OnServerEvent:Connect(function(player)
-		TransitionService.StartLiftoffSequence(player)
+	requestLaunch.OnServerEvent:Connect(function(player)
+		TransitionService.StartLaunchSequence(player)
 	end)
 
 	requestLocations.OnServerEvent:Connect(function(player)
@@ -466,14 +409,17 @@ function TransitionService.Initialize()
 end
 
 function TransitionService.GetAvailableLocations(player)
-	local profile = GetProfileService().GetProfile(player)
+	local profileService = GetProfileService()
+	local profile = profileService.GetProfile(player)
 	if not profile then
 		warn(string.format("[%s %s][GetLocations] No profile for %s", MODULE_NAME, VERSION, player.Name))
 		return {}
 	end
 
-	local exploredLocations = profile.exploredLocations or {}
 	local planetId = profile.currentPlanet or "Planet_1"
+
+	-- Use new per-planet location structure (EPIC 8)
+	local exploredLocations = profileService.GetExploredLocationsForPlanet(player, planetId)
 
 	-- If no explored locations, use default for debug
 	if #exploredLocations == 0 then
@@ -482,14 +428,17 @@ function TransitionService.GetAvailableLocations(player)
 
 	local locations = {}
 	for _, locationId in ipairs(exploredLocations) do
-		local metadata = GetLocationMetadata(planetId, locationId)
-		if metadata then
-			table.insert(locations, metadata)
+		-- Skip Orbit - it's not a landable location
+		if locationId ~= "Orbit" then
+			local metadata = GetLocationMetadata(planetId, locationId)
+			if metadata then
+				table.insert(locations, metadata)
+			end
 		end
 	end
 
-	print(string.format("[%s %s][GetLocations] Found %d locations for %s",
-		MODULE_NAME, VERSION, #locations, player.Name))
+	print(string.format("[%s %s][GetLocations] Found %d locations for %s on %s",
+		MODULE_NAME, VERSION, #locations, player.Name, planetId))
 
 	return locations
 end
@@ -592,9 +541,18 @@ function TransitionService.StartLandingSequence(player, locationId)
 	task.wait(TransitionConfig.LoadingMinDuration)
 
 	-- Phase 3: Respawn player character if needed (may have died during transition)
+	-- Note: If player is sitting in ship (preserved), skip respawn
 	local character = player.Character
 	local humanoid = character and character:FindFirstChild("Humanoid")
-	if not character or not humanoid or humanoid:GetState() == Enum.HumanoidStateType.Dead then
+	local needsRespawn = not character or not humanoid or humanoid:GetState() == Enum.HumanoidStateType.Dead
+
+	-- If player is sitting (in preserved SpaceShip), don't respawn
+	if humanoid and humanoid.SeatPart then
+		needsRespawn = false
+		print(string.format("[%s %s][Landing] Player still seated, skipping respawn", MODULE_NAME, VERSION))
+	end
+
+	if needsRespawn then
 		print(string.format("[%s %s][Landing] Respawning player character (silent)...", MODULE_NAME, VERSION))
 		LoadCharacterSilently(player)
 		task.wait(1.0) -- Wait for character to load
@@ -613,23 +571,79 @@ function TransitionService.StartLandingSequence(player, locationId)
 	task.wait(1.0)
 	print(string.format("[%s %s][Landing] Replication wait complete", MODULE_NAME, VERSION))
 
-	-- Phase 5: Approach animation - send camera position to client first
+	-- Phase durations for landing
+	local phase1Duration = TransitionConfig.LandingPhase1Duration -- 4 sec external view
+	local phase2Duration = TransitionConfig.LandingPhase2Duration -- 3 sec cockpit view
+
+	-- Phase 5: External view - camera watches ship descend from ground POV
 	SetTransitionState(player, TransitionConfig.States.Approach, locationId)
 	transitionUpdate:FireClient(player, TransitionConfig.States.Approach, {
-		landingPadPosition = padWorldPosition  -- WORLD position for camera
+		landingPadPosition = padWorldPosition,
+		phase = 1,
+		duration = phase1Duration
 	})
 
 	-- Brief wait for client to setup camera
 	task.wait(0.5)
 
-	-- Phase 6: Sit player in ship (player "controls" the landing)
+	-- Sit player in ship before animation starts
 	print(string.format("[%s %s][Landing] Seating player in ship", MODULE_NAME, VERSION))
 	SitPlayerInShip(player, ship)
-	task.wait(0.3) -- Brief pause for sit to complete
+	task.wait(0.3)
 
-	-- Animate ship landing - uses unified duration with deceleration easing (starts fast, slows down)
+	-- Phase 1: Ship descends from high to intermediate height (fast approach with braking)
 	if ship and landingPad then
-		AnimateShipLanding(ship, landingPad, TransitionConfig.TransitionAnimationDuration)
+		local startCFrame = ship:GetPivot()
+		local startPosition = startCFrame.Position
+
+		-- Intermediate position: 80 studs above pad (where phase 2 starts)
+		local intermediateHeight = 80
+		local phase1EndPosition = padWorldPosition + Vector3.new(0, intermediateHeight, 0)
+		local phase1EndCFrame = CFrame.new(phase1EndPosition) * startCFrame.Rotation
+
+		print(string.format("[%s %s][Landing] Phase 1: Descending from %s to %s",
+			MODULE_NAME, VERSION, tostring(startPosition), tostring(phase1EndPosition)))
+
+		local startTime = os.clock()
+		while os.clock() - startTime < phase1Duration do
+			local alpha = (os.clock() - startTime) / phase1Duration
+			alpha = 1 - (1 - alpha) ^ 2 -- Quad easing out (fast start, slowing down)
+			local currentCFrame = startCFrame:Lerp(phase1EndCFrame, alpha)
+			ship:PivotTo(currentCFrame)
+			task.wait()
+		end
+		ship:PivotTo(phase1EndCFrame)
+
+		print(string.format("[%s %s][Landing] Phase 1 complete, switching to cockpit view",
+			MODULE_NAME, VERSION))
+
+		-- Phase 6: Cockpit view - switch camera to inside ship
+		SetTransitionState(player, TransitionConfig.States.Landing, locationId)
+		transitionUpdate:FireClient(player, TransitionConfig.States.Landing, {
+			phase = 2,
+			duration = phase2Duration
+		})
+
+		-- Phase 2: Final approach from intermediate to landing pad (slow, controlled)
+		local phase2StartCFrame = ship:GetPivot()
+		local landingHeight = TransitionConfig.ShipLandingHeight
+		local finalPosition = padWorldPosition + Vector3.new(0, landingHeight, 0)
+		local phase2EndCFrame = CFrame.new(finalPosition) * startCFrame.Rotation
+
+		print(string.format("[%s %s][Landing] Phase 2: Final approach to %s",
+			MODULE_NAME, VERSION, tostring(finalPosition)))
+
+		startTime = os.clock()
+		while os.clock() - startTime < phase2Duration do
+			local alpha = (os.clock() - startTime) / phase2Duration
+			alpha = 1 - (1 - alpha) ^ 3 -- Cubic easing out (very smooth landing)
+			local currentCFrame = phase2StartCFrame:Lerp(phase2EndCFrame, alpha)
+			ship:PivotTo(currentCFrame)
+			task.wait()
+		end
+		ship:PivotTo(phase2EndCFrame)
+
+		print(string.format("[%s %s][Landing] Phase 2 complete, ship landed", MODULE_NAME, VERSION))
 	end
 
 	-- Brief pause after landing
@@ -645,6 +659,18 @@ function TransitionService.StartLandingSequence(player, locationId)
 		planetDisplayName = planetDisplayName
 	})
 
+	-- === EPIC 8: Update profile with location discovery ===
+	local profileService = GetProfileService()
+	profileService.MarkLocationDiscovered(player, planetId, locationId)
+	profileService.UpdateCurrentState(player, planetId, locationId)
+	profileService.TriggerEventSave(player, "Landing")
+	profileService.NotifyClient(player, "locationDiscovered", {
+		planetId = planetId,
+		locationId = locationId,
+		locationDisplayName = locationMetadata.displayName
+	})
+	-- === END EPIC 8 ===
+
 	ClearTransitionState(player)
 
 	print(string.format("[%s %s][Landing] ✓ Landing sequence complete for %s",
@@ -653,14 +679,14 @@ function TransitionService.StartLandingSequence(player, locationId)
 	return true
 end
 
-function TransitionService.StartLiftoffSequence(player)
-	print(string.format("[%s %s][Liftoff] Starting liftoff sequence for %s",
+function TransitionService.StartLaunchSequence(player)
+	print(string.format("[%s %s][Launch] Starting launch sequence for %s",
 		MODULE_NAME, VERSION, player.Name))
 
 	-- Validation
 	local currentContext = TransitionService.GetCurrentContext(player)
 	if currentContext ~= TransitionConfig.Contexts.Surface then
-		warn(string.format("[%s %s][Liftoff] Player not on Surface!", MODULE_NAME, VERSION))
+		warn(string.format("[%s %s][Launch] Player not on Surface!", MODULE_NAME, VERSION))
 		transitionUpdate:FireClient(player, "error", {
 			message = TransitionConfig.Messages.NotInPilotSeat
 		})
@@ -668,7 +694,7 @@ function TransitionService.StartLiftoffSequence(player)
 	end
 
 	if playerTransitions[player] then
-		warn(string.format("[%s %s][Liftoff] Transition already in progress!", MODULE_NAME, VERSION))
+		warn(string.format("[%s %s][Launch] Transition already in progress!", MODULE_NAME, VERSION))
 		return false
 	end
 
@@ -676,27 +702,82 @@ function TransitionService.StartLiftoffSequence(player)
 	local planetId = profile and profile.currentPlanet or "Planet_1"
 	local planetDisplayName = GetPlanetDisplayName(planetId)
 
-	-- Find ship in workspace for liftoff animation
+	-- Find ship in workspace for launch animation
 	local ship = Workspace:FindFirstChild("SpaceShip")
 
-	-- Start transition
-	SetTransitionState(player, TransitionConfig.States.Liftoff, nil)
+	-- Get landing pad position for external camera view
+	local landingPad = Workspace:FindFirstChild("SpaceShipLandingPad", true)
+	local padPosition = landingPad and landingPad.CFrame.Position or Vector3.new(0, 0, 0)
 
-	-- Phase 1: Liftoff animation - notify client and animate ship ascent
-	transitionUpdate:FireClient(player, TransitionConfig.States.Liftoff, {
-		planetName = planetDisplayName
+	-- Phase durations
+	local phase1Duration = TransitionConfig.LaunchPhase1Duration -- 3 sec cockpit view (liftoff)
+	local phase2Duration = TransitionConfig.LaunchPhase2Duration -- 4 sec external view (ascent)
+
+	-- Start transition
+	SetTransitionState(player, TransitionConfig.States.Launch, nil)
+
+	-- Phase 1: Cockpit view - player watches through cockpit window during liftoff
+	transitionUpdate:FireClient(player, TransitionConfig.States.Launch, {
+		planetName = planetDisplayName,
+		phase = 1,
+		duration = phase1Duration
 	})
 
-	-- Animate ship rising (server-side, player stays seated watching through cockpit)
-	-- Uses unified duration with acceleration easing (starts slow, speeds up)
-	local liftoffDuration = TransitionConfig.TransitionAnimationDuration
 	if ship then
-		AnimateShipLiftoff(ship, liftoffDuration)
+		local startCFrame = ship:GetPivot()
+		local startPosition = startCFrame.Position
+
+		-- Phase 1: Slow start, rise 100 studs
+		local phase1Height = 100
+		local phase1EndPosition = startPosition + Vector3.new(0, phase1Height, 0)
+		local phase1EndCFrame = CFrame.new(phase1EndPosition) * startCFrame.Rotation
+
+		local startTime = os.clock()
+		while os.clock() - startTime < phase1Duration do
+			local alpha = (os.clock() - startTime) / phase1Duration
+			alpha = alpha * alpha -- Quad easing in (slow start)
+			local currentCFrame = startCFrame:Lerp(phase1EndCFrame, alpha)
+			ship:PivotTo(currentCFrame)
+			task.wait()
+		end
+		ship:PivotTo(phase1EndCFrame)
+
+		print(string.format("[%s %s][Launch] Phase 1 (liftoff) complete, ship at %s",
+			MODULE_NAME, VERSION, tostring(phase1EndPosition)))
+
+		-- Phase 2: External view - camera switches to ground POV for ascent
+		SetTransitionState(player, TransitionConfig.States.Ascent, nil)
+		transitionUpdate:FireClient(player, TransitionConfig.States.Ascent, {
+			planetName = planetDisplayName,
+			phase = 2,
+			duration = phase2Duration,
+			padPosition = padPosition,
+			shipPosition = phase1EndPosition
+		})
+
+		-- Continue ship ascent with stronger acceleration
+		local phase2StartCFrame = ship:GetPivot()
+		local finalHeight = TransitionConfig.ShipSpawnHeight
+		local phase2EndPosition = startPosition + Vector3.new(0, finalHeight, 0)
+		local phase2EndCFrame = CFrame.new(phase2EndPosition) * startCFrame.Rotation
+
+		startTime = os.clock()
+		while os.clock() - startTime < phase2Duration do
+			local alpha = (os.clock() - startTime) / phase2Duration
+			alpha = alpha * alpha * alpha -- Cubic easing in (faster acceleration)
+			local currentCFrame = phase2StartCFrame:Lerp(phase2EndCFrame, alpha)
+			ship:PivotTo(currentCFrame)
+			task.wait()
+		end
+		ship:PivotTo(phase2EndCFrame)
+
+		print(string.format("[%s %s][Launch] Phase 2 (ascent) complete, ship at %s",
+			MODULE_NAME, VERSION, tostring(phase2EndPosition)))
 	else
-		task.wait(liftoffDuration)
+		task.wait(phase1Duration + phase2Duration)
 	end
 
-	-- Phase 2: Loading screen with planet name
+	-- Phase 3: Loading screen with planet name
 	SetTransitionState(player, TransitionConfig.States.Loading, nil)
 	transitionUpdate:FireClient(player, TransitionConfig.States.Loading, {
 		message = string.format(TransitionConfig.Messages.OrbitLoading, planetDisplayName)
@@ -711,7 +792,7 @@ function TransitionService.StartLiftoffSequence(player)
 
 	local loadSuccess = locService.LoadLocation(player, planetId, "Orbit")
 	if not loadSuccess then
-		warn(string.format("[%s %s][Liftoff] Failed to load Orbit!", MODULE_NAME, VERSION))
+		warn(string.format("[%s %s][Launch] Failed to load Orbit!", MODULE_NAME, VERSION))
 		ClearTransitionState(player)
 		return false
 	end
@@ -722,7 +803,7 @@ function TransitionService.StartLiftoffSequence(player)
 	local character = player.Character
 	local humanoid = character and character:FindFirstChild("Humanoid")
 	if not character or not humanoid or humanoid:GetState() == Enum.HumanoidStateType.Dead then
-		print(string.format("[%s %s][Liftoff] Respawning player character (silent)...", MODULE_NAME, VERSION))
+		print(string.format("[%s %s][Launch] Respawning player character (silent)...", MODULE_NAME, VERSION))
 		LoadCharacterSilently(player)
 		task.wait(1.0) -- Wait for character to load
 	end
@@ -742,9 +823,19 @@ function TransitionService.StartLiftoffSequence(player)
 		planetDisplayName = planetDisplayName
 	})
 
+	-- === EPIC 8: Update profile state after launch ===
+	local profileService = GetProfileService()
+	profileService.UpdateCurrentState(player, planetId, "Orbit")
+	profileService.TriggerEventSave(player, "Launch")
+	profileService.NotifyClient(player, "stateUpdate", {
+		planetId = planetId,
+		locationId = "Orbit"
+	})
+	-- === END EPIC 8 ===
+
 	ClearTransitionState(player)
 
-	print(string.format("[%s %s][Liftoff] ✓ Liftoff sequence complete for %s",
+	print(string.format("[%s %s][Launch] ✓ Launch sequence complete for %s",
 		MODULE_NAME, VERSION, player.Name))
 
 	return true
@@ -821,6 +912,12 @@ function TransitionService.StartGameSequence(player)
 		locationDisplayName = "Орбіта",
 		planetDisplayName = planetDisplayName
 	})
+
+	-- === EPIC 8: Update profile with initial state ===
+	local profileService = GetProfileService()
+	profileService.UpdateCurrentState(player, planetId, "Orbit")
+	profileService.MarkLocationDiscovered(player, planetId, "Orbit")
+	-- === END EPIC 8 ===
 
 	ClearTransitionState(player)
 

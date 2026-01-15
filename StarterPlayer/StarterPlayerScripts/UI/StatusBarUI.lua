@@ -8,11 +8,11 @@ Top status bar UI for InGame state (like Windows 95 taskbar).
 Shows current planet, location, and Exit button.
 
 Version:
-0.3
+0.5
 
 Layout:
 ┌──────────────────────────────────────────────────────────────────────────┐
-│                    [Планета: Planet_1] [Локація: Космічний Корабель] [Вихід] │
+│                    [Планета: Біллі Рубін] [Локація: Орбіта] [Вихід]      │
 └──────────────────────────────────────────────────────────────────────────┘
 
 Features:
@@ -31,9 +31,14 @@ Called from:
 - UIManager (Show/Hide based on state)
 
 Events:
-- LogOffRequest (Client → Server): Player clicked "Вихід"
+- Fires: LogOffRequest (Client → Server): Player clicked "Вихід"
+- Fires: RequestProfileSync (Client → Server): Request profile data
+- Listens: ProfileUpdate (Server → Client): Receive profile updates
 
 ChangeLog:
+- 0.5: GDD display names for planet/location (2026-01-15)
+- 0.4: EPIC 8 - ProfileSync listener for real-time updates (2026-01-15)
+- 0.3: Updated for TransitionSystem integration (2026-01-14)
 - 0.2: Exit button moved to right side (away from Roblox UI) (2026-01-11)
 - 0.1: Initial status bar (2026-01-11)
 ================================================================================
@@ -41,7 +46,7 @@ ChangeLog:
 
 local StatusBarUI = {}
 
-local VERSION = "0.2"
+local VERSION = "0.5"
 local MODULE_NAME = "StatusBarUI"
 
 -- ============================================================================
@@ -126,7 +131,7 @@ local function CreateStatusBarUI()
 	planet.AnchorPoint = Vector2.new(1, 0.5)
 	planet.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 	planet.BorderSizePixel = 0
-	planet.Text = "Планета: Planet_1"
+	planet.Text = "Планета: Біллі Рубін"
 	planet.TextColor3 = Color3.fromRGB(200, 200, 220)
 	planet.TextSize = 16
 	planet.Font = Enum.Font.Gotham
@@ -146,7 +151,7 @@ local function CreateStatusBarUI()
 	location.AnchorPoint = Vector2.new(1, 0.5)
 	location.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 	location.BorderSizePixel = 0
-	location.Text = "Локація: Космічний Корабель"
+	location.Text = "Локація: Орбіта"
 	location.TextColor3 = Color3.fromRGB(200, 200, 220)
 	location.TextSize = 16
 	location.Font = Enum.Font.Gotham
@@ -244,6 +249,60 @@ end
 
 function StatusBarUI.IsVisible()
 	return isVisible
+end
+
+-- ============================================================================
+-- PROFILE SYNC (EPIC 8)
+-- ============================================================================
+
+local function SetupProfileSync()
+	local remoteEvents = ReplicatedStorage:FindFirstChild("RemoteEvents")
+	if not remoteEvents then
+		warn(string.format("[%s %s][ProfileSync] RemoteEvents not found", MODULE_NAME, VERSION))
+		return
+	end
+
+	local profileUpdate = remoteEvents:FindFirstChild("ProfileUpdate")
+	if profileUpdate then
+		profileUpdate.OnClientEvent:Connect(function(data)
+			print(string.format("[%s %s][ProfileSync] Received update: %s", MODULE_NAME, VERSION, data.type or "unknown"))
+
+			if data.type == "fullSync" and data.profile then
+				-- Full profile sync
+				if data.profile.currentPlanet then
+					StatusBarUI.SetPlanet(data.profile.currentPlanet)
+				end
+				if data.profile.currentLocation then
+					StatusBarUI.SetLocation(data.profile.currentLocation)
+				end
+			elseif data.type == "stateUpdate" or data.type == "locationDiscovered" then
+				-- State update
+				if data.currentState then
+					if data.currentState.planet then
+						StatusBarUI.SetPlanet(data.currentState.planet)
+					end
+					if data.currentState.location then
+						StatusBarUI.SetLocation(data.currentState.location)
+					end
+				end
+			end
+		end)
+		print(string.format("[%s %s][ProfileSync] Listener connected", MODULE_NAME, VERSION))
+	end
+
+	-- Request initial sync after short delay (ensure server is ready)
+	local requestSync = remoteEvents:FindFirstChild("RequestProfileSync")
+	if requestSync then
+		task.delay(2, function()
+			requestSync:FireServer()
+			print(string.format("[%s %s][ProfileSync] Initial sync requested", MODULE_NAME, VERSION))
+		end)
+	end
+end
+
+-- Call setup when module loads (after Initialize)
+function StatusBarUI.SetupProfileSync()
+	SetupProfileSync()
 end
 
 -- ============================================================================

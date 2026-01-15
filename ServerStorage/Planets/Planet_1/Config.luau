@@ -4,7 +4,7 @@
 local Planet1Config = {
     -- Basic information
     name = "Planet_1",
-    displayName = "Kepler-442b",
+    displayName = "Біллі Рубін",
     type = "Planet",
     version = "1.0",
     lastUpdated = os.time(),

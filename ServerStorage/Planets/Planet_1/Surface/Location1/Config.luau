@@ -4,7 +4,7 @@
 local Location1Config = {
     -- Basic information
     name = "Planet_1 Surface Location1",
-    displayName = "Долина Спокою",
+    displayName = "Візитка",
     type = "SurfaceLocation",
     version = "1.0",
     lastUpdated = os.time(),

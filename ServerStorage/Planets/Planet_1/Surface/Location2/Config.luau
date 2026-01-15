@@ -4,7 +4,7 @@
 local Location2Config = {
     -- Basic information
     name = "Planet_1 Surface Location2",
-    displayName = "Гірський хребет",
+    displayName = "Садочок",
     type = "SurfaceLocation",
     version = "1.0",
     lastUpdated = os.time(),

@@ -8,13 +8,13 @@ Configuration for location transitions (Orbit ↔ Surface).
 Defines animation timings, messages, and transition parameters.
 
 Version:
-0.1
+0.2
 
 Features:
 - Departure animation timing (scale down ship, scale up planet)
 - Loading screen configuration
 - Landing sequence timing (approach, touchdown)
-- Liftoff sequence configuration
+- Launch sequence configuration
 - Localized messages (Ukrainian)
 
 API:
@@ -32,6 +32,7 @@ Dependencies:
 - None
 
 ChangeLog:
+- 0.2: Rename Liftoff → Launch, Ascending → Ascent (2026-01-15)
 - 0.1: Initial transition configuration (2026-01-14)
 ================================================================================
 ]]
@@ -52,14 +53,17 @@ local TransitionConfig = {
 	LoadingMinDuration = 2.0,          -- Minimum time to show loading screen
 	LoadingFadeDuration = 0.5,         -- Fade in/out duration
 
-	-- Landing sequence (on surface) - uses TransitionAnimationDuration
-	ApproachDuration = 0.0,            -- No separate approach, all in landing
-	LandingDuration = 4.0,             -- Ship descending to pad (with deceleration)
+	-- Landing sequence (on surface) - two-phase animation
+	LandingPhase1Duration = 4.0,       -- Phase 1: External view (watching ship descend)
+	LandingPhase2Duration = 3.0,       -- Phase 2: Cockpit view (final approach)
+	ApproachDuration = 0.0,            -- Legacy: No separate approach
+	LandingDuration = 4.0,             -- Legacy: kept for compatibility
 	CameraTransitionDuration = 1.5,    -- Camera return to player
 
-	-- Liftoff sequence (from surface) - uses TransitionAnimationDuration
-	LiftoffDuration = 4.0,             -- Ship rising from pad (with acceleration)
-	AscentDuration = 0.0,              -- No separate ascent, all in liftoff
+	-- Launch sequence (from surface) - two-phase animation
+	LaunchPhase1Duration = 3.0,        -- Phase 1: Cockpit view (liftoff - player inside ship)
+	LaunchPhase2Duration = 4.0,        -- Phase 2: External view (ascent - watching ship rise)
+	LaunchDuration = 4.0,              -- Legacy: kept for compatibility
 
 	-- ============================================================================
 	-- SHIP ANIMATION PARAMETERS
@@ -91,13 +95,13 @@ local TransitionConfig = {
 	States = {
 		Idle = "idle",
 		GameStart = "gamestart",      -- Initial game start (from ScreenSaver)
-		Departure = "departure",
-		Loading = "loading",
-		Approach = "approach",
-		Landing = "landing",
-		Complete = "complete",
-		Liftoff = "liftoff",
-		Ascending = "ascending",
+		Departure = "departure",      -- Landing: Phase 0 - planet approach animation on orbit
+		Loading = "loading",          -- Loading screen between locations
+		Approach = "approach",        -- Landing: Phase 1 - external view watching ship descend
+		Landing = "landing",          -- Landing: Phase 2 - cockpit view for touchdown
+		Complete = "complete",        -- Transition finished
+		Launch = "launch",            -- Launch: Phase 1 - cockpit view during liftoff
+		Ascent = "ascent",            -- Launch: Phase 2 - external view watching ship rise
 	},
 
 	-- ============================================================================
@@ -123,9 +127,9 @@ local TransitionConfig = {
 		Approaching = "Наближення до поверхні...",
 		Touchdown = "Посадка завершена",
 
-		-- Liftoff
-		Liftoff = "Підйом на орбіту...",
-		Ascending = "Вихід на орбіту...",
+		-- Launch
+		Launch = "Зліт на орбіту...",
+		Ascent = "Вихід на орбіту...",
 		OrbitReached = "Орбіта досягнута",
 		OrbitLoading = "Орбіта планети %s...",
 

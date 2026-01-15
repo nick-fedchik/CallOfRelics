@@ -4,23 +4,23 @@ KOSMICMAZER — PilotUI
 ================================================================================
 
 Purpose:
-UI panel for pilot seat. Shows ship status and navigation options.
-Context-aware: shows landing options on Orbit, liftoff option on Surface.
+Navigation UI panel for pilot seat. Shows landing/launch options.
+Context-aware: shows landing options on Orbit, launch option on Surface.
 
 Version:
-0.5
+0.6
 
 Features:
-- Ship status display
+- Navigation menu (renamed from "Пілотське крісло")
 - Context detection (Orbit/Surface)
 - Landing menu with available locations (Orbit)
-- Liftoff button (Surface)
+- Launch button (Surface)
 - Integration with TransitionService
 - DisplayName localization for locations
 
 API:
 - Initialize() — Create UI elements
-- Show(seatConfig) — Display the UI
+- Show() — Display the UI
 - Hide() — Hide the UI
 - SetContext(context) — Set Orbit/Surface context
 - UpdateLocations(locations) — Update location list
@@ -28,7 +28,7 @@ API:
 Calls to:
 - TransitionConfig (ReplicatedStorage/Game)
 - RequestLanding RemoteEvent
-- RequestLiftoff RemoteEvent
+- RequestLaunch RemoteEvent
 - RequestAvailableLocations RemoteEvent
 
 Called from:
@@ -36,16 +36,18 @@ Called from:
 
 Events:
 - Fires: RequestLanding (Client → Server)
-- Fires: RequestLiftoff (Client → Server)
+- Fires: RequestLaunch (Client → Server)
 - Fires: RequestAvailableLocations (Client → Server)
 - Listens: AvailableLocationsResponse (Server → Client)
 
 Dependencies:
 - TweenService
 - TransitionConfig
-- RemoteEvents (RequestLanding, RequestLiftoff, AvailableLocationsResponse)
+- RemoteEvents (RequestLanding, RequestLaunch, AvailableLocationsResponse)
 
 ChangeLog:
+- 0.7: Rename Liftoff → Launch (RequestLaunch, launchButton) (2026-01-15)
+- 0.6: Renamed to "Навігація", removed status text on Surface (2026-01-15)
 - 0.5: Added displayName support for locations (2026-01-14)
 - 0.4: Fixed context detection on Show() (2026-01-14)
 - 0.3: Added location list from server (2026-01-14)
@@ -56,7 +58,7 @@ ChangeLog:
 
 local PilotUI = {}
 
-local VERSION = "0.5"
+local VERSION = "0.7"
 local MODULE_NAME = "PilotUI"
 
 -- ============================================================================
@@ -91,13 +93,13 @@ local mainFrame = nil
 local titleLabel = nil
 local statusLabel = nil
 local locationsContainer = nil
-local liftoffButton = nil
+local launchButton = nil
 local locationButtons = {}
 
 -- RemoteEvents
 local remoteEvents = nil
 local requestLanding = nil
-local requestLiftoff = nil
+local requestLaunch = nil
 local requestLocations = nil
 local locationsAvailable = nil
 local transitionUpdate = nil
@@ -219,7 +221,7 @@ end
 local function ShowOrbitUI()
 	statusLabel.Visible = true
 	locationsContainer.Visible = true
-	liftoffButton.Visible = false
+	launchButton.Visible = false
 
 	-- Request locations from server
 	if requestLocations then
@@ -231,11 +233,12 @@ local function ShowOrbitUI()
 end
 
 local function ShowSurfaceUI()
-	statusLabel.Visible = true
+	statusLabel.Visible = false
 	locationsContainer.Visible = false
-	liftoffButton.Visible = true
+	launchButton.Visible = true
 
-	statusLabel.Text = "Корабель на поверхні\nДвигуну готові до запуску"
+	-- Compact panel size for Surface (just title + button)
+	mainFrame.Size = UDim2.new(0, 320, 0, 110)
 end
 
 local function CreateUI()
@@ -271,7 +274,7 @@ local function CreateUI()
 	title.Size = UDim2.new(1, -20, 0, 30)
 	title.Position = UDim2.new(0, 10, 0, 10)
 	title.BackgroundTransparency = 1
-	title.Text = "ПІЛОТСЬКЕ КРІСЛО"
+	title.Text = "НАВІГАЦІЯ"
 	title.TextColor3 = Color3.fromRGB(100, 180, 255)
 	title.TextSize = 18
 	title.Font = Enum.Font.GothamBold
@@ -303,44 +306,44 @@ local function CreateUI()
 	locContainer.Parent = frame
 	locationsContainer = locContainer
 
-	-- Liftoff button (for Surface context)
-	local liftoff = Instance.new("TextButton")
-	liftoff.Name = "LiftoffButton"
-	liftoff.Size = UDim2.new(1, -20, 0, 50)
-	liftoff.Position = UDim2.new(0, 10, 0, 95)
-	liftoff.BackgroundColor3 = Color3.fromRGB(80, 140, 200)
-	liftoff.BorderSizePixel = 0
-	liftoff.Text = "🚀  Піднятися на орбіту"
-	liftoff.TextColor3 = Color3.fromRGB(255, 255, 255)
-	liftoff.TextSize = 16
-	liftoff.Font = Enum.Font.GothamBold
-	liftoff.AutoButtonColor = false
-	liftoff.Visible = false
-	liftoff.Parent = frame
-	liftoffButton = liftoff
+	-- Launch button (for Surface context)
+	local launch = Instance.new("TextButton")
+	launch.Name = "LaunchButton"
+	launch.Size = UDim2.new(1, -20, 0, 50)
+	launch.Position = UDim2.new(0, 10, 0, 45)
+	launch.BackgroundColor3 = Color3.fromRGB(80, 140, 200)
+	launch.BorderSizePixel = 0
+	launch.Text = "🚀  Зліт на орбіту"
+	launch.TextColor3 = Color3.fromRGB(255, 255, 255)
+	launch.TextSize = 16
+	launch.Font = Enum.Font.GothamBold
+	launch.AutoButtonColor = false
+	launch.Visible = false
+	launch.Parent = frame
+	launchButton = launch
 
-	local liftoffCorner = Instance.new("UICorner")
-	liftoffCorner.CornerRadius = UDim.new(0, 8)
-	liftoffCorner.Parent = liftoff
+	local launchCorner = Instance.new("UICorner")
+	launchCorner.CornerRadius = UDim.new(0, 8)
+	launchCorner.Parent = launch
 
-	-- Liftoff hover effects
-	liftoff.MouseEnter:Connect(function()
-		TweenService:Create(liftoff, TweenInfo.new(0.15), {
+	-- Launch hover effects
+	launch.MouseEnter:Connect(function()
+		TweenService:Create(launch, TweenInfo.new(0.15), {
 			BackgroundColor3 = Color3.fromRGB(100, 170, 240)
 		}):Play()
 	end)
 
-	liftoff.MouseLeave:Connect(function()
-		TweenService:Create(liftoff, TweenInfo.new(0.15), {
+	launch.MouseLeave:Connect(function()
+		TweenService:Create(launch, TweenInfo.new(0.15), {
 			BackgroundColor3 = Color3.fromRGB(80, 140, 200)
 		}):Play()
 	end)
 
-	-- Liftoff click handler
-	liftoff.MouseButton1Click:Connect(function()
-		print(string.format("[%s %s] Liftoff requested", MODULE_NAME, VERSION))
-		if requestLiftoff then
-			requestLiftoff:FireServer()
+	-- Launch click handler
+	launch.MouseButton1Click:Connect(function()
+		print(string.format("[%s %s] Launch requested", MODULE_NAME, VERSION))
+		if requestLaunch then
+			requestLaunch:FireServer()
 		end
 	end)
 
@@ -355,7 +358,7 @@ local function SetupRemoteEvents()
 	end
 
 	requestLanding = remoteEvents:FindFirstChild("RequestLanding")
-	requestLiftoff = remoteEvents:FindFirstChild("RequestLiftoff")
+	requestLaunch = remoteEvents:FindFirstChild("RequestLaunch")
 	requestLocations = remoteEvents:FindFirstChild("RequestLocations")
 	locationsAvailable = remoteEvents:FindFirstChild("LocationsAvailable")
 	transitionUpdate = remoteEvents:FindFirstChild("TransitionUpdate")
@@ -402,14 +405,13 @@ function PilotUI.Initialize()
 	return true
 end
 
-function PilotUI.Show(seatConfig)
+function PilotUI.Show()
 	if not screenGui then return end
 
 	print(string.format("[%s %s] Show called, context: %s", MODULE_NAME, VERSION, currentContext or "nil"))
 
-	if seatConfig and seatConfig.displayName then
-		titleLabel.Text = string.upper(seatConfig.displayName)
-	end
+	-- Always show "НАВІГАЦІЯ" title
+	titleLabel.Text = "НАВІГАЦІЯ"
 
 	screenGui.Enabled = true
 	isVisible = true

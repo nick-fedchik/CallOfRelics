@@ -27,6 +27,11 @@ Thumbs.db
 *.json
 # Ignore node_modules if present
 node_modules/
+# Ignore 3D model exports
+*.obj
+*.mtl
+*_nmap.png
+*_spec.png
 .github
 *-workspace
 nul 

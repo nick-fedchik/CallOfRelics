@@ -8,7 +8,7 @@ Centralized game configuration. Single source of truth for game identity and
 initial settings. Used during boot sequence and throughout game lifecycle.
 
 Version:
-0.3
+0.5
 
 Features:
 - Game name and version information
@@ -31,7 +31,9 @@ Dependencies:
 - None
 
 ChangeLog:
-- 0.3: Updated game version to 0.7, VersionTag to Transition System (2026-01-14)
+- 0.5: Version bump to 0.8.1 - Launch/Landing naming refactor (2026-01-15)
+- 0.4: Version bump for EPIC 8 - Progression System (2026-01-15)
+- 0.3: Version bump for Transition System (2026-01-14)
 - 0.2: Added BootStages configuration (2026-01-12)
 - 0.1: Initial game configuration (2026-01-11)
 ================================================================================
@@ -44,9 +46,16 @@ local GameConfig = {
 
 	GameName = "CALL OF RELICS",
 	GameSubtitle = "Orbital Silence",
-	Version = "0.7",
-	VersionTag = "Transition System",
+	Version = "0.8.1",
+	VersionTag = "Launch/Landing Refactor",
 	Developer = "KosmicMazer",
+
+	-- ============================================================================
+	-- SHIP CONFIGURATION
+	-- ============================================================================
+
+	ShipName = "Самотній Колумб",
+	ShipNameEn = "Ones Columbus",
 
 	-- ============================================================================
 	-- INITIAL STATE FOR NEW PLAYERS

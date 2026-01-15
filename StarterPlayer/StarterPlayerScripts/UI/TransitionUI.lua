@@ -8,12 +8,15 @@ UI for location transitions. Handles departure animation, loading screen,
 and landing sequence visualization.
 
 Version:
-0.4
+0.6
 
 Features:
 - Departure animation (ship scale down, planet scale up, fade to black)
 - Loading screen with message
 - Landing camera sequence (POV from landing pad)
+- Cockpit view after landing (camera behind player, looking through window)
+- Two-phase launch animation (Phase 1: cockpit/liftoff, Phase 2: external/ascent)
+- Two-phase landing animation (Phase 1: external view, Phase 2: cockpit view)
 - Smooth transitions between states
 - StatusBar integration for displayName updates
 
@@ -43,6 +46,11 @@ Dependencies:
 - RemoteEvents (TransitionUpdate, TransitionLandingCamera)
 
 ChangeLog:
+- 0.9: Rename Liftoff → Launch (ShowLaunchPhase1/2, States.Launch/Ascent) (2026-01-15)
+- 0.8: Fix Launch Phase 1 camera tracking, add delay before GameStart cockpit setup (2026-01-15)
+- 0.7: Two-phase landing (external view + cockpit view for final approach) (2026-01-15)
+- 0.6: Two-phase launch (cockpit view + external view watching ship) (2026-01-15)
+- 0.5: Added cockpit view after landing (camera behind player) (2026-01-15)
 - 0.4: Added StatusBarUI integration for displayName (2026-01-14)
 - 0.3: Added ShowLandingCamera with server-provided data (2026-01-14)
 - 0.2: Enhanced loading screen, camera restore (2026-01-14)
@@ -52,7 +60,7 @@ ChangeLog:
 
 local TransitionUI = {}
 
-local VERSION = "0.4"
+local VERSION = "0.9"
 local MODULE_NAME = "TransitionUI"
 
 -- ============================================================================
@@ -112,6 +120,9 @@ local transitionUpdate = nil
 
 -- Character sound muting connection
 local characterAddedConnection = nil
+
+-- Track if cockpit view is already set (to avoid double-setting)
+local cockpitViewActive = false
 
 -- ============================================================================
 -- PRIVATE FUNCTIONS
@@ -253,6 +264,76 @@ local function RestoreCameraState()
 	originalCameraFOV = nil
 end
 
+local function SetCockpitView(finalTransition)
+	-- Skip if cockpit view is already active (avoid double-setting and flickering)
+	-- But allow if this is the final transition (Hide() call)
+	if cockpitViewActive and not finalTransition then
+		print(string.format("[%s %s] Cockpit view already active, skipping",
+			MODULE_NAME, VERSION))
+		return true
+	end
+
+	-- Position camera behind player looking through cockpit window
+	local camera = Workspace.CurrentCamera
+	local character = LocalPlayer.Character
+	if not character then return false end
+
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+	if not humanoid or not humanoidRootPart then return false end
+
+	-- Get the ship to determine forward direction
+	local ship = Workspace:FindFirstChild("SpaceShip")
+	if not ship then
+		-- Fallback to standard camera
+		camera.CameraType = Enum.CameraType.Custom
+		camera.CameraSubject = humanoid
+		return false
+	end
+
+	-- Get ship's forward direction (LookVector of PrimaryPart or first BasePart)
+	local shipPart = ship.PrimaryPart or ship:FindFirstChildWhichIsA("BasePart")
+	if not shipPart then
+		camera.CameraType = Enum.CameraType.Custom
+		camera.CameraSubject = humanoid
+		return false
+	end
+
+	-- Mark cockpit view as active (only during transition, not final)
+	if not finalTransition then
+		cockpitViewActive = true
+	end
+
+	-- Calculate camera position: behind and slightly above player's head
+	local playerPos = humanoidRootPart.Position
+	local shipLookVector = shipPart.CFrame.LookVector
+	local shipUpVector = shipPart.CFrame.UpVector
+
+	-- Position camera behind player (opposite of ship's forward direction)
+	-- Offset: 3 studs behind, 1.5 studs up from head level
+	local cameraOffset = -shipLookVector * 3 + shipUpVector * 2.5
+	local cameraPos = playerPos + cameraOffset
+
+	-- Look at a point in front of the player (through the cockpit window)
+	local lookAtPos = playerPos + shipLookVector * 50
+
+	-- Set camera to Scriptable first, then immediately to Custom
+	-- This gives a brief cockpit view before player takes control
+	camera.CameraType = Enum.CameraType.Scriptable
+	camera.CFrame = CFrame.lookAt(cameraPos, lookAtPos)
+	camera.FieldOfView = 70
+
+	print(string.format("[%s %s] Cockpit view set: behind player, looking forward (final: %s)",
+		MODULE_NAME, VERSION, tostring(finalTransition or false)))
+
+	-- Immediately switch to Custom camera - player takes control from cockpit position
+	-- No delay needed, camera starts from cockpit position
+	camera.CameraType = Enum.CameraType.Custom
+	camera.CameraSubject = humanoid
+
+	return true
+end
+
 local function FadeIn(duration)
 	fadeOverlay.BackgroundTransparency = 1
 	TweenService:Create(
@@ -319,11 +400,15 @@ local function HandleTransitionUpdate(state, data)
 		TransitionUI.ShowLoadingScreen(message)
 
 	elseif state == TransitionConfig.States.Approach then
+		-- Phase 1: External view watching ship descend
 		local padPosition = data and data.landingPadPosition
-		TransitionUI.ShowLandingSequence(padPosition)
+		local duration = data and data.duration or TransitionConfig.LandingPhase1Duration
+		TransitionUI.ShowLandingPhase1(padPosition, duration)
 
 	elseif state == TransitionConfig.States.Landing then
-		-- Keep watching landing, camera already set
+		-- Phase 2: Cockpit view for final approach
+		local duration = data and data.duration or TransitionConfig.LandingPhase2Duration
+		TransitionUI.ShowLandingPhase2(duration)
 
 	elseif state == TransitionConfig.States.Complete then
 		local shouldRestoreCamera = data and data.restoreCamera
@@ -340,8 +425,17 @@ local function HandleTransitionUpdate(state, data)
 			end
 		end
 
-	elseif state == TransitionConfig.States.Liftoff then
-		TransitionUI.ShowLiftoffAnimation()
+	elseif state == TransitionConfig.States.Launch then
+		-- Phase 1: Cockpit view during liftoff
+		local duration = data and data.duration or 3.0
+		TransitionUI.ShowLaunchPhase1(duration)
+
+	elseif state == TransitionConfig.States.Ascent then
+		-- Phase 2: External view watching ship ascend
+		local duration = data and data.duration or 4.0
+		local padPosition = data and data.padPosition
+		local shipPosition = data and data.shipPosition
+		TransitionUI.ShowLaunchPhase2(duration, padPosition, shipPosition)
 
 	elseif state == "error" then
 		TransitionUI.Hide()
@@ -420,7 +514,17 @@ function TransitionUI.ShowLoadingScreen(message)
 end
 
 function TransitionUI.ShowLandingSequence(padPosition)
-	print(string.format("[%s %s] Starting landing sequence with overhead camera", MODULE_NAME, VERSION))
+	-- Legacy function - redirect to Phase 1
+	TransitionUI.ShowLandingPhase1(padPosition, TransitionConfig.LandingPhase1Duration or 4.0)
+end
+
+function TransitionUI.ShowLandingPhase1(padPosition, duration)
+	print(string.format("[%s %s] Landing Phase 1: External view (%.1f sec)", MODULE_NAME, VERSION, duration))
+
+	if not isActive then
+		isActive = true
+		SaveCameraState()
+	end
 
 	-- Hide loading text
 	loadingContainer.Visible = false
@@ -440,54 +544,221 @@ function TransitionUI.ShowLandingSequence(padPosition)
 		camera.CFrame = CFrame.lookAt(cameraPos, lookAtPos)
 		camera.FieldOfView = 70 -- Wider FOV to see more of the scene
 
-		print(string.format("[%s %s] Camera positioned at %s, looking at %s",
-			MODULE_NAME, VERSION, tostring(cameraPos), tostring(lookAtPos)))
+		print(string.format("[%s %s] External camera at %s, looking at pad",
+			MODULE_NAME, VERSION, tostring(cameraPos)))
+
+		-- Track the ship as it descends
+		local ship = Workspace:FindFirstChild("SpaceShip")
+		if ship then
+			local startTime = os.clock()
+			task.spawn(function()
+				while os.clock() - startTime < duration - 0.5 do
+					local shipPart = ship.PrimaryPart or ship:FindFirstChildWhichIsA("BasePart")
+					if shipPart then
+						-- Keep looking at the ship as it descends
+						camera.CFrame = CFrame.lookAt(cameraPos, shipPart.Position)
+					end
+					task.wait()
+				end
+			end)
+		end
 	else
 		print(string.format("[%s %s] WARNING: No pad position provided for camera", MODULE_NAME, VERSION))
 	end
 end
 
-function TransitionUI.ShowLiftoffAnimation()
-	if isActive then return end
-	isActive = true
+function TransitionUI.ShowLandingPhase2(duration)
+	print(string.format("[%s %s] Landing Phase 2: Cockpit view (%.1f sec)", MODULE_NAME, VERSION, duration))
 
-	print(string.format("[%s %s] Starting liftoff animation (fade to black)", MODULE_NAME, VERSION))
+	-- Quick fade to black before camera switch
+	FadeIn(0.25)
 
-	-- Player stays seated in cockpit watching the ascent
-	-- Server animates the ship rising, client just fades to black at the end
-	-- Uses unified transition duration
-	local totalDuration = TransitionConfig.TransitionAnimationDuration
-
-	-- Start fading to black near the end of ascent
-	task.delay(totalDuration - 1.0, function()
-		FadeIn(1.0) -- 1 second fade to black
-	end)
-end
-
-function TransitionUI.Hide(forceRestoreCamera)
-	print(string.format("[%s %s] Hiding transition UI (restoreCamera: %s)",
-		MODULE_NAME, VERSION, tostring(forceRestoreCamera or false)))
-
-	-- Restore camera to follow player
-	if forceRestoreCamera then
-		-- Force camera back to player (important after orbit return)
+	-- Wait for fade, then switch camera and fade out
+	task.delay(0.25, function()
+		-- Set cockpit view directly (without the delayed Custom switch)
 		local camera = Workspace.CurrentCamera
-		camera.CameraType = Enum.CameraType.Custom
-
 		local character = LocalPlayer.Character
 		if character then
 			local humanoid = character:FindFirstChildOfClass("Humanoid")
-			if humanoid then
-				camera.CameraSubject = humanoid
-				print(string.format("[%s %s] Camera forced to follow player humanoid", MODULE_NAME, VERSION))
+			local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+			local ship = Workspace:FindFirstChild("SpaceShip")
+
+			if humanoid and humanoidRootPart and ship then
+				local shipPart = ship.PrimaryPart or ship:FindFirstChildWhichIsA("BasePart")
+				if shipPart then
+					local playerPos = humanoidRootPart.Position
+					local shipLookVector = shipPart.CFrame.LookVector
+					local shipUpVector = shipPart.CFrame.UpVector
+					local cameraOffset = -shipLookVector * 3 + shipUpVector * 2.5
+					local cameraPos = playerPos + cameraOffset
+					local lookAtPos = playerPos + shipLookVector * 50
+
+					camera.CameraType = Enum.CameraType.Scriptable
+					camera.CFrame = CFrame.lookAt(cameraPos, lookAtPos)
+					camera.FieldOfView = 70
+
+					-- Mark cockpit view as active for Hide() to know
+					cockpitViewActive = true
+
+					print(string.format("[%s %s] Landing cockpit view set", MODULE_NAME, VERSION))
+				end
 			end
 		end
 
-		-- Restore FOV
-		camera.FieldOfView = 70
+		-- Fade back out to reveal cockpit view
+		task.delay(0.1, function()
+			FadeOut(0.25)
+		end)
+	end)
+
+	-- Player now watches final descent from inside the cockpit
+	-- Camera is behind player, looking through the cockpit window
+end
+
+function TransitionUI.ShowLaunchPhase1(duration)
+	-- Don't check isActive - launch can start right after landing complete
+	-- Reset isActive and cockpitViewActive for fresh launch sequence
+	isActive = true
+	cockpitViewActive = false
+
+	print(string.format("[%s %s] Launch Phase 1 (Liftoff): Cockpit view (%.1f sec)", MODULE_NAME, VERSION, duration))
+
+	SaveCameraState()
+
+	-- Set cockpit view - player watches through cockpit window
+	-- Camera follows player as ship rises
+	local camera = Workspace.CurrentCamera
+	local character = LocalPlayer.Character
+	local ship = Workspace:FindFirstChild("SpaceShip")
+
+	if character and ship then
+		local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+		local shipPart = ship.PrimaryPart or ship:FindFirstChildWhichIsA("BasePart")
+
+		if humanoidRootPart and shipPart then
+			camera.CameraType = Enum.CameraType.Scriptable
+			camera.FieldOfView = 70
+
+			-- Track the player throughout phase 1 (camera follows as ship rises)
+			local startTime = os.clock()
+			task.spawn(function()
+				while os.clock() - startTime < duration do
+					local playerPos = humanoidRootPart.Position
+					local shipLookVector = shipPart.CFrame.LookVector
+					local shipUpVector = shipPart.CFrame.UpVector
+					local cameraOffset = -shipLookVector * 3 + shipUpVector * 2.5
+					local cameraPos = playerPos + cameraOffset
+					local lookAtPos = playerPos + shipLookVector * 50
+
+					camera.CFrame = CFrame.lookAt(cameraPos, lookAtPos)
+					task.wait()
+				end
+			end)
+
+			print(string.format("[%s %s] Launch cockpit view tracking started", MODULE_NAME, VERSION))
+		end
+	end
+end
+
+function TransitionUI.ShowLaunchPhase2(duration, padPosition, shipPosition)
+	print(string.format("[%s %s] Launch Phase 2 (Ascent): External view (%.1f sec)", MODULE_NAME, VERSION, duration))
+
+	-- Quick fade to black before camera switch
+	FadeIn(0.25)
+
+	-- Wait for fade, then switch camera and fade out
+	task.delay(0.25, function()
+		local camera = Workspace.CurrentCamera
+
+		-- Position camera on ground looking up at the ascending ship
+		if padPosition then
+			-- Camera offset from landing pad (similar to landing camera but looking UP)
+			local cameraOffset = TransitionConfig.LandingCameraOffset
+			local cameraPos = padPosition + cameraOffset
+
+			-- Look at ship's current position (will track ship as it rises)
+			local lookAtPos = shipPosition or (padPosition + Vector3.new(0, 100, 0))
+
+			camera.CameraType = Enum.CameraType.Scriptable
+			camera.CFrame = CFrame.lookAt(cameraPos, lookAtPos)
+			camera.FieldOfView = 70
+
+			print(string.format("[%s %s] External camera at %s, looking at ship",
+				MODULE_NAME, VERSION, tostring(cameraPos)))
+
+			-- Fade back out to reveal external view
+			task.delay(0.1, function()
+				FadeOut(0.25)
+			end)
+
+			-- Track the ship as it ascends
+			local ship = Workspace:FindFirstChild("SpaceShip")
+			if ship then
+				local startTime = os.clock()
+				task.spawn(function()
+					-- Adjust duration to account for fade time
+					while os.clock() - startTime < duration - 1.5 do
+						local shipPart = ship.PrimaryPart or ship:FindFirstChildWhichIsA("BasePart")
+						if shipPart then
+							-- Keep looking at the ship as it rises
+							camera.CFrame = CFrame.lookAt(cameraPos, shipPart.Position)
+						end
+						task.wait()
+					end
+				end)
+			end
+		end
+
+		-- Start fading to black near the end of phase 2 (adjusted for initial fade)
+		task.delay(duration - 1.5, function()
+			FadeIn(1.0) -- 1 second fade to black
+		end)
+	end)
+end
+
+-- Legacy function for compatibility
+function TransitionUI.ShowLaunchAnimation()
+	-- Redirect to Phase 1 with default duration
+	TransitionUI.ShowLaunchPhase1(TransitionConfig.LaunchPhase1Duration or 3.0)
+end
+
+function TransitionUI.Hide(forceRestoreCamera)
+	print(string.format("[%s %s] Hiding transition UI (restoreCamera: %s, cockpitActive: %s)",
+		MODULE_NAME, VERSION, tostring(forceRestoreCamera or false), tostring(cockpitViewActive)))
+
+	local camera = Workspace.CurrentCamera
+	local character = LocalPlayer.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+
+	-- If cockpit view was set during phase 2, just switch to Custom camera smoothly
+	-- Don't reset the camera position - it's already correct
+	if cockpitViewActive then
+		-- Cockpit view already set in phase 2, just transition to player control
+		task.delay(0.3, function()
+			if humanoid then
+				camera.CameraType = Enum.CameraType.Custom
+				camera.CameraSubject = humanoid
+			end
+		end)
+		cockpitViewActive = false
 	else
-		-- Normal restore
-		RestoreCameraState()
+		-- No cockpit view was set (e.g., GameStart or orbit return after launch)
+		-- Wait briefly for character/ship to be fully positioned before setting camera
+		task.delay(0.2, function()
+			-- Re-get character and humanoid in case they changed
+			local char = LocalPlayer.Character
+			local hum = char and char:FindFirstChildOfClass("Humanoid")
+
+			if not SetCockpitView(true) then
+				-- Fallback to standard camera if cockpit view fails
+				camera.CameraType = Enum.CameraType.Custom
+				if hum then
+					camera.CameraSubject = hum
+					print(string.format("[%s %s] Fallback: Camera set to follow player humanoid", MODULE_NAME, VERSION))
+				end
+				camera.FieldOfView = 70
+			end
+		end)
 	end
 
 	-- Fade out overlay

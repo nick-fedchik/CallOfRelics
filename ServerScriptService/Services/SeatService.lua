@@ -8,7 +8,7 @@ Server-side management of seat occupancy and seat-based actions.
 Validates seat interactions and maintains authoritative state.
 
 Version:
-0.1
+0.2
 
 Features:
 - Track seat occupancy per player
@@ -16,6 +16,7 @@ Features:
 - Process seat-specific actions
 - Extensible action handler registry
 - Cleanup on player disconnect
+- GDD: Save profile when player sits in PilotSeat (if changed)
 
 API:
 - Initialize() -- Initialize service
@@ -28,6 +29,7 @@ API:
 Calls to:
 - ReplicatedStorage.Game.SeatConfig
 - ReplicatedStorage.RemoteEvents
+- ProfileService.SaveIfChanged()
 
 Called from:
 - ServerBootstrap (initialization)
@@ -42,15 +44,17 @@ Events:
 Dependencies:
 - SeatConfig
 - RemoteEvents
+- ProfileService
 
 ChangeLog:
+- 0.2: GDD save on PilotSeat sit (2026-01-15)
 - 0.1: Initial SeatService (2026-01-13)
 ================================================================================
 ]]
 
 local SeatService = {}
 
-local VERSION = "0.1"
+local VERSION = "0.2"
 local MODULE_NAME = "SeatService"
 
 -- ============================================================================
@@ -80,6 +84,7 @@ local actionHandlers = {}
 
 -- Modules (set during Initialize)
 local SeatConfig
+local ProfileService
 
 -- ============================================================================
 -- PUBLIC API
@@ -96,6 +101,11 @@ function SeatService.Initialize()
 	-- Load SeatConfig
 	local Game = ReplicatedStorage:WaitForChild("Game")
 	SeatConfig = require(Game:WaitForChild("SeatConfig"))
+
+	-- Load ProfileService
+	local ServerScriptService = game:GetService("ServerScriptService")
+	local Services = ServerScriptService:WaitForChild("Services")
+	ProfileService = require(Services:WaitForChild("ProfileService"))
 
 	-- Get RemoteEvents
 	RemoteEvents = ReplicatedStorage:WaitForChild("RemoteEvents")
@@ -140,6 +150,15 @@ function SeatService.OnSeatOccupied(player, seatName)
 
 	-- Record occupancy
 	seatOccupants[seatName] = player
+
+	-- GDD: Save profile when player sits in PilotSeat (if changed)
+	if seatName == "PilotSeat" then
+		local saved = ProfileService.SaveIfChanged(player)
+		if saved then
+			print(string.format("[%s %s][OnSeatOccupied] Profile saved for %s (PilotSeat)",
+				MODULE_NAME, VERSION, player.Name))
+		end
+	end
 
 	-- Future: Trigger seat-specific server logic (e.g., enable scanner systems)
 	local seatConfig = SeatConfig.GetSeatConfig(seatName)

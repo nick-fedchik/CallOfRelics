@@ -8,6 +8,105 @@
 
 ---
 
+## [0.8.1] - 2026-01-15 - Transition System Refactoring
+
+### Changed - Naming Refactoring (Liftoff → Launch)
+
+Уніфікація термінології для процесів переходу між локаціями:
+
+- **Launch** — загальний процес зльоту з поверхні на орбіту
+  - Phase 1 (Liftoff) — відрив від поверхні, cockpit view
+  - Phase 2 (Ascent) — підйом на орбіту, external view
+- **Landing** — загальний процес посадки з орбіти на поверхню
+  - Phase 1 (Approach) — наближення, external view
+  - Phase 2 (Touchdown) — фінальна посадка, cockpit view
+
+#### Files Changed
+
+| File | Version | Changes |
+|------|---------|---------|
+| TransitionConfig.lua | 0.1 → 0.2 | `States.Liftoff` → `States.Launch`, `States.Ascending` → `States.Ascent`, timing params |
+| TransitionService.lua | 0.4 → 0.5 | `StartLiftoffSequence()` → `StartLaunchSequence()`, RequestLaunch event |
+| TransitionUI.lua | 0.8 → 0.9 | `ShowLiftoffPhase1/2()` → `ShowLaunchPhase1/2()`, state handlers |
+| PilotUI.lua | 0.6 → 0.7 | `liftoffButton` → `launchButton`, RequestLaunch, button text "Зліт на орбіту" |
+| RemoteEventsSetup.server.lua | 0.1 → 0.2 | `RequestLiftoff` → `RequestLaunch` |
+
+### Fixed - Camera Issues
+- **TransitionUI.lua (v0.8)**: Fix Launch Phase 1 camera tracking (camera follows player as ship rises)
+- **TransitionUI.lua (v0.8)**: Add delay before GameStart cockpit setup to prevent flickering
+
+---
+
+## [0.8.0] - 2026-01-15 - EPIC 8: Progression & Persistence
+
+### Added - Profile System v2
+
+#### ProfileService.lua (v0.2) — Complete progression tracking
+- **Extended Profile Schema (v2)**
+  - `currentLocation` — Track exact location (not just planet)
+  - `lastSafeState` — For respawn on failure
+  - `discoveredPlanets` — Set of discovered planets with timestamps
+  - `exploredLocations` — Per-planet location tracking with visitCount
+  - `visitHistory` — Last 100 visits with timestamps
+  - `shipState.hullIntegrity`, `shipState.modules` — Extended ship data
+  - `stats` — totalPlayTime, locationsExplored, resourcesCollected, knowledgeDiscovered
+
+- **Profile Update Methods**
+  - `UpdateProfile(player, updates)` — Generic merge
+  - `MarkLocationDiscovered(player, planetId, locationName)` — Discovery + visitCount
+  - `UpdateCurrentState(player, planetId, locationName)` — Current location tracking
+  - `AddResources(player, resourceId, quantity)` — Resource stacking
+  - `RemoveResources(player, resourceId, quantity)` — Resource removal (can fail)
+  - `AddKnowledge(player, knowledgeEntry)` — Knowledge (never removed)
+  - `GetExploredLocationsForPlanet(player, planetId)` — Per-planet locations
+
+- **Mid-Session Auto-Save**
+  - Auto-save every 5 minutes
+  - Event-triggered saves on landing/liftoff
+  - 10-second debounce between saves
+  - `TriggerEventSave(player, eventName)` — Manual save trigger
+
+- **Profile Migration**
+  - Automatic v1 → v2 migration for existing profiles
+  - Backward compatible with all existing data
+
+#### RemoteEvents (NEW)
+- `ProfileUpdate` — Server → Client: push profile changes
+- `RequestProfileSync` — Client → Server: request full profile
+
+#### Client-Side Sync
+- **StatusBarUI.lua (v0.4)** — Profile sync listener
+  - `SetupProfileSync()` — Setup event listeners
+  - Real-time planet/location updates
+  - Initial sync on game start
+
+### Changed
+- **TransitionService.lua (v0.2)** — ProfileService integration
+  - `StartLandingSequence()` — Mark location discovered, update state, trigger save
+  - `StartLiftoffSequence()` — Update state, trigger save
+  - `StartGameSequence()` — Initial state setup
+  - `GetAvailableLocations()` — Use per-planet location structure
+
+- **ClientBootstrap.client.lua** — Call `StatusBarUI.SetupProfileSync()`
+
+### EPIC 8 Stories Completed
+- ✅ Player progress is saved reliably (auto-save + event saves)
+- ✅ Player returns to last known safe state (lastSafeState tracking)
+- ✅ Resources may be lost on failure (RemoveResources API)
+- ✅ Knowledge is never lost (AddKnowledge only, no removal)
+
+### Testing Checklist
+- [ ] New player gets v2 profile with all fields
+- [ ] Existing v1 profile migrates to v2 correctly
+- [ ] Auto-save triggers every 5 minutes
+- [ ] Save triggers on landing/liftoff
+- [ ] Location marked discovered after first landing
+- [ ] Visit count increments on revisit
+- [ ] ProfileUpdate events fire to client
+- [ ] StatusBarUI updates on state change
+
+---
+
 ## [0.7.0] - 2026-01-14 - Transition System (Orbit ↔ Surface)
 
 ### Added - Location Transitions

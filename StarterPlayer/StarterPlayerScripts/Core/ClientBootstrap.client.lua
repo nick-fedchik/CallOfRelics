@@ -116,6 +116,9 @@ local function Boot()
 		error("[ClientBootstrap] CRITICAL: StatusBarUI initialization failed!")
 	end
 
+	-- Setup profile sync listener (EPIC 8)
+	StatusBarUI.SetupProfileSync()
+
 	print(string.format("[%s %s][Boot] Phase 3: Initializing UIManager", MODULE_NAME, VERSION))
 
 	success = UIManager.Initialize(ScreenSaverUI, StatusBarUI)
