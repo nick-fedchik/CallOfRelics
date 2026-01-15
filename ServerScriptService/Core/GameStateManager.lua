@@ -87,9 +87,6 @@ local stateChangedEvent = Instance.new("BindableEvent")
 -- ============================================================================
 
 function GameStateManager.Initialize()
-	print(string.format("[%s %s][Initialize] State manager initialized. Current state: %s",
-		MODULE_NAME, VERSION, currentState))
-
 	return true
 end
 
@@ -141,18 +138,15 @@ function GameStateManager.RequestStateChange(newState, context)
 		return false
 	end
 
-	-- 3. Execute transition
+	-- Execute transition
 	local oldState = currentState
 	currentState = newState
 
-	print(string.format("[%s %s][RequestStateChange] State transition: %s → %s",
-		MODULE_NAME, VERSION, oldState, newState))
+	print(string.format("[%s %s] State: %s → %s", MODULE_NAME, VERSION, oldState, newState))
 
-	-- 4. Notify systems (server-side)
 	stateChangedEvent:Fire(oldState, newState, context)
 
-	-- 5. Notify client (if player context exists)
-	-- Context can be either a Player object or a table with .player field
+	-- Notify client (if player context exists)
 	local player = nil
 	if context then
 		if typeof(context) == "Instance" and context:IsA("Player") then
@@ -168,8 +162,6 @@ function GameStateManager.RequestStateChange(newState, context)
 			local stateChangedRemote = remoteEvents:FindFirstChild("StateChanged")
 			if stateChangedRemote then
 				stateChangedRemote:FireClient(player, oldState, newState)
-				print(string.format("[%s %s][RequestStateChange] State change sent to client: %s",
-					MODULE_NAME, VERSION, player.Name))
 			end
 		end
 	end

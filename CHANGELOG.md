@@ -8,6 +8,55 @@
 
 ---
 
+## [0.8.2] - 2026-01-15 - Log Cleanup & Optimization
+
+### Changed - Production Logging
+
+Масове очищення verbose логів для production-ready коду. Збережено лише логи зі змінними/станами.
+
+#### Server-Side (~600 рядків видалено)
+- **BootSequence.lua** — видалено ~30 verbose логів (stage details)
+- **GameStateManager.lua** — збережено лише state transitions
+- **ServerBootstrap.server.lua** — видалено init logs
+- **LocationService.lua** — видалено ~50 verbose логів, збережено state changes
+- **PlayerService.lua** — видалено init/event logs
+- **ProfileService.lua** — видалено ~40 verbose логів, збережено critical operations
+- **SeatService.lua** — видалено verbose seat logs
+- **TransitionService.lua** — видалено ~60 verbose логів, збережено state transitions
+- **RemoteEventsSetup.server.lua** — видалено individual event creation logs
+
+#### Client-Side (~325 рядків видалено)
+- **ScreenSaverUI.lua** — видалено ~15 verbose логів (init, show, hide, stages)
+- **UIManager.lua** — видалено ~5 логів (init, state changes)
+- **StatusBarUI.lua** — видалено ~8 логів (init, profile sync)
+- **TransitionUI.lua** — видалено ~20 логів (all phase logs)
+- **PilotUI.lua** — видалено ~8 логів (init, context, clicks)
+- **ClientBootstrap.client.lua** — видалено duplicate-run warning
+
+### Fixed - RunContext Warnings
+
+- **CameraController.client.lua** — Added double-execution prevention
+  - Uses `CameraControllerInitialized` attribute pattern (same as ClientBootstrap)
+  - Prevents "script will run multiple times" warning in StarterPlayerScripts
+
+### Statistics
+- **Total lines removed:** ~925 (303 added, 925 deleted)
+- **Files modified:** 16
+- **Remaining logs:** Only logs with state/variable parameters (State: X → Y, Player: X, Location: X/Y)
+
+### Logging Strategy
+Збережені логи:
+- `[GameStateManager] State: LoggedOff → Initializing` ✓
+- `[LocationService] ✓ Location loaded: Planet_1/Orbit` ✓
+- `[TransitionService] ✓ Landing complete for Sealord_75` ✓
+
+Видалені логи:
+- `[Module] Initializing...` ✗
+- `[Module] ✓ Ready` ✗
+- `[Module] Processing...` ✗
+
+---
+
 ## [0.8.1] - 2026-01-15 - Transition System Refactoring
 
 ### Changed - Naming Refactoring (Liftoff → Launch)

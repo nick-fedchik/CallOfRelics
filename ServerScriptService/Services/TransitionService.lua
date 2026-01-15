@@ -8,7 +8,7 @@ Coordinates location transitions between Orbit and Surface locations.
 Manages landing and launch sequences with client-server synchronization.
 
 Version:
-0.3
+0.6
 
 Features:
 - StartLandingSequence(player, locationId) — Orbit → Surface transition
@@ -45,6 +45,7 @@ Dependencies:
 - ServerStorage.Planets structure
 
 ChangeLog:
+- 0.6: Add RestoreCharacterSounds after GameStart (2026-01-15)
 - 0.5: Rename Liftoff → Launch (StartLaunchSequence, States.Launch/Ascent) (2026-01-15)
 - 0.4: Two-phase landing animation, remove unused AnimateShipLanding (2026-01-15)
 - 0.3: Preserve SpaceShip across transitions, skip respawn if seated (2026-01-15)
@@ -54,11 +55,10 @@ ChangeLog:
 ]]
 
 local MODULE_NAME = "TransitionService"
-local VERSION = "0.5"
+local VERSION = "0.6"
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
-local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 
@@ -97,8 +97,6 @@ local isInitialized = false
 -- Structure: {[player] = {state = "idle", locationId = nil, startTime = nil}}
 local playerTransitions = {}
 
--- Track silent spawn state (to disable spawn sound during transitions)
-local silentSpawnPlayers = {}
 
 -- RemoteEvents references
 local remoteEvents
@@ -131,31 +129,45 @@ local function MuteCharacterSounds(character)
 	end
 end
 
-local function LoadCharacterSilently(player)
-	-- Mark player for silent spawn
-	silentSpawnPlayers[player] = true
+local function RestoreCharacterSounds(character)
+	-- Restore default volumes for character sounds
+	-- Note: Roblox default volumes vary by sound type
+	for _, descendant in ipairs(character:GetDescendants()) do
+		if descendant:IsA("Sound") then
+			-- Restore to reasonable defaults based on sound name
+			if descendant.Name == "Running" then
+				descendant.Volume = 0.65
+			elseif descendant.Name == "Climbing" then
+				descendant.Volume = 0.7
+			elseif descendant.Name == "Jumping" then
+				descendant.Volume = 0.5
+			elseif descendant.Name == "GettingUp" then
+				descendant.Volume = 0.65
+			elseif descendant.Name == "FreeFalling" then
+				descendant.Volume = 0.5
+			elseif descendant.Name == "Landing" then
+				descendant.Volume = 0.5
+			elseif descendant.Name == "Splash" then
+				descendant.Volume = 0.5
+			elseif descendant.Name == "Swimming" then
+				descendant.Volume = 0.5
+			else
+				-- Default volume for unknown sounds
+				descendant.Volume = 0.5
+			end
+		end
+	end
+end
 
-	-- Setup one-time connection to mute sounds when character loads
+local function LoadCharacterSilently(player)
 	local connection
 	connection = player.CharacterAdded:Connect(function(character)
-		-- Disconnect immediately (one-time)
 		connection:Disconnect()
-
-		-- Mute sounds immediately
 		MuteCharacterSounds(character)
-
-		-- Also mute any sounds that get added shortly after (Roblox adds them with delay)
 		task.delay(0.1, function()
 			MuteCharacterSounds(character)
 		end)
-
-		-- Clear silent spawn flag after a short delay
-		task.delay(0.5, function()
-			silentSpawnPlayers[player] = nil
-		end)
 	end)
-
-	-- Load character
 	player:LoadCharacter()
 end
 
@@ -166,8 +178,6 @@ local function SetTransitionState(player, state, locationId)
 		startTime = os.clock()
 	}
 
-	print(string.format("[%s %s][SetState] %s -> %s (location: %s)",
-		MODULE_NAME, VERSION, player.Name, state, locationId or "nil"))
 end
 
 local function ClearTransitionState(player)
@@ -200,80 +210,50 @@ local function GetLocationMetadata(planetId, locationId)
 	}
 end
 
-local function SpawnShipAboveLandingPad(player, locationId)
-	-- Find landing pad in Workspace (recursive search since it's inside Baseplate)
+local function SpawnShipAboveLandingPad()
 	local landingPad = Workspace:FindFirstChild("SpaceShipLandingPad", true)
 
 	if not landingPad then
-		warn(string.format("[%s %s][SpawnShip] Landing pad not found!", MODULE_NAME, VERSION))
-		-- List workspace contents for debugging
-		print(string.format("[%s %s][SpawnShip] DEBUG Workspace contents:", MODULE_NAME, VERSION))
-		for _, child in ipairs(Workspace:GetChildren()) do
-			print(string.format("  - %s (%s)", child.Name, child.ClassName))
-			if child:IsA("BasePart") then
-				for _, subChild in ipairs(child:GetChildren()) do
-					print(string.format("    - %s (%s)", subChild.Name, subChild.ClassName))
-				end
-			end
-		end
+		warn(string.format("[%s %s] Landing pad not found!", MODULE_NAME, VERSION))
 		return nil
 	end
 
-	-- Get WORLD position of landing pad (not local position)
 	local padWorldPosition = landingPad.CFrame.Position
-	print(string.format("[%s %s][SpawnShip] Found landing pad: %s at WORLD pos %s (local: %s)",
-		MODULE_NAME, VERSION, landingPad.Name, tostring(padWorldPosition), tostring(landingPad.Position)))
 
-	-- Check if SpaceShip already exists in Workspace (preserved from Orbit)
+	-- Check if SpaceShip already exists (preserved from Orbit)
 	local existingShip = Workspace:FindFirstChild("SpaceShip")
 	if existingShip then
-		print(string.format("[%s %s][SpawnShip] SpaceShip already exists, repositioning for landing",
-			MODULE_NAME, VERSION))
-
-		-- Reposition existing ship above landing pad
 		local spawnHeight = TransitionConfig.ShipSpawnHeight
 		local startPosition = padWorldPosition + Vector3.new(0, spawnHeight, 0)
 		existingShip:PivotTo(CFrame.new(startPosition) * CFrame.Angles(0, 0, 0))
-
-		print(string.format("[%s %s][SpawnShip] Ship repositioned to %s (height %d above pad)",
-			MODULE_NAME, VERSION, tostring(startPosition), spawnHeight))
-
 		return existingShip, landingPad
 	end
 
-	-- Get SpaceShip from Orbit location (fallback if not preserved)
+	-- Fallback: clone from template
 	local planetFolder = ServerStorage.Planets:FindFirstChild("Planet_1")
 	if not planetFolder then return nil end
 
 	local orbitWorkspace = planetFolder.Orbit.Workspace
 	local shipTemplate = orbitWorkspace:FindFirstChild("SpaceShip")
 	if not shipTemplate then
-		warn(string.format("[%s %s][SpawnShip] SpaceShip template not found!", MODULE_NAME, VERSION))
+		warn(string.format("[%s %s] SpaceShip template not found!", MODULE_NAME, VERSION))
 		return nil
 	end
 
-	-- Clone ship
 	local ship = shipTemplate:Clone()
 	ship.Name = "SpaceShip"
 	ship.ModelStreamingMode = Enum.ModelStreamingMode.Persistent
 
-	-- Anchor all parts
 	for _, part in ipairs(ship:GetDescendants()) do
 		if part:IsA("BasePart") and not part:IsA("Seat") and not part:IsA("VehicleSeat") then
 			part.Anchored = true
 		end
 	end
 
-	-- Position above landing pad using WORLD position
 	local spawnHeight = TransitionConfig.ShipSpawnHeight
 	local startPosition = padWorldPosition + Vector3.new(0, spawnHeight, 0)
-
-	-- Set ship position
 	ship:PivotTo(CFrame.new(startPosition) * CFrame.Angles(0, 0, 0))
 	ship.Parent = Workspace
-
-	print(string.format("[%s %s][SpawnShip] Ship spawned at %s (height %d above pad)",
-		MODULE_NAME, VERSION, tostring(startPosition), spawnHeight))
 
 	return ship, landingPad
 end
@@ -292,71 +272,48 @@ local function GetPlanetDisplayName(planetId)
 end
 
 local function SitPlayerInShip(player, ship)
-	print(string.format("[%s %s][SitPlayer] Attempting to seat %s", MODULE_NAME, VERSION, player.Name))
-
 	if not ship then
-		warn(string.format("[%s %s][SitPlayer] Ship is nil!", MODULE_NAME, VERSION))
 		return false
 	end
-
-	print(string.format("[%s %s][SitPlayer] Ship found: %s", MODULE_NAME, VERSION, ship.Name))
 
 	local pilotSeat = ship:FindFirstChild("PilotSeat", true)
 	if not pilotSeat then
-		warn(string.format("[%s %s][SitPlayer] PilotSeat not found in ship!", MODULE_NAME, VERSION))
 		return false
 	end
 
-	print(string.format("[%s %s][SitPlayer] PilotSeat found: %s", MODULE_NAME, VERSION, pilotSeat.Name))
-
-	-- Wait for character if not present (may have respawned during transition)
 	local character = player.Character
 	if not character then
-		print(string.format("[%s %s][SitPlayer] Waiting for character to load...", MODULE_NAME, VERSION))
 		character = player.CharacterAdded:Wait()
-		task.wait(0.5) -- Wait for character to fully initialize
+		task.wait(0.5)
 	end
 
 	if not character then
-		warn(string.format("[%s %s][SitPlayer] Character not found for %s!", MODULE_NAME, VERSION, player.Name))
 		return false
 	end
 
-	print(string.format("[%s %s][SitPlayer] Character found: %s", MODULE_NAME, VERSION, character.Name))
-
-	-- Use WaitForChild with timeout for Humanoid
 	local humanoid = character:WaitForChild("Humanoid", 5)
 	if not humanoid then
-		warn(string.format("[%s %s][SitPlayer] Humanoid not found after waiting!", MODULE_NAME, VERSION))
 		return false
 	end
 
-	print(string.format("[%s %s][SitPlayer] Humanoid found, state: %s", MODULE_NAME, VERSION, tostring(humanoid:GetState())))
-
-	-- Wait for humanoid to be ready (not dead)
 	if humanoid:GetState() == Enum.HumanoidStateType.Dead then
-		print(string.format("[%s %s][SitPlayer] Humanoid is dead, waiting for respawn...", MODULE_NAME, VERSION))
 		character = player.CharacterAdded:Wait()
 		task.wait(0.5)
 		humanoid = character:WaitForChild("Humanoid", 5)
 		if not humanoid then
-			warn(string.format("[%s %s][SitPlayer] Humanoid not found after respawn!", MODULE_NAME, VERSION))
 			return false
 		end
 	end
 
-	-- Configure seat
 	if pilotSeat:IsA("VehicleSeat") then
 		pilotSeat.Disabled = false
 		pilotSeat.MaxSpeed = 0
 		pilotSeat.TurnSpeed = 0
 	end
 
-	-- Sit player
 	pilotSeat:Sit(humanoid)
-	task.wait(0.3) -- Wait for sit to complete
+	task.wait(0.3)
 
-	print(string.format("[%s %s][SitPlayer] ✓ %s seated in PilotSeat", MODULE_NAME, VERSION, player.Name))
 	return true
 end
 
@@ -366,16 +323,12 @@ end
 
 function TransitionService.Initialize()
 	if isInitialized then
-		warn(string.format("[%s %s][Initialize] Already initialized", MODULE_NAME, VERSION))
 		return true
 	end
 
-	print(string.format("[%s %s] 🚀 Initializing TransitionService...", MODULE_NAME, VERSION))
-
-	-- Get RemoteEvents
 	remoteEvents = ReplicatedStorage:WaitForChild("RemoteEvents", 10)
 	if not remoteEvents then
-		error(string.format("[%s %s][Initialize] RemoteEvents folder not found!", MODULE_NAME, VERSION))
+		error(string.format("[%s %s] RemoteEvents not found!", MODULE_NAME, VERSION))
 	end
 
 	transitionUpdate = remoteEvents:WaitForChild("TransitionUpdate", 5)
@@ -384,7 +337,6 @@ function TransitionService.Initialize()
 	requestLaunch = remoteEvents:WaitForChild("RequestLaunch", 5)
 	requestLocations = remoteEvents:WaitForChild("RequestLocations", 5)
 
-	-- Setup event handlers
 	requestLanding.OnServerEvent:Connect(function(player, locationId)
 		TransitionService.StartLandingSequence(player, locationId)
 	end)
@@ -398,13 +350,12 @@ function TransitionService.Initialize()
 		locationsAvailable:FireClient(player, locations)
 	end)
 
-	-- Cleanup on player leave
 	Players.PlayerRemoving:Connect(function(player)
 		ClearTransitionState(player)
 	end)
 
 	isInitialized = true
-	print(string.format("[%s %s] ✓ TransitionService initialized", MODULE_NAME, VERSION))
+	print(string.format("[%s %s] ✓ TransitionService ready", MODULE_NAME, VERSION))
 	return true
 end
 
@@ -412,7 +363,6 @@ function TransitionService.GetAvailableLocations(player)
 	local profileService = GetProfileService()
 	local profile = profileService.GetProfile(player)
 	if not profile then
-		warn(string.format("[%s %s][GetLocations] No profile for %s", MODULE_NAME, VERSION, player.Name))
 		return {}
 	end
 
@@ -436,9 +386,6 @@ function TransitionService.GetAvailableLocations(player)
 			end
 		end
 	end
-
-	print(string.format("[%s %s][GetLocations] Found %d locations for %s on %s",
-		MODULE_NAME, VERSION, #locations, player.Name, planetId))
 
 	return locations
 end
@@ -549,27 +496,22 @@ function TransitionService.StartLandingSequence(player, locationId)
 	-- If player is sitting (in preserved SpaceShip), don't respawn
 	if humanoid and humanoid.SeatPart then
 		needsRespawn = false
-		print(string.format("[%s %s][Landing] Player still seated, skipping respawn", MODULE_NAME, VERSION))
 	end
 
 	if needsRespawn then
-		print(string.format("[%s %s][Landing] Respawning player character (silent)...", MODULE_NAME, VERSION))
 		LoadCharacterSilently(player)
-		task.wait(1.0) -- Wait for character to load
+		task.wait(1.0)
 	end
 
 	-- Phase 4: Spawn ship above landing pad
-	local ship, landingPad = SpawnShipAboveLandingPad(player, locationId)
+	local ship, landingPad = SpawnShipAboveLandingPad()
 	if not ship then
-		warn(string.format("[%s %s][Landing] Failed to spawn ship!", MODULE_NAME, VERSION))
+		warn(string.format("[%s %s] Failed to spawn ship!", MODULE_NAME, VERSION))
 	end
 
-	-- Get WORLD position of landing pad for client camera
 	local padWorldPosition = landingPad and landingPad.CFrame.Position or Vector3.new(0, 0, 0)
 
-	-- Wait for replication to complete (ship and location must be visible on client)
 	task.wait(1.0)
-	print(string.format("[%s %s][Landing] Replication wait complete", MODULE_NAME, VERSION))
 
 	-- Phase durations for landing
 	local phase1Duration = TransitionConfig.LandingPhase1Duration -- 4 sec external view
@@ -583,67 +525,48 @@ function TransitionService.StartLandingSequence(player, locationId)
 		duration = phase1Duration
 	})
 
-	-- Brief wait for client to setup camera
 	task.wait(0.5)
-
-	-- Sit player in ship before animation starts
-	print(string.format("[%s %s][Landing] Seating player in ship", MODULE_NAME, VERSION))
 	SitPlayerInShip(player, ship)
 	task.wait(0.3)
 
-	-- Phase 1: Ship descends from high to intermediate height (fast approach with braking)
+	-- Phase 1: Ship descends from high to intermediate height
 	if ship and landingPad then
 		local startCFrame = ship:GetPivot()
-		local startPosition = startCFrame.Position
-
-		-- Intermediate position: 80 studs above pad (where phase 2 starts)
 		local intermediateHeight = 80
 		local phase1EndPosition = padWorldPosition + Vector3.new(0, intermediateHeight, 0)
 		local phase1EndCFrame = CFrame.new(phase1EndPosition) * startCFrame.Rotation
 
-		print(string.format("[%s %s][Landing] Phase 1: Descending from %s to %s",
-			MODULE_NAME, VERSION, tostring(startPosition), tostring(phase1EndPosition)))
-
 		local startTime = os.clock()
 		while os.clock() - startTime < phase1Duration do
 			local alpha = (os.clock() - startTime) / phase1Duration
-			alpha = 1 - (1 - alpha) ^ 2 -- Quad easing out (fast start, slowing down)
+			alpha = 1 - (1 - alpha) ^ 2
 			local currentCFrame = startCFrame:Lerp(phase1EndCFrame, alpha)
 			ship:PivotTo(currentCFrame)
 			task.wait()
 		end
 		ship:PivotTo(phase1EndCFrame)
 
-		print(string.format("[%s %s][Landing] Phase 1 complete, switching to cockpit view",
-			MODULE_NAME, VERSION))
-
-		-- Phase 6: Cockpit view - switch camera to inside ship
+		-- Phase 2: Cockpit view
 		SetTransitionState(player, TransitionConfig.States.Landing, locationId)
 		transitionUpdate:FireClient(player, TransitionConfig.States.Landing, {
 			phase = 2,
 			duration = phase2Duration
 		})
 
-		-- Phase 2: Final approach from intermediate to landing pad (slow, controlled)
 		local phase2StartCFrame = ship:GetPivot()
 		local landingHeight = TransitionConfig.ShipLandingHeight
 		local finalPosition = padWorldPosition + Vector3.new(0, landingHeight, 0)
 		local phase2EndCFrame = CFrame.new(finalPosition) * startCFrame.Rotation
 
-		print(string.format("[%s %s][Landing] Phase 2: Final approach to %s",
-			MODULE_NAME, VERSION, tostring(finalPosition)))
-
 		startTime = os.clock()
 		while os.clock() - startTime < phase2Duration do
 			local alpha = (os.clock() - startTime) / phase2Duration
-			alpha = 1 - (1 - alpha) ^ 3 -- Cubic easing out (very smooth landing)
+			alpha = 1 - (1 - alpha) ^ 3
 			local currentCFrame = phase2StartCFrame:Lerp(phase2EndCFrame, alpha)
 			ship:PivotTo(currentCFrame)
 			task.wait()
 		end
 		ship:PivotTo(phase2EndCFrame)
-
-		print(string.format("[%s %s][Landing] Phase 2 complete, ship landed", MODULE_NAME, VERSION))
 	end
 
 	-- Brief pause after landing
@@ -673,20 +596,14 @@ function TransitionService.StartLandingSequence(player, locationId)
 
 	ClearTransitionState(player)
 
-	print(string.format("[%s %s][Landing] ✓ Landing sequence complete for %s",
-		MODULE_NAME, VERSION, player.Name))
+	print(string.format("[%s %s] ✓ Landing complete for %s", MODULE_NAME, VERSION, player.Name))
 
 	return true
 end
 
 function TransitionService.StartLaunchSequence(player)
-	print(string.format("[%s %s][Launch] Starting launch sequence for %s",
-		MODULE_NAME, VERSION, player.Name))
-
-	-- Validation
 	local currentContext = TransitionService.GetCurrentContext(player)
 	if currentContext ~= TransitionConfig.Contexts.Surface then
-		warn(string.format("[%s %s][Launch] Player not on Surface!", MODULE_NAME, VERSION))
 		transitionUpdate:FireClient(player, "error", {
 			message = TransitionConfig.Messages.NotInPilotSeat
 		})
@@ -694,7 +611,6 @@ function TransitionService.StartLaunchSequence(player)
 	end
 
 	if playerTransitions[player] then
-		warn(string.format("[%s %s][Launch] Transition already in progress!", MODULE_NAME, VERSION))
 		return false
 	end
 
@@ -742,10 +658,7 @@ function TransitionService.StartLaunchSequence(player)
 		end
 		ship:PivotTo(phase1EndCFrame)
 
-		print(string.format("[%s %s][Launch] Phase 1 (liftoff) complete, ship at %s",
-			MODULE_NAME, VERSION, tostring(phase1EndPosition)))
-
-		-- Phase 2: External view - camera switches to ground POV for ascent
+		-- Phase 2: External view
 		SetTransitionState(player, TransitionConfig.States.Ascent, nil)
 		transitionUpdate:FireClient(player, TransitionConfig.States.Ascent, {
 			planetName = planetDisplayName,
@@ -770,9 +683,6 @@ function TransitionService.StartLaunchSequence(player)
 			task.wait()
 		end
 		ship:PivotTo(phase2EndCFrame)
-
-		print(string.format("[%s %s][Launch] Phase 2 (ascent) complete, ship at %s",
-			MODULE_NAME, VERSION, tostring(phase2EndPosition)))
 	else
 		task.wait(phase1Duration + phase2Duration)
 	end
@@ -792,20 +702,17 @@ function TransitionService.StartLaunchSequence(player)
 
 	local loadSuccess = locService.LoadLocation(player, planetId, "Orbit")
 	if not loadSuccess then
-		warn(string.format("[%s %s][Launch] Failed to load Orbit!", MODULE_NAME, VERSION))
 		ClearTransitionState(player)
 		return false
 	end
 
 	task.wait(TransitionConfig.LoadingMinDuration)
 
-	-- Respawn player character if needed (may have died or missing during transition)
 	local character = player.Character
 	local humanoid = character and character:FindFirstChild("Humanoid")
 	if not character or not humanoid or humanoid:GetState() == Enum.HumanoidStateType.Dead then
-		print(string.format("[%s %s][Launch] Respawning player character (silent)...", MODULE_NAME, VERSION))
 		LoadCharacterSilently(player)
-		task.wait(1.0) -- Wait for character to load
+		task.wait(1.0)
 	end
 
 	-- Spawn player in PilotSeat
@@ -835,8 +742,7 @@ function TransitionService.StartLaunchSequence(player)
 
 	ClearTransitionState(player)
 
-	print(string.format("[%s %s][Launch] ✓ Launch sequence complete for %s",
-		MODULE_NAME, VERSION, player.Name))
+	print(string.format("[%s %s] ✓ Launch complete for %s", MODULE_NAME, VERSION, player.Name))
 
 	return true
 end
@@ -846,22 +752,15 @@ end
 -- ============================================================================
 
 function TransitionService.StartGameSequence(player)
-	print(string.format("[%s %s][GameStart] Starting initial game sequence for %s",
-		MODULE_NAME, VERSION, player.Name))
-
-	-- Get player profile for planet info
 	local profile = GetProfileService().GetProfile(player)
 	if not profile then
-		warn(string.format("[%s %s][GameStart] No profile for %s!", MODULE_NAME, VERSION, player.Name))
 		return false
 	end
 
 	local planetId = profile.currentPlanet or "Planet_1"
 	local planetDisplayName = GetPlanetDisplayName(planetId)
 
-	-- Check for existing transition
 	if playerTransitions[player] then
-		warn(string.format("[%s %s][GameStart] Transition already in progress!", MODULE_NAME, VERSION))
 		return false
 	end
 
@@ -880,7 +779,6 @@ function TransitionService.StartGameSequence(player)
 	local loadSuccess = locService.LoadLocation(player, planetId, "Orbit")
 
 	if not loadSuccess then
-		warn(string.format("[%s %s][GameStart] Failed to load Orbit!", MODULE_NAME, VERSION))
 		ClearTransitionState(player)
 		transitionUpdate:FireClient(player, "error", {
 			message = TransitionConfig.Messages.InvalidLocation
@@ -888,14 +786,11 @@ function TransitionService.StartGameSequence(player)
 		return false
 	end
 
-	-- Minimum loading time
 	task.wait(TransitionConfig.LoadingMinDuration)
 
-	-- Spawn player character (silent)
 	local character = player.Character
 	local humanoid = character and character:FindFirstChild("Humanoid")
 	if not character or not humanoid or humanoid:GetState() == Enum.HumanoidStateType.Dead then
-		print(string.format("[%s %s][GameStart] Spawning player character...", MODULE_NAME, VERSION))
 		LoadCharacterSilently(player)
 		task.wait(1.0)
 	end
@@ -903,6 +798,11 @@ function TransitionService.StartGameSequence(player)
 	-- Spawn player in PilotSeat
 	locService.SpawnPlayerInLocation(player, "PilotSeat")
 	task.wait(0.5)
+
+	-- Restore character sounds (were muted during boot sequence)
+	if player.Character then
+		RestoreCharacterSounds(player.Character)
+	end
 
 	-- Transition complete
 	SetTransitionState(player, TransitionConfig.States.Complete, nil)
@@ -921,8 +821,7 @@ function TransitionService.StartGameSequence(player)
 
 	ClearTransitionState(player)
 
-	print(string.format("[%s %s][GameStart] ✓ Game start sequence complete for %s",
-		MODULE_NAME, VERSION, player.Name))
+	print(string.format("[%s %s] ✓ GameStart complete for %s", MODULE_NAME, VERSION, player.Name))
 
 	return true
 end

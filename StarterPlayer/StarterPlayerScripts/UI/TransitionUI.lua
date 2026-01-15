@@ -169,8 +169,6 @@ local function SetupCharacterSoundMuting()
 			task.delay(0.1, function()
 				MuteCharacterSounds(character)
 			end)
-
-			print(string.format("[%s %s] Muted character sounds during transition", MODULE_NAME, VERSION))
 		end
 	end)
 end
@@ -249,7 +247,6 @@ local function RestoreCameraState()
 		local humanoid = character:FindFirstChildOfClass("Humanoid")
 		if humanoid then
 			camera.CameraSubject = humanoid
-			print(string.format("[%s %s] Camera restored to player humanoid", MODULE_NAME, VERSION))
 		end
 	end
 
@@ -268,8 +265,6 @@ local function SetCockpitView(finalTransition)
 	-- Skip if cockpit view is already active (avoid double-setting and flickering)
 	-- But allow if this is the final transition (Hide() call)
 	if cockpitViewActive and not finalTransition then
-		print(string.format("[%s %s] Cockpit view already active, skipping",
-			MODULE_NAME, VERSION))
 		return true
 	end
 
@@ -323,11 +318,7 @@ local function SetCockpitView(finalTransition)
 	camera.CFrame = CFrame.lookAt(cameraPos, lookAtPos)
 	camera.FieldOfView = 70
 
-	print(string.format("[%s %s] Cockpit view set: behind player, looking forward (final: %s)",
-		MODULE_NAME, VERSION, tostring(finalTransition or false)))
-
 	-- Immediately switch to Custom camera - player takes control from cockpit position
-	-- No delay needed, camera starts from cockpit position
 	camera.CameraType = Enum.CameraType.Custom
 	camera.CameraSubject = humanoid
 
@@ -355,17 +346,11 @@ local function AnimateDeparture(planet, duration)
 	-- Simple departure effect: planet grows larger (ship flying toward it)
 	-- Player stays seated, looking through cockpit window at the planet
 
-	if not planet then
-		print(string.format("[%s %s] No planet found for departure animation", MODULE_NAME, VERSION))
-		return
-	end
+	if not planet then return end
 
 	-- Planet scale animation - get CURRENT scale, don't reset to 1.0
 	local originalScale = planet:GetScale()
 	local targetScale = originalScale * 2.5 -- Planet appears 2.5x larger as we approach
-
-	print(string.format("[%s %s] Starting planet scale animation (from %.2f to %.2f)",
-		MODULE_NAME, VERSION, originalScale, targetScale))
 
 	local startTime = os.clock()
 	while os.clock() - startTime < duration do
@@ -381,12 +366,9 @@ local function AnimateDeparture(planet, duration)
 
 	-- Final scale
 	planet:ScaleTo(targetScale)
-	print(string.format("[%s %s] Departure animation complete", MODULE_NAME, VERSION))
 end
 
 local function HandleTransitionUpdate(state, data)
-	print(string.format("[%s %s] TransitionUpdate: %s", MODULE_NAME, VERSION, state))
-
 	if state == TransitionConfig.States.GameStart then
 		-- Initial game start - show loading screen (ScreenSaver already hidden by GameStateManager)
 		local message = data and data.message or "Завантаження..."
@@ -451,8 +433,6 @@ end
 function TransitionUI.Initialize()
 	if isInitialized then return true end
 
-	print(string.format("[%s %s] Initializing...", MODULE_NAME, VERSION))
-
 	screenGui = CreateUI()
 	screenGui.Parent = playerGui
 	screenGui.Enabled = true
@@ -470,15 +450,12 @@ function TransitionUI.Initialize()
 	SetupCharacterSoundMuting()
 
 	isInitialized = true
-	print(string.format("[%s %s] ✓ Initialized", MODULE_NAME, VERSION))
 	return true
 end
 
 function TransitionUI.ShowDepartureAnimation()
 	if isActive then return end
 	isActive = true
-
-	print(string.format("[%s %s] Starting departure animation (planet scale)", MODULE_NAME, VERSION))
 
 	SaveCameraState()
 
@@ -497,8 +474,6 @@ function TransitionUI.ShowDepartureAnimation()
 end
 
 function TransitionUI.ShowLoadingScreen(message)
-	print(string.format("[%s %s] Showing loading screen: %s", MODULE_NAME, VERSION, message))
-
 	isActive = true
 	fadeOverlay.BackgroundTransparency = 0
 	loadingText.Text = message
@@ -519,8 +494,6 @@ function TransitionUI.ShowLandingSequence(padPosition)
 end
 
 function TransitionUI.ShowLandingPhase1(padPosition, duration)
-	print(string.format("[%s %s] Landing Phase 1: External view (%.1f sec)", MODULE_NAME, VERSION, duration))
-
 	if not isActive then
 		isActive = true
 		SaveCameraState()
@@ -544,9 +517,6 @@ function TransitionUI.ShowLandingPhase1(padPosition, duration)
 		camera.CFrame = CFrame.lookAt(cameraPos, lookAtPos)
 		camera.FieldOfView = 70 -- Wider FOV to see more of the scene
 
-		print(string.format("[%s %s] External camera at %s, looking at pad",
-			MODULE_NAME, VERSION, tostring(cameraPos)))
-
 		-- Track the ship as it descends
 		local ship = Workspace:FindFirstChild("SpaceShip")
 		if ship then
@@ -568,8 +538,6 @@ function TransitionUI.ShowLandingPhase1(padPosition, duration)
 end
 
 function TransitionUI.ShowLandingPhase2(duration)
-	print(string.format("[%s %s] Landing Phase 2: Cockpit view (%.1f sec)", MODULE_NAME, VERSION, duration))
-
 	-- Quick fade to black before camera switch
 	FadeIn(0.25)
 
@@ -599,8 +567,6 @@ function TransitionUI.ShowLandingPhase2(duration)
 
 					-- Mark cockpit view as active for Hide() to know
 					cockpitViewActive = true
-
-					print(string.format("[%s %s] Landing cockpit view set", MODULE_NAME, VERSION))
 				end
 			end
 		end
@@ -620,8 +586,6 @@ function TransitionUI.ShowLaunchPhase1(duration)
 	-- Reset isActive and cockpitViewActive for fresh launch sequence
 	isActive = true
 	cockpitViewActive = false
-
-	print(string.format("[%s %s] Launch Phase 1 (Liftoff): Cockpit view (%.1f sec)", MODULE_NAME, VERSION, duration))
 
 	SaveCameraState()
 
@@ -654,15 +618,11 @@ function TransitionUI.ShowLaunchPhase1(duration)
 					task.wait()
 				end
 			end)
-
-			print(string.format("[%s %s] Launch cockpit view tracking started", MODULE_NAME, VERSION))
 		end
 	end
 end
 
 function TransitionUI.ShowLaunchPhase2(duration, padPosition, shipPosition)
-	print(string.format("[%s %s] Launch Phase 2 (Ascent): External view (%.1f sec)", MODULE_NAME, VERSION, duration))
-
 	-- Quick fade to black before camera switch
 	FadeIn(0.25)
 
@@ -682,9 +642,6 @@ function TransitionUI.ShowLaunchPhase2(duration, padPosition, shipPosition)
 			camera.CameraType = Enum.CameraType.Scriptable
 			camera.CFrame = CFrame.lookAt(cameraPos, lookAtPos)
 			camera.FieldOfView = 70
-
-			print(string.format("[%s %s] External camera at %s, looking at ship",
-				MODULE_NAME, VERSION, tostring(cameraPos)))
 
 			-- Fade back out to reveal external view
 			task.delay(0.1, function()
@@ -723,9 +680,6 @@ function TransitionUI.ShowLaunchAnimation()
 end
 
 function TransitionUI.Hide(forceRestoreCamera)
-	print(string.format("[%s %s] Hiding transition UI (restoreCamera: %s, cockpitActive: %s)",
-		MODULE_NAME, VERSION, tostring(forceRestoreCamera or false), tostring(cockpitViewActive)))
-
 	local camera = Workspace.CurrentCamera
 	local character = LocalPlayer.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
@@ -754,7 +708,6 @@ function TransitionUI.Hide(forceRestoreCamera)
 				camera.CameraType = Enum.CameraType.Custom
 				if hum then
 					camera.CameraSubject = hum
-					print(string.format("[%s %s] Fallback: Camera set to follow player humanoid", MODULE_NAME, VERSION))
 				end
 				camera.FieldOfView = 70
 			end

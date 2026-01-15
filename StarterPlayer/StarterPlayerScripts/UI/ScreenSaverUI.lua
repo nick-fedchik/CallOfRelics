@@ -467,7 +467,6 @@ local function CreateStage4Elements(parent)
 		if not canInteract then return end
 
 		canInteract = false
-		print(string.format("[%s %s][StartButton] Player clicked 'Почати гру'", MODULE_NAME, VERSION))
 
 		-- Send confirmation to server
 		local remoteEvents = ReplicatedStorage:WaitForChild("RemoteEvents")
@@ -503,8 +502,6 @@ local function CreateScreenSaverUI()
 
 	-- Wire up retry button
 	retryButton.MouseButton1Click:Connect(function()
-		print(string.format("[%s %s][RetryButton] Player clicked retry", MODULE_NAME, VERSION))
-
 		-- Hide error container
 		errorContainer.Visible = false
 
@@ -582,8 +579,6 @@ end
 -- ============================================================================
 
 local function ShowStage1(stageData)
-	print(string.format("[%s %s][ShowStage1] Showing game configuration", MODULE_NAME, VERSION))
-
 	-- Update data
 	if stageData then
 		gameNameLabel.Text = stageData.gameName or "CALL OF RELICS"
@@ -604,17 +599,12 @@ local function ShowStage1(stageData)
 end
 
 local function ShowStage2(stageData)
-	print(string.format("[%s %s][ShowStage2] Adding player information", MODULE_NAME, VERSION))
-
 	-- Update player name
 	if stageData then
 		playerNameLabel.Text = stageData.displayName or stageData.playerName or "Player"
-		print(string.format("[%s %s][ShowStage2] Player name: %s", MODULE_NAME, VERSION, playerNameLabel.Text))
 
 		-- Load avatar asynchronously
 		task.spawn(function()
-			print(string.format("[%s %s][ShowStage2] Loading avatar for UserId: %d", MODULE_NAME, VERSION, stageData.userId))
-
 			local success, thumbnail = pcall(function()
 				return Players:GetUserThumbnailAsync(
 					stageData.userId,
@@ -625,9 +615,6 @@ local function ShowStage2(stageData)
 
 			if success and thumbnail then
 				avatarImage.Image = thumbnail
-				print(string.format("[%s %s][ShowStage2] Avatar loaded: %s", MODULE_NAME, VERSION, thumbnail))
-			else
-				warn(string.format("[%s %s][ShowStage2] Failed to load avatar: %s", MODULE_NAME, VERSION, tostring(thumbnail)))
 			end
 		end)
 	end
@@ -644,11 +631,8 @@ local function ShowStage2(stageData)
 end
 
 local function ShowStage3(stageData)
-	print(string.format("[%s %s][ShowStage3] Stage 3 - Profile loading", MODULE_NAME, VERSION))
-
 	-- Check for error state
 	if stageData and stageData.success == false then
-		print(string.format("[%s %s][ShowStage3] ERROR: %s", MODULE_NAME, VERSION, stageData.errorMessage or "Unknown error"))
 
 		-- Show error container
 		errorText.Text = stageData.errorMessage or "Невідома помилка"
@@ -715,8 +699,6 @@ local function ShowStage3(stageData)
 end
 
 local function ShowStage4(stageData)
-	print(string.format("[%s %s][ShowStage4] Showing ready state", MODULE_NAME, VERSION))
-
 	-- Update progress to 100%
 	if stageData and stageData.progress then
 		UpdateProgressBar(stageData.progress, 1.0)
@@ -730,7 +712,6 @@ local function ShowStage4(stageData)
 	end
 
 	-- CRITICAL: 1 second pause after reaching 100%
-	print(string.format("[%s %s][ShowStage4] Pausing 1 second after 100%%", MODULE_NAME, VERSION))
 	task.wait(1.0)
 
 	-- Hide progress bar
@@ -743,7 +724,6 @@ local function ShowStage4(stageData)
 
 	-- Enable interaction
 	canInteract = true
-	print(string.format("[%s %s][ShowStage4] Player can now click 'Почати гру'", MODULE_NAME, VERSION))
 end
 
 -- ============================================================================
@@ -751,8 +731,6 @@ end
 -- ============================================================================
 
 function ScreenSaverUI.Initialize()
-	print(string.format("[%s %s][Initialize] Creating ScreenSaver UI", MODULE_NAME, VERSION))
-
 	screenGui = CreateScreenSaverUI()
 	screenGui.Parent = playerGui
 
@@ -764,7 +742,6 @@ function ScreenSaverUI.Initialize()
 		ScreenSaverUI.ShowStage(stageNum, stageData)
 	end)
 
-	print(string.format("[%s %s][Initialize] ScreenSaver UI ready", MODULE_NAME, VERSION))
 	return true
 end
 
@@ -777,8 +754,6 @@ function ScreenSaverUI.Show()
 	screenGui.Enabled = true
 	isVisible = true
 	canInteract = false
-
-	print(string.format("[%s %s][Show] ScreenSaver visible - waiting for boot sequence", MODULE_NAME, VERSION))
 end
 
 function ScreenSaverUI.Hide()
@@ -787,13 +762,10 @@ function ScreenSaverUI.Hide()
 	screenGui.Enabled = false
 	isVisible = false
 	canInteract = false
-
-	print(string.format("[%s %s][Hide] ScreenSaver hidden", MODULE_NAME, VERSION))
 end
 
 function ScreenSaverUI.Reset()
 	-- Reset all elements to initial state (for LoggedOff return)
-	print(string.format("[%s %s][Reset] Resetting ScreenSaver to initial state", MODULE_NAME, VERSION))
 
 	currentStage = 0
 	canInteract = false
@@ -836,14 +808,6 @@ function ScreenSaverUI.Reset()
 end
 
 function ScreenSaverUI.ShowStage(stageNum, stageData)
-	print(string.format("[%s %s][ShowStage] Stage %d received", MODULE_NAME, VERSION, stageNum))
-
-	-- Log progress data
-	if stageData and stageData.progress then
-		print(string.format("[%s %s][ShowStage] Progress: %d%% (Stage %d/%d)",
-			MODULE_NAME, VERSION, stageData.progress, stageData.stageNumber, stageData.totalStages))
-	end
-
 	if stageNum == 1 then
 		ShowStage1(stageData)
 	elseif stageNum == 2 then

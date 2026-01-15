@@ -71,9 +71,9 @@ local currentPlayer = nil
 -- ============================================================================
 
 function PlayerService.Initialize()
-	print(string.format("[%s %s][Initialize] PlayerService initialized", MODULE_NAME, VERSION))
+	-- Disable auto character loading to prevent spawn sound during boot
+	Players.CharacterAutoLoads = false
 
-	-- Listen to player connections
 	Players.PlayerAdded:Connect(function(player)
 		PlayerService.OnPlayerAdded(player)
 	end)
@@ -82,9 +82,9 @@ function PlayerService.Initialize()
 		PlayerService.OnPlayerRemoving(player)
 	end)
 
-	-- Setup RemoteEvent handlers
 	PlayerService.SetupRemoteEvents()
 
+	print(string.format("[%s %s] ✓ PlayerService ready", MODULE_NAME, VERSION))
 	return true
 end
 
@@ -95,14 +95,10 @@ end
 function PlayerService.SetupRemoteEvents()
 	local remoteEvents = ReplicatedStorage:WaitForChild("RemoteEvents")
 
-	-- LogOff Request (LogOn is now automatic on PlayerAdded)
 	local logOffRequest = remoteEvents:WaitForChild("LogOffRequest")
 	logOffRequest.OnServerEvent:Connect(function(player)
-		print(string.format("[%s %s][LogOffRequest] Received from %s", MODULE_NAME, VERSION, player.Name))
 		PlayerService.LogOffPlayer(player)
 	end)
-
-	print(string.format("[%s %s][SetupRemoteEvents] RemoteEvent handlers connected", MODULE_NAME, VERSION))
 end
 
 -- ============================================================================
@@ -110,30 +106,20 @@ end
 -- ============================================================================
 
 function PlayerService.OnPlayerAdded(player)
-	print(string.format("[%s %s][OnPlayerAdded] Player joined: %s", MODULE_NAME, VERSION, player.Name))
-
 	-- Single-player game: only one player allowed
 	if currentPlayer then
-		warn(string.format("[%s %s][OnPlayerAdded] Game already occupied by %s. Rejecting %s",
-			MODULE_NAME, VERSION, currentPlayer.Name, player.Name))
 		player:Kick("Game is already in use. This is a single-player game.")
 		return
 	end
 
 	currentPlayer = player
-
-	-- Automatically start boot sequence when player connects
-	print(string.format("[%s %s][OnPlayerAdded] Player %s connected. Starting boot sequence...",
-		MODULE_NAME, VERSION, player.Name))
-
-	-- Start boot sequence (it will handle state transition internally)
+	print(string.format("[%s %s] Player joined: %s", MODULE_NAME, VERSION, player.Name))
 	PlayerService.LogOnPlayer(player)
 end
 
 function PlayerService.OnPlayerRemoving(player)
-	print(string.format("[%s %s][OnPlayerRemoving] Player leaving: %s", MODULE_NAME, VERSION, player.Name))
-
 	if currentPlayer == player then
+		print(string.format("[%s %s] Player leaving: %s", MODULE_NAME, VERSION, player.Name))
 		PlayerService.LogOffPlayer(player)
 	end
 end
@@ -144,70 +130,38 @@ end
 
 function PlayerService.LogOnPlayer(player)
 	if player ~= currentPlayer then
-		warn(string.format("[%s %s][LogOnPlayer] Player %s is not the current player",
-			MODULE_NAME, VERSION, player.Name))
 		return false
 	end
 
-	-- Request state change: LoggedOff → Initializing
 	local success = GameStateManager.RequestStateChange(
 		GameStateManager.States.Initializing,
 		player
 	)
 
 	if not success then
-		warn(string.format("[%s %s][LogOnPlayer] Cannot start session for %s",
-			MODULE_NAME, VERSION, player.Name))
 		return false
 	end
 
-	print(string.format("[%s %s][LogOnPlayer] Starting session for %s",
-		MODULE_NAME, VERSION, player.Name))
-
-	-- Start 4-stage boot sequence
 	local BootSequence = require(Core:WaitForChild("BootSequence"))
 	local bootSuccess = BootSequence.StartBoot(player)
 
 	if not bootSuccess then
-		warn(string.format("[%s %s][LogOnPlayer] Boot sequence failed for %s", MODULE_NAME, VERSION, player.Name))
-
-		-- Revert to LoggedOff state
-		GameStateManager.RequestStateChange(
-			GameStateManager.States.LoggedOff,
-			player
-		)
-
+		warn(string.format("[%s %s] Boot failed for %s", MODULE_NAME, VERSION, player.Name))
+		GameStateManager.RequestStateChange(GameStateManager.States.LoggedOff, player)
 		return false
 	end
 
-	-- Boot sequence handles InGame transition when Stage 4 completes (after player clicks "Почати гру")
-	print(string.format("[%s %s][LogOnPlayer] Boot sequence initiated for %s", MODULE_NAME, VERSION, player.Name))
 	return true
 end
 
 function PlayerService.LogOffPlayer(player)
-	print(string.format("[%s %s][LogOffPlayer] Logging off player %s",
-		MODULE_NAME, VERSION, player.Name))
-
-	-- Request state change: InGame → LoggedOff
 	local success = GameStateManager.RequestStateChange(
 		GameStateManager.States.LoggedOff,
 		player
 	)
 
 	if success then
-		print(string.format("[%s %s][LogOffPlayer] Player %s logged off. Returning to ScreenSaver.",
-			MODULE_NAME, VERSION, player.Name))
-
-		-- DON'T clear currentPlayer - player is still connected!
-		-- Just restart Boot Sequence for re-login
-
-		-- Wait a brief moment for UI to reset
 		task.wait(0.5)
-
-		-- Restart boot sequence automatically
-		print(string.format("[%s %s][LogOffPlayer] Restarting boot sequence for %s",
-			MODULE_NAME, VERSION, player.Name))
 		PlayerService.LogOnPlayer(player)
 	end
 

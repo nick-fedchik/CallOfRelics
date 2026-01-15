@@ -69,15 +69,12 @@ local currentState = "LoggedOff"
 -- ============================================================================
 
 function UIManager.Initialize(screenSaverModule, statusBarModule)
-	print(string.format("[%s %s][Initialize] UIManager initializing", MODULE_NAME, VERSION))
-
 	ScreenSaverUI = screenSaverModule
 	StatusBarUI = statusBarModule
 
 	-- Setup state change listener
 	UIManager.SetupStateListener()
 
-	print(string.format("[%s %s][Initialize] UIManager ready", MODULE_NAME, VERSION))
 	return true
 end
 
@@ -92,8 +89,6 @@ function UIManager.SetupStateListener()
 	stateChanged.OnClientEvent:Connect(function(oldState, newState)
 		UIManager.OnStateChanged(oldState, newState)
 	end)
-
-	print(string.format("[%s %s][SetupStateListener] Listening for state changes", MODULE_NAME, VERSION))
 end
 
 -- ============================================================================
@@ -101,9 +96,6 @@ end
 -- ============================================================================
 
 function UIManager.OnStateChanged(oldState, newState)
-	print(string.format("[%s %s][OnStateChanged] State transition: %s → %s",
-		MODULE_NAME, VERSION, tostring(oldState), tostring(newState)))
-
 	currentState = newState
 
 	-- Handle UI transitions based on state
@@ -121,7 +113,6 @@ function UIManager.OnStateChanged(oldState, newState)
 		-- Boot sequence is running (Stages 1-4)
 		-- ScreenSaver stays visible and shows boot stages
 		-- StatusBar stays hidden
-		print(string.format("[%s %s][OnStateChanged] Boot sequence active...", MODULE_NAME, VERSION))
 
 	elseif newState == "InGame" then
 		-- Hide ScreenSaver, show StatusBar
@@ -131,7 +122,6 @@ function UIManager.OnStateChanged(oldState, newState)
 		if StatusBarUI then
 			StatusBarUI.Show()
 		end
-		print(string.format("[%s %s][OnStateChanged] Player is now in game!", MODULE_NAME, VERSION))
 	end
 end
 

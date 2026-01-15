@@ -9,16 +9,17 @@ Sends stage updates to client via BootStageUpdate RemoteEvent.
 Integrates LocationService to load player's initial location (Orbit).
 
 Version:
-0.4
+0.5
 
 Features:
 - Stage 1: Send game configuration (name, version)
-- Stage 2: Send player information (avatar, name)
+- Stage 2: Send player information (avatar, name) + create temp spawn
 - Stage 3: Load/create player profile via ProfileService
 - Stage 4: Load initial location (Orbit) and prepare game space
 - Spawn player in PilotSeat when "Почати гру" clicked
 - Handles stage timing based on GameConfig
 - Waits for ConfirmGameStart before transitioning to InGame
+- Temporary SpawnLocation prevents respawn loops during boot
 
 API:
 - StartBoot(player) — Begin 4-stage boot sequence
@@ -45,6 +46,7 @@ Dependencies:
 - RemoteEvents folder
 
 ChangeLog:
+- 0.5: Add temp SpawnLocation to prevent respawn loops during boot (2026-01-15)
 - 0.4: Integrated LocationService - load Orbit and spawn player (2026-01-12)
 - 0.3: Enhanced boot sequence with dynamic progress (2026-01-12)
 - 0.2: Added ProfileService integration (2026-01-11)
@@ -54,7 +56,7 @@ ChangeLog:
 
 local BootSequence = {}
 
-local VERSION = "0.4"
+local VERSION = "0.5"
 local MODULE_NAME = "BootSequence"
 
 -- ============================================================================
@@ -63,6 +65,7 @@ local MODULE_NAME = "BootSequence"
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
+local Workspace = game:GetService("Workspace")
 
 -- ============================================================================
 -- MODULES
@@ -72,7 +75,6 @@ local GameConfig = require(ReplicatedStorage:WaitForChild("Game"):WaitForChild("
 
 local Services = ServerScriptService:WaitForChild("Services")
 local ProfileService = require(Services:WaitForChild("ProfileService"))
-local LocationService = require(Services:WaitForChild("LocationService"))
 
 local Core = ServerScriptService:WaitForChild("Core")
 local GameStateManager = require(Core:WaitForChild("GameStateManager"))
@@ -90,6 +92,50 @@ local ConfirmGameStart = RemoteEvents:WaitForChild("ConfirmGameStart")
 -- ============================================================================
 
 local activeBootSessions = {} -- [player.UserId] = {stage, profile, waitingForConfirm}
+local tempSpawnLocation = nil -- Temporary SpawnLocation for boot sequence
+
+-- ============================================================================
+-- TEMPORARY SPAWN LOCATION
+-- ============================================================================
+
+local function CreateTempSpawnLocation()
+	if tempSpawnLocation and tempSpawnLocation.Parent then
+		return tempSpawnLocation
+	end
+
+	local spawn = Instance.new("SpawnLocation")
+	spawn.Name = "TempBootSpawn"
+	spawn.Size = Vector3.new(6, 1, 6)
+	spawn.Position = Vector3.new(0, -500, 0)
+	spawn.Anchored = true
+	spawn.CanCollide = true
+	spawn.Transparency = 1
+	spawn.Neutral = true
+	spawn.Duration = 0
+	spawn.Parent = Workspace
+
+	tempSpawnLocation = spawn
+	return spawn
+end
+
+local function RemoveTempSpawnLocation()
+	if tempSpawnLocation and tempSpawnLocation.Parent then
+		tempSpawnLocation:Destroy()
+		tempSpawnLocation = nil
+	end
+end
+
+local function SpawnPlayerAtTempLocation(player)
+	CreateTempSpawnLocation()
+	player:LoadCharacter()
+
+	local character = player.Character or player.CharacterAdded:Wait()
+	local hrp = character:WaitForChild("HumanoidRootPart", 5)
+	if hrp then
+		hrp.Anchored = true
+		hrp.CFrame = CFrame.new(0, -495, 0)
+	end
+end
 
 -- ============================================================================
 -- PROGRESS CALCULATION
@@ -111,8 +157,6 @@ end
 -- ============================================================================
 
 local function Stage1_GameConfiguration(player)
-	print(string.format("[%s %s][Stage1] Sending game configuration to %s", MODULE_NAME, VERSION, player.Name))
-
 	local progressData = CalculateStageProgress(1)
 
 	local stageData = {
@@ -132,10 +176,8 @@ local function Stage1_GameConfiguration(player)
 end
 
 local function Stage2_PlayerInformation(player)
-	print(string.format("[%s %s][Stage2] Player connected: %s (UserId: %d, DisplayName: %s)",
-		MODULE_NAME, VERSION, player.Name, player.UserId, player.DisplayName))
-
 	local progressData = CalculateStageProgress(2)
+	SpawnPlayerAtTempLocation(player)
 
 	local stageData = {
 		playerName = player.Name,
@@ -153,43 +195,31 @@ local function Stage2_PlayerInformation(player)
 end
 
 local function Stage3_ProfileLoading(player)
-	print(string.format("[%s %s][Stage3] Loading profile for %s", MODULE_NAME, VERSION, player.Name))
-
 	local progressData = CalculateStageProgress(3)
-
-	-- Load or create profile
 	local success, profile, isNewPlayer = ProfileService.LoadProfile(player)
 
 	if not success then
-		warn(string.format("[%s %s][Stage3] Profile loading failed for %s", MODULE_NAME, VERSION, player.Name))
-
-		-- Send error state to client
+		warn(string.format("[%s %s] Profile loading failed for %s", MODULE_NAME, VERSION, player.Name))
 		BootStageUpdate:FireClient(player, 3, {
 			success = false,
 			isNewPlayer = false,
 			error = "ProfileLoadFailed",
 			errorMessage = GameConfig.ErrorMessages.ProfileLoadFailed,
 			canRetry = GameConfig.ErrorRetryEnabled,
-			-- Still include progress for UI consistency
 			progress = progressData.progressPercent,
 			totalStages = progressData.totalStages,
 			stageNumber = progressData.stageNumber,
 		})
-
 		return false, nil
 	end
 
-	-- Log player status
+	-- Log player status (key info only)
 	if isNewPlayer then
-		print(string.format("[%s %s][Stage3] NEW PLAYER: %s — Profile created with planet %s",
-			MODULE_NAME, VERSION, player.Name, profile.currentPlanet))
+		print(string.format("[%s %s] NEW PLAYER: %s", MODULE_NAME, VERSION, player.Name))
 	else
-		local lastLoginStr = profile.lastLogin and os.date("%Y-%m-%d %H:%M:%S", profile.lastLogin) or "Unknown"
-		print(string.format("[%s %s][Stage3] RETURNING PLAYER: %s — Last login: %s, Current planet: %s",
-			MODULE_NAME, VERSION, player.Name, lastLoginStr, profile.currentPlanet))
+		print(string.format("[%s %s] RETURNING PLAYER: %s", MODULE_NAME, VERSION, player.Name))
 	end
 
-	-- Send success to client
 	local stageData = {
 		success = true,
 		isNewPlayer = isNewPlayer,
@@ -208,47 +238,28 @@ local function Stage3_ProfileLoading(player)
 end
 
 local function Stage4_ReadyState(player, profile)
-	print(string.format("[%s %s][Stage4] Validating game assets for %s", MODULE_NAME, VERSION, player.Name))
-
 	local progressData = CalculateStageProgress(4)
 
-	-- Log current game state
 	local exploredCount = 0
 	for _ in pairs(profile.exploredLocations) do
 		exploredCount = exploredCount + 1
 	end
 
-	print(string.format("[%s %s][Stage4] Game state for %s:", MODULE_NAME, VERSION, player.Name))
-	print(string.format("  - Current Planet: %s", profile.currentPlanet))
-	print(string.format("  - Explored Locations: %d", exploredCount))
-	print(string.format("  - Ship Energy: %d", profile.shipState.energyLevel))
-
-	-- Validate that required assets exist (don't load yet - TransitionService will do that)
+	-- Validate assets
 	local ServerStorage = game:GetService("ServerStorage")
 	local planetFolder = ServerStorage.Planets:FindFirstChild(profile.currentPlanet)
 
 	if not planetFolder then
-		warn(string.format("[%s %s][Stage4] Planet folder not found: %s",
-			MODULE_NAME, VERSION, profile.currentPlanet))
-		-- TODO: Handle missing assets (error state)
-	else
-		local orbitFolder = planetFolder:FindFirstChild("Orbit")
-		if not orbitFolder then
-			warn(string.format("[%s %s][Stage4] Orbit folder not found for %s",
-				MODULE_NAME, VERSION, profile.currentPlanet))
-		else
-			print(string.format("[%s %s][Stage4] ✓ Assets validated for %s/Orbit",
-				MODULE_NAME, VERSION, profile.currentPlanet))
-		end
+		warn(string.format("[%s %s] Planet not found: %s", MODULE_NAME, VERSION, profile.currentPlanet))
+	elseif not planetFolder:FindFirstChild("Orbit") then
+		warn(string.format("[%s %s] Orbit not found for %s", MODULE_NAME, VERSION, profile.currentPlanet))
 	end
 
-	-- Send ready state to client (location NOT loaded yet - will load on "Почати гру")
 	local stageData = {
 		ready = true,
 		currentPlanet = profile.currentPlanet,
 		exploredLocations = exploredCount,
 		shipEnergy = profile.shipState.energyLevel,
-		-- Progress data (100%)
 		progress = progressData.progressPercent,
 		totalStages = progressData.totalStages,
 		stageNumber = progressData.stageNumber,
@@ -256,9 +267,6 @@ local function Stage4_ReadyState(player, profile)
 
 	BootStageUpdate:FireClient(player, 4, stageData)
 
-	print(string.format("[%s %s][Stage4] Ready — Waiting for player to click 'Почати гру'", MODULE_NAME, VERSION))
-
-	-- Mark session as waiting for confirmation
 	activeBootSessions[player.UserId] = {
 		stage = 4,
 		profile = profile,
@@ -271,30 +279,20 @@ end
 -- ============================================================================
 
 function BootSequence.StartBoot(player)
-	print(string.format("[%s %s][StartBoot] Beginning boot sequence for %s", MODULE_NAME, VERSION, player.Name))
+	print(string.format("[%s %s] Boot sequence started for %s", MODULE_NAME, VERSION, player.Name))
 
-	-- Initialize session
 	activeBootSessions[player.UserId] = { stage = 1 }
 
-	-- Stage 1: Game Configuration
 	Stage1_GameConfiguration(player)
-
-	-- Stage 2: Player Information
 	Stage2_PlayerInformation(player)
 
-	-- Stage 3: Profile Loading
 	local profileSuccess, profile = Stage3_ProfileLoading(player)
-
 	if not profileSuccess then
-		warn(string.format("[%s %s][StartBoot] Boot sequence failed at Stage 3 for %s", MODULE_NAME, VERSION, player.Name))
 		activeBootSessions[player.UserId] = nil
 		return false
 	end
 
-	-- Stage 4: Ready State (waits for user confirmation)
 	Stage4_ReadyState(player, profile)
-
-	print(string.format("[%s %s][StartBoot] Boot sequence Stages 1-4 complete for %s", MODULE_NAME, VERSION, player.Name))
 	return true
 end
 
@@ -305,40 +303,30 @@ end
 ConfirmGameStart.OnServerEvent:Connect(function(player)
 	local session = activeBootSessions[player.UserId]
 
-	if not session then
-		warn(string.format("[%s %s][ConfirmGameStart] No active boot session for %s", MODULE_NAME, VERSION, player.Name))
+	if not session or not session.waitingForConfirm then
 		return
 	end
 
-	if not session.waitingForConfirm then
-		warn(string.format("[%s %s][ConfirmGameStart] Session not waiting for confirmation: %s", MODULE_NAME, VERSION, player.Name))
-		return
-	end
-
-	print(string.format("[%s %s][ConfirmGameStart] Player %s confirmed game start — starting transition", MODULE_NAME, VERSION, player.Name))
-
-	-- Clean up session first (to allow TransitionService to work)
+	RemoveTempSpawnLocation()
 	activeBootSessions[player.UserId] = nil
 
-	-- Transition to InGame state (this hides ScreenSaver)
 	local stateSuccess = GameStateManager.RequestStateChange(
 		GameStateManager.States.InGame,
 		{ player = player }
 	)
 
 	if not stateSuccess then
-		warn(string.format("[%s %s][ConfirmGameStart] Failed to transition %s to InGame state", MODULE_NAME, VERSION, player.Name))
+		warn(string.format("[%s %s] Failed to transition %s to InGame", MODULE_NAME, VERSION, player.Name))
 		return
 	end
 
-	-- Start game sequence via TransitionService (loads Orbit, spawns player)
 	local TransitionService = require(Services:WaitForChild("TransitionService"))
 	local transitionSuccess = TransitionService.StartGameSequence(player)
 
 	if transitionSuccess then
-		print(string.format("[%s %s][ConfirmGameStart] ✓ Game started for %s", MODULE_NAME, VERSION, player.Name))
+		print(string.format("[%s %s] ✓ Game started for %s", MODULE_NAME, VERSION, player.Name))
 	else
-		warn(string.format("[%s %s][ConfirmGameStart] Transition failed for %s", MODULE_NAME, VERSION, player.Name))
+		warn(string.format("[%s %s] Transition failed for %s", MODULE_NAME, VERSION, player.Name))
 	end
 end)
 
@@ -349,34 +337,14 @@ end)
 local RetryBootStage = RemoteEvents:WaitForChild("RetryBootStage")
 
 RetryBootStage.OnServerEvent:Connect(function(player, stageNumber)
-	print(string.format("[%s %s][RetryBootStage] Player %s requested retry for stage %d",
-		MODULE_NAME, VERSION, player.Name, stageNumber))
-
 	local session = activeBootSessions[player.UserId]
-
-	if not session then
-		warn(string.format("[%s %s][RetryBootStage] No active session for %s", MODULE_NAME, VERSION, player.Name))
+	if not session or stageNumber ~= 3 then
 		return
 	end
-
-	-- Only allow retry for Stage 3 (profile loading)
-	if stageNumber ~= 3 then
-		warn(string.format("[%s %s][RetryBootStage] Invalid retry stage %d for %s",
-			MODULE_NAME, VERSION, stageNumber, player.Name))
-		return
-	end
-
-	-- Retry Stage 3
-	print(string.format("[%s %s][RetryBootStage] Retrying Stage 3 for %s", MODULE_NAME, VERSION, player.Name))
 
 	local profileSuccess, profile = Stage3_ProfileLoading(player)
-
 	if profileSuccess then
-		-- Continue to Stage 4
 		Stage4_ReadyState(player, profile)
-	else
-		-- Stage 3 will send error state to client
-		warn(string.format("[%s %s][RetryBootStage] Retry failed for %s", MODULE_NAME, VERSION, player.Name))
 	end
 end)
 
@@ -385,10 +353,7 @@ end)
 -- ============================================================================
 
 game.Players.PlayerRemoving:Connect(function(player)
-	if activeBootSessions[player.UserId] then
-		print(string.format("[%s %s][Cleanup] Removing boot session for %s", MODULE_NAME, VERSION, player.Name))
-		activeBootSessions[player.UserId] = nil
-	end
+	activeBootSessions[player.UserId] = nil
 end)
 
 -- ============================================================================

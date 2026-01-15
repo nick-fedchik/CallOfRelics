@@ -227,8 +227,6 @@ local function MigrateProfile(profileData)
 	local currentVersion = profileData.profileVersion or 1
 
 	if currentVersion < 2 then
-		print(string.format("[%s %s][MigrateProfile] Migrating profile from v%d to v2",
-			MODULE_NAME, VERSION, currentVersion))
 
 		-- Get existing data
 		local oldLocations = profileData.exploredLocations or {}
@@ -297,7 +295,6 @@ local function MigrateProfile(profileData)
 		profileData.knowledge = profileData.knowledge or {}
 
 		profileData.profileVersion = 2
-		print(string.format("[%s %s][MigrateProfile] Migration complete", MODULE_NAME, VERSION))
 	end
 
 	return profileData
@@ -338,21 +335,16 @@ end
 -- ============================================================================
 
 function ProfileService.Initialize()
-	print(string.format("[%s %s][Initialize] Initializing ProfileService", MODULE_NAME, VERSION))
-
 	local success, result = pcall(function()
 		profileStore = DataStoreService:GetDataStore(DATASTORE_NAME)
 	end)
 
 	if not success then
-		warn(string.format("[%s %s][Initialize] Failed to get DataStore: %s", MODULE_NAME, VERSION, tostring(result)))
-		warn(string.format("[%s %s][Initialize] Will use temporary in-memory profiles", MODULE_NAME, VERSION))
+		warn(string.format("[%s %s] DataStore unavailable: %s", MODULE_NAME, VERSION, tostring(result)))
 		profileStore = nil
-	else
-		print(string.format("[%s %s][Initialize] DataStore connected: %s", MODULE_NAME, VERSION, DATASTORE_NAME))
 	end
 
-	-- Save profile on player leaving (always save on disconnect)
+	-- Save profile on player leaving
 	Players.PlayerRemoving:Connect(function(player)
 		local profile = profileCache[player.UserId]
 		if profile then
@@ -373,7 +365,6 @@ function ProfileService.Initialize()
 					if profile then
 						local profileUpdate = events:FindFirstChild("ProfileUpdate")
 						if profileUpdate then
-							-- Get displayNames for UI
 							local planetDisplayName = GetPlanetDisplayName(profile.currentPlanet)
 							local locationDisplayName = GetLocationDisplayName(profile.currentPlanet, profile.currentLocation)
 
@@ -388,36 +379,28 @@ function ProfileService.Initialize()
 									shipState = profile.shipState
 								}
 							})
-							print(string.format("[%s %s][ProfileSync] Full sync sent to %s",
-								MODULE_NAME, VERSION, player.Name))
 						end
 					end
 				end)
-				print(string.format("[%s %s][Initialize] ProfileSync handler connected", MODULE_NAME, VERSION))
 			end
 		end
 	end)
 
 	isInitialized = true
-	print(string.format("[%s %s][Initialize] ProfileService ready (schema v%d)",
-		MODULE_NAME, VERSION, PROFILE_VERSION))
+	print(string.format("[%s %s] ✓ ProfileService ready (schema v%d)", MODULE_NAME, VERSION, PROFILE_VERSION))
 	return true
 end
 
 function ProfileService.LoadProfile(player)
 	if not isInitialized then
-		warn(string.format("[%s %s][LoadProfile] Service not initialized!", MODULE_NAME, VERSION))
+		warn(string.format("[%s %s] Service not initialized!", MODULE_NAME, VERSION))
 		return false, nil, false
 	end
-
-	print(string.format("[%s %s][LoadProfile] Loading profile for %s (UserId: %d)",
-		MODULE_NAME, VERSION, player.Name, player.UserId))
 
 	local key = GetProfileKey(player)
 
 	-- If DataStore unavailable, create temporary profile
 	if not profileStore then
-		warn(string.format("[%s %s][LoadProfile] DataStore unavailable, creating temporary profile", MODULE_NAME, VERSION))
 		local tempProfile = CreateDefaultProfile(player)
 		profileCache[player.UserId] = tempProfile
 		profileChanged[player.UserId] = false
@@ -430,7 +413,6 @@ function ProfileService.LoadProfile(player)
 	end, "LoadProfile", MAX_RETRIES)
 
 	if not success then
-		warn(string.format("[%s %s][LoadProfile] Failed to load profile, creating temporary", MODULE_NAME, VERSION))
 		local tempProfile = CreateDefaultProfile(player)
 		profileCache[player.UserId] = tempProfile
 		profileChanged[player.UserId] = false
@@ -439,47 +421,27 @@ function ProfileService.LoadProfile(player)
 
 	-- Profile exists - returning player
 	if profileData then
-		print(string.format("[%s %s][LoadProfile] Existing profile found for %s (v%d)",
-			MODULE_NAME, VERSION, player.Name, profileData.profileVersion or 1))
-
-		-- Migrate if needed
 		profileData = MigrateProfile(profileData)
-
-		-- Update last login
 		profileData.lastLogin = os.time()
-
 		profileCache[player.UserId] = profileData
 		profileChanged[player.UserId] = false
 		return true, profileData, false
 	end
 
 	-- No profile found - new player
-	print(string.format("[%s %s][LoadProfile] No profile found for %s, will create new", MODULE_NAME, VERSION, player.Name))
 	return ProfileService.CreateNewProfile(player)
 end
 
 function ProfileService.CreateNewProfile(player)
-	print(string.format("[%s %s][CreateNewProfile] Creating new profile for %s", MODULE_NAME, VERSION, player.Name))
-
 	local newProfile = CreateDefaultProfile(player)
 	profileCache[player.UserId] = newProfile
-
-	-- Save to DataStore immediately
-	local saveSuccess = ProfileService.SaveProfile(player, newProfile)
-
-	if saveSuccess then
-		print(string.format("[%s %s][CreateNewProfile] New profile created and saved for %s", MODULE_NAME, VERSION, player.Name))
-	else
-		warn(string.format("[%s %s][CreateNewProfile] New profile created but save failed (temporary)", MODULE_NAME, VERSION))
-	end
-
+	ProfileService.SaveProfile(player, newProfile)
 	profileChanged[player.UserId] = false
 	return true, newProfile, true -- isNewPlayer = true
 end
 
 function ProfileService.SaveProfile(player, profileData)
 	if not profileStore then
-		warn(string.format("[%s %s][SaveProfile] DataStore unavailable, cannot save profile", MODULE_NAME, VERSION))
 		return false
 	end
 
@@ -490,12 +452,10 @@ function ProfileService.SaveProfile(player, profileData)
 	end, "SaveProfile", MAX_RETRIES)
 
 	if success then
-		-- Clear changed flag after successful save
 		profileChanged[player.UserId] = false
-		print(string.format("[%s %s][SaveProfile] Profile saved for %s", MODULE_NAME, VERSION, player.Name))
 		return true
 	else
-		warn(string.format("[%s %s][SaveProfile] Failed to save profile for %s: %s",
+		warn(string.format("[%s %s] Failed to save profile for %s: %s",
 			MODULE_NAME, VERSION, player.Name, tostring(result)))
 		return false
 	end
@@ -512,15 +472,10 @@ end
 -- Generic update with merge
 function ProfileService.UpdateProfile(player, updates)
 	local profile = profileCache[player.UserId]
-	if not profile then
-		warn(string.format("[%s %s][UpdateProfile] No profile for %s", MODULE_NAME, VERSION, player.Name))
-		return false
-	end
+	if not profile then return false end
 
-	-- Deep merge updates into profile
 	for key, value in pairs(updates) do
 		if type(value) == "table" and type(profile[key]) == "table" then
-			-- Merge tables
 			for subKey, subValue in pairs(value) do
 				profile[key][subKey] = subValue
 			end
@@ -530,7 +485,6 @@ function ProfileService.UpdateProfile(player, updates)
 	end
 
 	MarkProfileChanged(player)
-	print(string.format("[%s %s][UpdateProfile] Profile updated for %s", MODULE_NAME, VERSION, player.Name))
 	return true
 end
 
@@ -539,45 +493,31 @@ function ProfileService.MarkLocationDiscovered(player, planetId, locationName)
 	local profile = profileCache[player.UserId]
 	if not profile then return false end
 
-	-- Ensure planet structure exists
 	if not profile.exploredLocations[planetId] then
 		profile.exploredLocations[planetId] = {}
 	end
 
-	-- Ensure planet is in discoveredPlanets
 	if not profile.discoveredPlanets[planetId] then
 		profile.discoveredPlanets[planetId] = os.time()
-		print(string.format("[%s %s][MarkLocationDiscovered] %s discovered NEW planet: %s",
-			MODULE_NAME, VERSION, player.Name, planetId))
 	end
 
-	-- Check if already discovered
 	if profile.exploredLocations[planetId][locationName] then
-		-- Increment visit count
 		profile.exploredLocations[planetId][locationName].visitCount =
 			(profile.exploredLocations[planetId][locationName].visitCount or 0) + 1
-		print(string.format("[%s %s][MarkLocationDiscovered] %s revisited %s/%s (visit #%d)",
-			MODULE_NAME, VERSION, player.Name, planetId, locationName,
-			profile.exploredLocations[planetId][locationName].visitCount))
 	else
-		-- New discovery
 		profile.exploredLocations[planetId][locationName] = {
 			discoveredAt = os.time(),
 			visitCount = 1
 		}
 		profile.stats.locationsExplored = (profile.stats.locationsExplored or 0) + 1
-		print(string.format("[%s %s][MarkLocationDiscovered] %s discovered NEW location: %s/%s",
-			MODULE_NAME, VERSION, player.Name, planetId, locationName))
 	end
 
-	-- Add to visit history
 	table.insert(profile.visitHistory, {
 		planetId = planetId,
 		locationId = locationName,
 		timestamp = os.time()
 	})
 
-	-- Keep visit history manageable (last 100 entries)
 	while #profile.visitHistory > 100 do
 		table.remove(profile.visitHistory, 1)
 	end
@@ -594,7 +534,6 @@ function ProfileService.UpdateCurrentState(player, planetId, locationName)
 	profile.currentPlanet = planetId
 	profile.currentLocation = locationName
 
-	-- Update last safe state only for safe locations (Orbit)
 	if locationName == "Orbit" then
 		profile.lastSafeState = {
 			planetId = planetId,
@@ -604,9 +543,6 @@ function ProfileService.UpdateCurrentState(player, planetId, locationName)
 	end
 
 	MarkProfileChanged(player)
-	print(string.format("[%s %s][UpdateCurrentState] %s now at %s/%s",
-		MODULE_NAME, VERSION, player.Name, planetId, locationName))
-
 	return true
 end
 
@@ -615,7 +551,6 @@ function ProfileService.AddResources(player, resourceId, quantity)
 	local profile = profileCache[player.UserId]
 	if not profile then return false end
 
-	-- Find existing stack or create new
 	local found = false
 	for _, resource in ipairs(profile.resources) do
 		if resource.id == resourceId then
@@ -634,11 +569,7 @@ function ProfileService.AddResources(player, resourceId, quantity)
 	end
 
 	profile.stats.resourcesCollected = (profile.stats.resourcesCollected or 0) + quantity
-
 	MarkProfileChanged(player)
-	print(string.format("[%s %s][AddResources] %s gained %d x %s",
-		MODULE_NAME, VERSION, player.Name, quantity, resourceId))
-
 	return true
 end
 
@@ -655,20 +586,14 @@ function ProfileService.RemoveResources(player, resourceId, quantity)
 					table.remove(profile.resources, i)
 				end
 				MarkProfileChanged(player)
-				print(string.format("[%s %s][RemoveResources] %s lost %d x %s",
-					MODULE_NAME, VERSION, player.Name, quantity, resourceId))
 				return true
 			else
-				warn(string.format("[%s %s][RemoveResources] Insufficient %s for %s (has %d, needs %d)",
-					MODULE_NAME, VERSION, resourceId, player.Name, resource.quantity, quantity))
-				return false
+				return false -- Insufficient quantity
 			end
 		end
 	end
 
-	warn(string.format("[%s %s][RemoveResources] Resource %s not found for %s",
-		MODULE_NAME, VERSION, resourceId, player.Name))
-	return false
+	return false -- Resource not found
 end
 
 -- Add knowledge (never removed - EPIC 8 requirement)
@@ -679,13 +604,10 @@ function ProfileService.AddKnowledge(player, knowledgeEntry)
 	-- Check for duplicate
 	for _, k in ipairs(profile.knowledge) do
 		if k.id == knowledgeEntry.id then
-			print(string.format("[%s %s][AddKnowledge] %s already has knowledge: %s",
-				MODULE_NAME, VERSION, player.Name, knowledgeEntry.id))
-			return true -- Already known, success
+			return true -- Already known
 		end
 	end
 
-	-- Add new knowledge
 	local entry = {
 		id = knowledgeEntry.id,
 		title = knowledgeEntry.title or knowledgeEntry.id,
@@ -699,10 +621,6 @@ function ProfileService.AddKnowledge(player, knowledgeEntry)
 
 	-- GDD: Knowledge is saved immediately (never lost)
 	ProfileService.SaveProfile(player, profile)
-
-	print(string.format("[%s %s][AddKnowledge] %s discovered: %s (saved immediately)",
-		MODULE_NAME, VERSION, player.Name, entry.title))
-
 	return true
 end
 
@@ -729,28 +647,19 @@ end
 -- Save profile if changed (GDD: save when player sits in PilotSeat)
 function ProfileService.SaveIfChanged(player)
 	if not ProfileService.IsProfileChanged(player) then
-		print(string.format("[%s %s][SaveIfChanged] No changes for %s, skipping save",
-			MODULE_NAME, VERSION, player.Name))
 		return false
 	end
 
 	local profile = profileCache[player.UserId]
 	if profile then
-		local success = ProfileService.SaveProfile(player, profile)
-		if success then
-			print(string.format("[%s %s][SaveIfChanged] Profile saved for %s (had changes)",
-				MODULE_NAME, VERSION, player.Name))
-		end
-		return success
+		return ProfileService.SaveProfile(player, profile)
 	end
 
 	return false
 end
 
 -- Legacy compatibility (replaced by SaveIfChanged)
-function ProfileService.TriggerEventSave(player, eventName)
-	print(string.format("[%s %s][TriggerEventSave] Called for %s (event: %s) - using SaveIfChanged",
-		MODULE_NAME, VERSION, player.Name, eventName))
+function ProfileService.TriggerEventSave(player, _eventName)
 	return ProfileService.SaveIfChanged(player)
 end
 

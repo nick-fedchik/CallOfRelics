@@ -33,11 +33,12 @@ Dependencies:
 - ReplicatedStorage events
 
 ChangeLog:
+- 0.2: Added silent boot mute system (2026-01-15)
 - 0.1: Initial client boot sequence (2026-01-11)
 ================================================================================
 ]]
 
-local VERSION = "0.1"
+local VERSION = "0.2"
 local MODULE_NAME = "ClientBootstrap"
 
 -- ============================================================================
@@ -53,16 +54,65 @@ local player = Players.LocalPlayer
 
 -- Use a unique attribute to prevent double initialization
 if player:GetAttribute("ClientBootstrapInitialized") then
-	warn("[ClientBootstrap] Already initialized - skipping duplicate run")
 	return
 end
 player:SetAttribute("ClientBootstrapInitialized", true)
 
-print("================================================================================")
-print("CALL OF RELICS: ORBITAL SILENCE - CLIENT")
-print("Client Boot Sequence Started")
-print(string.format("[%s %s] Initializing...", MODULE_NAME, VERSION))
-print("================================================================================")
+
+-- ============================================================================
+-- MUTE SPAWN SOUNDS DURING BOOT
+-- ============================================================================
+
+-- Must be set up BEFORE server spawns character (during boot sequence)
+local bootMuteActive = true
+
+local function muteSound(sound)
+	sound.Volume = 0
+	if sound.IsPlaying then
+		sound:Stop()
+	end
+end
+
+local function processCharacter(character)
+	-- Mute existing sounds
+	for _, desc in ipairs(character:GetDescendants()) do
+		if desc:IsA("Sound") and bootMuteActive then
+			muteSound(desc)
+		end
+	end
+	-- Catch sounds added async (Roblox adds them after character creation)
+	character.DescendantAdded:Connect(function(desc)
+		if desc:IsA("Sound") and bootMuteActive then
+			muteSound(desc)
+		end
+	end)
+end
+
+player.CharacterAdded:Connect(function(character)
+	if bootMuteActive then
+		processCharacter(character)
+	end
+end)
+
+-- Listen for InGame state to unmute
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local stateChanged = ReplicatedStorage:WaitForChild("RemoteEvents"):WaitForChild("StateChanged")
+stateChanged.OnClientEvent:Connect(function(newState)
+	if newState == "InGame" then
+		bootMuteActive = false
+		-- Restore default volumes
+		if player.Character then
+			for _, desc in ipairs(player.Character:GetDescendants()) do
+				if desc:IsA("Sound") then
+					local defaults = {Running=0.65, Climbing=0.7, Died=1, FreeFalling=0.5, Jumping=0.5, Landing=1, Splash=0.7, Swimming=0.7}
+					desc.Volume = defaults[desc.Name] or 0.5
+				end
+			end
+		end
+	elseif newState == "LoggedOff" then
+		bootMuteActive = true -- Re-enable for next boot
+	end
+end)
 
 -- ============================================================================
 -- SERVICES
@@ -99,63 +149,41 @@ local TransitionUI = require(UI:WaitForChild("TransitionUI"))
 -- ============================================================================
 
 local function Boot()
-	print(string.format("[%s %s][Boot] Client initializing for player: %s",
-		MODULE_NAME, VERSION, player.Name))
-
-	print(string.format("[%s %s][Boot] Phase 1: Initializing ScreenSaver UI", MODULE_NAME, VERSION))
-
 	local success = ScreenSaverUI.Initialize()
 	if not success then
-		error("[ClientBootstrap] CRITICAL: ScreenSaverUI initialization failed!")
+		error("[ClientBootstrap] ScreenSaverUI initialization failed!")
 	end
-
-	print(string.format("[%s %s][Boot] Phase 2: Initializing StatusBar UI", MODULE_NAME, VERSION))
 
 	success = StatusBarUI.Initialize()
 	if not success then
-		error("[ClientBootstrap] CRITICAL: StatusBarUI initialization failed!")
+		error("[ClientBootstrap] StatusBarUI initialization failed!")
 	end
 
-	-- Setup profile sync listener (EPIC 8)
 	StatusBarUI.SetupProfileSync()
-
-	print(string.format("[%s %s][Boot] Phase 3: Initializing UIManager", MODULE_NAME, VERSION))
 
 	success = UIManager.Initialize(ScreenSaverUI, StatusBarUI)
 	if not success then
-		error("[ClientBootstrap] CRITICAL: UIManager initialization failed!")
+		error("[ClientBootstrap] UIManager initialization failed!")
 	end
-
-	print(string.format("[%s %s][Boot] Phase 4: Initializing SeatUIManager", MODULE_NAME, VERSION))
 
 	success = SeatUIManager.Initialize()
 	if not success then
-		error("[ClientBootstrap] CRITICAL: SeatUIManager initialization failed!")
+		error("[ClientBootstrap] SeatUIManager initialization failed!")
 	end
-
-	print(string.format("[%s %s][Boot] Phase 5: Initializing SeatController", MODULE_NAME, VERSION))
 
 	success = SeatController.Initialize(SeatUIManager)
 	if not success then
-		error("[ClientBootstrap] CRITICAL: SeatController initialization failed!")
+		error("[ClientBootstrap] SeatController initialization failed!")
 	end
-
-	print(string.format("[%s %s][Boot] Phase 6: Initializing TransitionUI", MODULE_NAME, VERSION))
 
 	success = TransitionUI.Initialize()
 	if not success then
-		error("[ClientBootstrap] CRITICAL: TransitionUI initialization failed!")
+		error("[ClientBootstrap] TransitionUI initialization failed!")
 	end
-
-	print(string.format("[%s %s][Boot] Phase 7: UI systems ready", MODULE_NAME, VERSION))
-	print(string.format("[%s %s][Boot] Phase 8: Showing ScreenSaver", MODULE_NAME, VERSION))
 
 	ScreenSaverUI.Show()
 
-	print("================================================================================")
-	print("CLIENT BOOT COMPLETE")
-	print("ScreenSaver Active - Waiting for player input")
-	print("================================================================================")
+	print(string.format("[%s %s] ✓ Client ready for %s", MODULE_NAME, VERSION, player.Name))
 end
 
 -- ============================================================================
@@ -165,9 +193,6 @@ end
 local bootSuccess, bootError = pcall(Boot)
 
 if not bootSuccess then
-	warn("================================================================================")
-	warn("CLIENT BOOT FAILED!")
-	warn("Error: " .. tostring(bootError))
-	warn("================================================================================")
+	warn("[ClientBootstrap] BOOT FAILED: " .. tostring(bootError))
 	error("Client boot sequence failed.")
 end

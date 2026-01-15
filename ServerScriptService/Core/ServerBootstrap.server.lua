@@ -48,8 +48,6 @@ local VERSION = "0.2"
 local MODULE_NAME = "ServerBootstrap"
 
 
-print("SERVER BOOT SEQUENCE STARTED")
-print(string.format("[%s %s] Initializing...", MODULE_NAME, VERSION))
 
 
 -- ============================================================================
@@ -75,68 +73,41 @@ local PlayerService = require(Services:WaitForChild("PlayerService"))
 -- ============================================================================
 
 local function Boot()
-	print(string.format("[%s %s][Boot] Phase 1: Initializing GameStateManager", MODULE_NAME, VERSION))
-
 	local success = GameStateManager.Initialize()
 	if not success then
-		error("[ServerBootstrap] CRITICAL: GameStateManager initialization failed!")
+		error("[ServerBootstrap] GameStateManager initialization failed!")
 	end
-
-	-- Verify we're in LoggedOff state
-	local currentState = GameStateManager.GetCurrentState()
-	print(string.format("[%s %s][Boot] Current state: %s", MODULE_NAME, VERSION, currentState))
-
-	if currentState ~= GameStateManager.States.LoggedOff then
-		warn("[ServerBootstrap] WARNING: Expected LoggedOff state!")
-	end
-
-	print(string.format("[%s %s][Boot] Phase 2: Initializing ProfileService", MODULE_NAME, VERSION))
 
 	local ProfileService = require(Services:WaitForChild("ProfileService"))
 	success = ProfileService.Initialize()
 	if not success then
-		error("[ServerBootstrap] CRITICAL: ProfileService initialization failed!")
+		error("[ServerBootstrap] ProfileService initialization failed!")
 	end
-
-	print(string.format("[%s %s][Boot] Phase 3: Initializing LocationService", MODULE_NAME, VERSION))
 
 	local LocationService = require(Services:WaitForChild("LocationService"))
 	success = LocationService.Initialize()
 	if not success then
-		error("[ServerBootstrap] CRITICAL: LocationService initialization failed!")
+		error("[ServerBootstrap] LocationService initialization failed!")
 	end
-
-	print(string.format("[%s %s][Boot] Phase 4: Initializing PlayerService", MODULE_NAME, VERSION))
 
 	success = PlayerService.Initialize()
 	if not success then
-		error("[ServerBootstrap] CRITICAL: PlayerService initialization failed!")
+		error("[ServerBootstrap] PlayerService initialization failed!")
 	end
-
-	print(string.format("[%s %s][Boot] Phase 5: Initializing SeatService", MODULE_NAME, VERSION))
 
 	local SeatService = require(Services:WaitForChild("SeatService"))
 	success = SeatService.Initialize()
 	if not success then
-		error("[ServerBootstrap] CRITICAL: SeatService initialization failed!")
+		error("[ServerBootstrap] SeatService initialization failed!")
 	end
-
-	print(string.format("[%s %s][Boot] Phase 6: Initializing TransitionService", MODULE_NAME, VERSION))
 
 	local TransitionService = require(Services:WaitForChild("TransitionService"))
 	success = TransitionService.Initialize()
 	if not success then
-		error("[ServerBootstrap] CRITICAL: TransitionService initialization failed!")
+		error("[ServerBootstrap] TransitionService initialization failed!")
 	end
 
-	print(string.format("[%s %s][Boot] Phase 7: Core systems ready", MODULE_NAME, VERSION))
-	print(string.format("[%s %s][Boot] Phase 8: ScreenSaver active", MODULE_NAME, VERSION))
-
-
-	print("BOOT COMPLETE")
-	print("Game State: LoggedOff (ScreenSaver)")
-	print("Waiting for player login...")
-
+	print(string.format("[%s %s] ✓ Server ready, state: %s", MODULE_NAME, VERSION, GameStateManager.GetCurrentState()))
 end
 
 -- ============================================================================

@@ -9,7 +9,7 @@ Handles workspace cleanup, content copying, and player spawning.
 Enforces TDD 5.6 "Complete Context Cleanup" principle.
 
 Version:
-0.2
+0.3
 
 Features:
 - Load location from ServerStorage.Planets structure
@@ -45,13 +45,14 @@ Dependencies:
 - Location Config.luau files
 
 ChangeLog:
+- 0.3: Unanchor character before spawning (fix for silent boot spawn) (2026-01-15)
 - 0.2: Preserve SpaceShip and Player Characters in ClearWorkspace (2026-01-15)
 - 0.1: Initial LocationService with Load/Unload/Spawn (2026-01-12)
 ================================================================================
 ]]
 
 local MODULE_NAME = "LocationService"
-local VERSION = "0.2"
+local VERSION = "0.3"
 
 local ServerStorage = game:GetService("ServerStorage")
 local Workspace = game:GetService("Workspace")
@@ -87,38 +88,28 @@ local function IsPlayerCharacter(model)
 end
 
 local function ClearWorkspace()
-	print(string.format("[%s %s][ClearWorkspace] Clearing Workspace and Lighting", MODULE_NAME, VERSION))
-
 	-- Clear workspace (keep Terrain, Camera, SpaceShip, Player Characters)
 	for _, child in ipairs(Workspace:GetChildren()) do
 		if child:IsA("Model") or child:IsA("Part") or child:IsA("Folder") then
-			-- Preserve essential objects
 			local shouldKeep = child.Name == "Terrain"
 				or child.Name == "Camera"
-				or child.Name == "SpaceShip"  -- Keep spaceship across all locations
-				or IsPlayerCharacter(child)    -- Keep player characters
+				or child.Name == "SpaceShip"
+				or IsPlayerCharacter(child)
 
 			if not shouldKeep then
 				child:Destroy()
-			else
-				print(string.format("[%s %s][ClearWorkspace] Preserved: %s", MODULE_NAME, VERSION, child.Name))
 			end
 		end
 	end
 
 	-- Clear Lighting effects
 	local Lighting = game:GetService("Lighting")
-	print(string.format("[%s %s][ClearWorkspace] Lighting children before clear:", MODULE_NAME, VERSION))
 	for _, child in ipairs(Lighting:GetChildren()) do
-		print(string.format("  - %s (%s)", child.Name, child.ClassName))
 		if child:IsA("Sky") or child:IsA("Atmosphere") or child:IsA("BloomEffect")
 			or child:IsA("DepthOfFieldEffect") or child:IsA("SunRaysEffect") then
 			child:Destroy()
-			print(string.format("[%s %s][ClearWorkspace] Destroyed: %s", MODULE_NAME, VERSION, child.Name))
 		end
 	end
-
-	print(string.format("[%s %s][ClearWorkspace] ✓ Workspace cleared", MODULE_NAME, VERSION))
 end
 
 local function CopyModelsToWorkspace(locationWorkspaceFolder)
@@ -136,11 +127,8 @@ local function CopyModelsToWorkspace(locationWorkspaceFolder)
 			if child.Name == "SpaceShip" then
 				local existingShip = Workspace:FindFirstChild("SpaceShip")
 				if existingShip then
-					-- Reposition existing ship to original location position
 					local templateCFrame = child:GetPivot()
 					existingShip:PivotTo(templateCFrame)
-					print(string.format("[%s %s][CopyModels] SpaceShip repositioned to original Orbit position",
-						MODULE_NAME, VERSION))
 					table.insert(copiedModels, existingShip)
 					continue -- Skip cloning
 				end
@@ -158,11 +146,6 @@ local function CopyModelsToWorkspace(locationWorkspaceFolder)
 						part.Anchored = true
 					end
 				end
-				print(string.format("[%s %s][CopyModels] Copied & Anchored: %s (%s) [Persistent]",
-					MODULE_NAME, VERSION, child.Name, child.ClassName))
-			else
-				print(string.format("[%s %s][CopyModels] Copied: %s (%s)",
-					MODULE_NAME, VERSION, child.Name, child.ClassName))
 			end
 
 			clone.Parent = Workspace
@@ -175,64 +158,27 @@ end
 
 local function CopyLightingObjects(locationLightingFolder)
 	if not locationLightingFolder then
-		warn(string.format("[%s %s][CopyLighting] No Lighting folder in location", MODULE_NAME, VERSION))
 		return {}
 	end
 
 	local Lighting = game:GetService("Lighting")
 	local copiedObjects = {}
 
-	-- DEBUG: Show source folder contents
-	print(string.format("[%s %s][CopyLighting] Source folder: %s, children count: %d",
-		MODULE_NAME, VERSION, locationLightingFolder:GetFullName(), #locationLightingFolder:GetChildren()))
-
 	for _, child in ipairs(locationLightingFolder:GetChildren()) do
 		local clone = child:Clone()
 		clone.Parent = Lighting
 		table.insert(copiedObjects, clone)
-
-		-- DEBUG: Show Sky properties if it's a Sky
-		if child:IsA("Sky") then
-			print(string.format("[%s %s][CopyLighting] Copied Sky with SkyboxBk: %s",
-				MODULE_NAME, VERSION, tostring(child.SkyboxBk)))
-		else
-			print(string.format("[%s %s][CopyLighting] Copied: %s (%s)",
-				MODULE_NAME, VERSION, child.Name, child.ClassName))
-		end
-	end
-
-	-- DEBUG: Show final Lighting contents
-	print(string.format("[%s %s][CopyLighting] Final Lighting children:", MODULE_NAME, VERSION))
-	for _, obj in ipairs(Lighting:GetChildren()) do
-		print(string.format("  - %s (%s)", obj.Name, obj.ClassName))
 	end
 
 	return copiedObjects
 end
 
-local function CopyScriptsToService(locationFolder, targetServiceName)
-	-- Future implementation: copy scripts from location to ReplicatedStorage/ServerScriptService
-	-- For now, scripts stay in location folders and are required directly
-	print(string.format("[%s %s][CopyScripts] Script copying not yet implemented (future feature)",
-		MODULE_NAME, VERSION))
-	return {}
-end
-
-local function FindSpawnPoint(locationName)
-	-- Find SpawnLocation or PilotSeat in Workspace
-
-	-- DEBUG: List all Workspace children
-	print(string.format("[%s %s][FindSpawn] DEBUG: Workspace children:", MODULE_NAME, VERSION))
-	for _, child in ipairs(Workspace:GetChildren()) do
-		print(string.format("  - %s (%s)", child.Name, child.ClassName))
-	end
-
+local function FindSpawnPoint()
 	-- Try to find SpaceShip.PilotSeat first (for Orbit)
 	local spaceShip = Workspace:FindFirstChild("SpaceShip")
 	if spaceShip then
-		local pilotSeat = spaceShip:FindFirstChild("PilotSeat", true) -- recursive
+		local pilotSeat = spaceShip:FindFirstChild("PilotSeat", true)
 		if pilotSeat and pilotSeat:IsA("VehicleSeat") then
-			print(string.format("[%s %s][FindSpawn] Found PilotSeat in SpaceShip", MODULE_NAME, VERSION))
 			return pilotSeat, "PilotSeat"
 		end
 	end
@@ -240,12 +186,10 @@ local function FindSpawnPoint(locationName)
 	-- Try to find SpawnLocation (for Surface)
 	local spawnLocation = Workspace:FindFirstChild("SpawnLocation", true)
 	if spawnLocation and spawnLocation:IsA("SpawnLocation") then
-		print(string.format("[%s %s][FindSpawn] Found SpawnLocation", MODULE_NAME, VERSION))
 		return spawnLocation, "SpawnLocation"
 	end
 
-	warn(string.format("[%s %s][FindSpawn] No spawn point found! Using default (0,5,0)",
-		MODULE_NAME, VERSION))
+	warn(string.format("[%s %s][FindSpawn] No spawn point found!", MODULE_NAME, VERSION))
 	return nil, "Default"
 end
 
@@ -255,21 +199,16 @@ end
 
 function LocationService.Initialize()
 	if isInitialized then
-		warn(string.format("[%s %s][Initialize] Already initialized", MODULE_NAME, VERSION))
 		return true
 	end
 
-	print(string.format("[%s %s] 🚀 Initializing LocationService...", MODULE_NAME, VERSION))
-
-	-- Verify ServerStorage.Planets exists
 	local planetsFolder = ServerStorage:FindFirstChild("Planets")
 	if not planetsFolder then
-		error(string.format("[%s %s][Initialize] ❌ ServerStorage.Planets folder not found!",
-			MODULE_NAME, VERSION))
+		error(string.format("[%s %s] ServerStorage.Planets not found!", MODULE_NAME, VERSION))
 	end
 
 	isInitialized = true
-	print(string.format("[%s %s] ✓ LocationService initialized", MODULE_NAME, VERSION))
+	print(string.format("[%s %s] ✓ LocationService ready", MODULE_NAME, VERSION))
 	return true
 end
 
@@ -278,31 +217,24 @@ function LocationService.LoadLocation(player, planetId, locationName)
 		error(string.format("[%s %s][LoadLocation] Service not initialized!", MODULE_NAME, VERSION))
 	end
 
-	print(string.format("[%s %s][LoadLocation] Loading %s/%s for %s",
-		MODULE_NAME, VERSION, planetId, locationName, player.Name))
-
-	-- Step 1: Unload current location if any
+	-- Unload current location if any
 	if currentLocations[player] then
 		LocationService.UnloadLocation(player)
 	end
 
-	-- Step 2: Load Planet Config
+	-- Load Planet Config
 	local planetFolder = ServerStorage.Planets:FindFirstChild(planetId)
 	if not planetFolder then
-		error(string.format("[%s %s][LoadLocation] Planet not found: %s",
-			MODULE_NAME, VERSION, planetId))
+		error(string.format("[%s %s][LoadLocation] Planet not found: %s", MODULE_NAME, VERSION, planetId))
 	end
 
 	local planetConfig = require(planetFolder:WaitForChild("Config"))
-	print(string.format("[%s %s][LoadLocation] Loaded planet config: %s",
-		MODULE_NAME, VERSION, planetConfig.name))
 
-	-- Step 3: Load Location Config
+	-- Load Location Config
 	local locationFolder
 	if locationName == "Orbit" then
 		locationFolder = planetFolder:FindFirstChild("Orbit")
 	else
-		-- Surface location
 		local surfaceFolder = planetFolder:FindFirstChild("Surface")
 		if surfaceFolder then
 			locationFolder = surfaceFolder:FindFirstChild(locationName)
@@ -310,49 +242,35 @@ function LocationService.LoadLocation(player, planetId, locationName)
 	end
 
 	if not locationFolder then
-		error(string.format("[%s %s][LoadLocation] Location not found: %s/%s",
-			MODULE_NAME, VERSION, planetId, locationName))
+		error(string.format("[%s %s][LoadLocation] Location not found: %s/%s", MODULE_NAME, VERSION, planetId, locationName))
 	end
 
 	local locationConfig = require(locationFolder:WaitForChild("Config"))
-	print(string.format("[%s %s][LoadLocation] Loaded location config: %s (type: %s)",
-		MODULE_NAME, VERSION, locationConfig.name, locationConfig.type))
 
-	-- Step 4: Clear Workspace
+	-- Clear Workspace
 	ClearWorkspace()
 
-	-- Step 5: Copy Location Content
+	-- Copy Location Content
 	local workspaceFolder = locationFolder:FindFirstChild("Workspace")
 	local lightingFolder = workspaceFolder and workspaceFolder:FindFirstChild("Lighting")
 
 	local copiedModels = CopyModelsToWorkspace(workspaceFolder)
 	local copiedLighting = CopyLightingObjects(lightingFolder)
 
-	-- DEBUG: Verify models are in Workspace after copy
-	print(string.format("[%s %s][LoadLocation] DEBUG: After copy, Workspace children:", MODULE_NAME, VERSION))
-	for _, child in ipairs(Workspace:GetChildren()) do
-		print(string.format("  - %s (%s)", child.Name, child.ClassName))
-	end
-
 	-- Track spawned content
 	spawnedContent[player] = {
 		models = copiedModels,
 		lightingObjects = copiedLighting,
-		scripts = {} -- Future: track copied scripts
+		scripts = {}
 	}
 
-	-- Step 6: Apply location settings
+	-- Apply location settings
 	local settings = locationConfig.getSettings()
-	if settings then
-		-- Apply gravity (use absolute value, Workspace.Gravity expects positive number)
-		if settings.gravity then
-			Workspace.Gravity = math.abs(settings.gravity.Y)
-			print(string.format("[%s %s][LoadLocation] Set gravity: %s",
-				MODULE_NAME, VERSION, tostring(Workspace.Gravity)))
-		end
+	if settings and settings.gravity then
+		Workspace.Gravity = math.abs(settings.gravity.Y)
 	end
 
-	-- Step 7: Track current location
+	-- Track current location
 	currentLocations[player] = {
 		planetId = planetId,
 		locationName = locationName,
@@ -360,52 +278,35 @@ function LocationService.LoadLocation(player, planetId, locationName)
 		planetConfig = planetConfig
 	}
 
-	print(string.format("[%s %s][LoadLocation] ✓ Location loaded: %s/%s",
-		MODULE_NAME, VERSION, planetId, locationName))
+	print(string.format("[%s %s] ✓ Location loaded: %s/%s", MODULE_NAME, VERSION, planetId, locationName))
 
 	return true
 end
 
 function LocationService.UnloadLocation(player)
 	if not currentLocations[player] then
-		print(string.format("[%s %s][UnloadLocation] No location to unload for %s",
-			MODULE_NAME, VERSION, player.Name))
 		return
 	end
 
-	local locationInfo = currentLocations[player]
-	print(string.format("[%s %s][UnloadLocation] Unloading %s/%s for %s",
-		MODULE_NAME, VERSION, locationInfo.planetId, locationInfo.locationName, player.Name))
-
 	-- Cleanup spawned content (but preserve SpaceShip)
 	if spawnedContent[player] then
-		-- Destroy models (except SpaceShip - persists across locations)
 		for _, model in ipairs(spawnedContent[player].models) do
 			if model and model.Parent and model.Name ~= "SpaceShip" then
 				model:Destroy()
 			end
 		end
 
-		-- Destroy lighting objects
 		for _, lightingObj in ipairs(spawnedContent[player].lightingObjects) do
 			if lightingObj and lightingObj.Parent then
 				lightingObj:Destroy()
 			end
 		end
 
-		-- Future: cleanup scripts
-
 		spawnedContent[player] = nil
 	end
 
-	-- Clear current location tracking
 	currentLocations[player] = nil
-
-	-- Clear workspace completely
 	ClearWorkspace()
-
-	print(string.format("[%s %s][UnloadLocation] ✓ Location unloaded for %s",
-		MODULE_NAME, VERSION, player.Name))
 end
 
 function LocationService.GetCurrentLocation(player)
@@ -413,13 +314,9 @@ function LocationService.GetCurrentLocation(player)
 end
 
 function LocationService.SpawnPlayerInLocation(player, spawnType)
-	print(string.format("[%s %s][SpawnPlayer] Spawning %s (type: %s)",
-		MODULE_NAME, VERSION, player.Name, spawnType or "auto"))
-
 	local character = player.Character
 	if not character then
-		warn(string.format("[%s %s][SpawnPlayer] No character found for %s",
-			MODULE_NAME, VERSION, player.Name))
+		warn(string.format("[%s %s][SpawnPlayer] No character for %s", MODULE_NAME, VERSION, player.Name))
 		return false
 	end
 
@@ -427,12 +324,16 @@ function LocationService.SpawnPlayerInLocation(player, spawnType)
 	local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
 
 	if not humanoid or not humanoidRootPart then
-		warn(string.format("[%s %s][SpawnPlayer] Character missing Humanoid or HRP",
-			MODULE_NAME, VERSION))
+		warn(string.format("[%s %s][SpawnPlayer] Character missing Humanoid/HRP", MODULE_NAME, VERSION))
 		return false
 	end
 
-	-- Find spawn point (use requested type if specified)
+	-- CRITICAL: Unanchor character (may have been anchored during boot for silent spawn)
+	if humanoidRootPart.Anchored then
+		humanoidRootPart.Anchored = false
+	end
+
+	-- Find spawn point
 	local spawnPoint, foundSpawnType = FindSpawnPoint()
 
 	-- Override with specific spawn type if requested
@@ -454,53 +355,35 @@ function LocationService.SpawnPlayerInLocation(player, spawnType)
 	end
 
 	if foundSpawnType == "PilotSeat" and spawnPoint then
-		-- Check if player is already sitting in this seat
+		-- Check if player is already sitting
 		if humanoid.SeatPart == spawnPoint then
-			print(string.format("[%s %s][SpawnPlayer] ✓ %s already seated in PilotSeat, skipping",
-				MODULE_NAME, VERSION, player.Name))
 			return true
 		end
 
-		-- Spawn IN PilotSeat (sitting)
-		task.wait(0.2) -- Wait for character to fully load
+		task.wait(0.2)
 
-		-- Configure seat - disable movement but allow sitting/standing
 		if spawnPoint:IsA("VehicleSeat") then
 			spawnPoint.Disabled = false
-			spawnPoint.MaxSpeed = 0  -- Prevent ship from moving (ship is parked in orbit)
-			spawnPoint.TurnSpeed = 0 -- Prevent ship from turning
-			print(string.format("[%s %s][SpawnPlayer] PilotSeat configured: Disabled=%s, MaxSpeed=%d, TurnSpeed=%d",
-				MODULE_NAME, VERSION, tostring(spawnPoint.Disabled), spawnPoint.MaxSpeed, spawnPoint.TurnSpeed))
+			spawnPoint.MaxSpeed = 0
+			spawnPoint.TurnSpeed = 0
 		end
 
-		-- Sit player in seat
 		if spawnPoint:IsA("Seat") or spawnPoint:IsA("VehicleSeat") then
 			spawnPoint:Sit(humanoid)
 			task.wait(0.3)
-
-			print(string.format("[%s %s][SpawnPlayer] ✓ %s spawned in PilotSeat",
-				MODULE_NAME, VERSION, player.Name))
-		else
-			warn(string.format("[%s %s][SpawnPlayer] PilotSeat is not a Seat or VehicleSeat!",
-				MODULE_NAME, VERSION))
+			print(string.format("[%s %s] ✓ %s spawned in PilotSeat", MODULE_NAME, VERSION, player.Name))
 		end
 
 		return true
 
 	elseif foundSpawnType == "SpawnLocation" and spawnPoint then
-		-- Spawn at SpawnLocation
 		humanoidRootPart.CFrame = spawnPoint.CFrame + Vector3.new(0, 3, 0)
-
-		print(string.format("[%s %s][SpawnPlayer] ✓ %s spawned at SpawnLocation",
-			MODULE_NAME, VERSION, player.Name))
+		print(string.format("[%s %s] ✓ %s spawned at SpawnLocation", MODULE_NAME, VERSION, player.Name))
 		return true
 
 	else
-		-- Default spawn
 		humanoidRootPart.CFrame = CFrame.new(0, 5, 0)
-
-		print(string.format("[%s %s][SpawnPlayer] ✓ %s spawned at default position",
-			MODULE_NAME, VERSION, player.Name))
+		print(string.format("[%s %s] ✓ %s spawned at default", MODULE_NAME, VERSION, player.Name))
 		return true
 	end
 end

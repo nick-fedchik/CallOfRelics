@@ -37,10 +37,21 @@ ChangeLog:
 ]]
 
 -- ============================================================================
--- SERVICES
+-- PREVENT DOUBLE EXECUTION
 -- ============================================================================
 
 local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+if player:GetAttribute("CameraControllerInitialized") then
+	return
+end
+player:SetAttribute("CameraControllerInitialized", true)
+
+-- ============================================================================
+-- SERVICES
+-- ============================================================================
+
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -54,7 +65,7 @@ local SeatConfig
 -- STATE
 -- ============================================================================
 
-local LocalPlayer = Players.LocalPlayer
+local LocalPlayer = player
 local camera = Workspace.CurrentCamera
 
 -- ============================================================================

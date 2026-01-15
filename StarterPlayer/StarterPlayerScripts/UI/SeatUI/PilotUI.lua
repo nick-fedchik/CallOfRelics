@@ -185,7 +185,6 @@ local function CreateLocationButton(location, index)
 
 	-- Click handler
 	button.MouseButton1Click:Connect(function()
-		print(string.format("[%s %s] Landing requested: %s", MODULE_NAME, VERSION, location.id))
 		if requestLanding then
 			requestLanding:FireServer(location.id)
 		end
@@ -341,7 +340,6 @@ local function CreateUI()
 
 	-- Launch click handler
 	launch.MouseButton1Click:Connect(function()
-		print(string.format("[%s %s] Launch requested", MODULE_NAME, VERSION))
 		if requestLaunch then
 			requestLaunch:FireServer()
 		end
@@ -366,7 +364,6 @@ local function SetupRemoteEvents()
 	-- Listen for locations response
 	if locationsAvailable then
 		locationsAvailable.OnClientEvent:Connect(function(locations)
-			print(string.format("[%s %s] Received %d locations", MODULE_NAME, VERSION, #locations))
 			availableLocations = locations
 			if isVisible and currentContext == TransitionConfig.Contexts.Orbit then
 				UpdateLocationsList()
@@ -378,7 +375,6 @@ local function SetupRemoteEvents()
 	if transitionUpdate then
 		transitionUpdate.OnClientEvent:Connect(function(state, data)
 			if state == TransitionConfig.States.Complete and data and data.context then
-				print(string.format("[%s %s] Context changed to: %s", MODULE_NAME, VERSION, data.context))
 				PilotUI.SetContext(data.context)
 			end
 		end)
@@ -392,8 +388,6 @@ end
 function PilotUI.Initialize()
 	if isInitialized then return true end
 
-	print(string.format("[%s %s] Initializing...", MODULE_NAME, VERSION))
-
 	screenGui = CreateUI()
 	screenGui.Parent = playerGui
 	screenGui.Enabled = false
@@ -401,14 +395,11 @@ function PilotUI.Initialize()
 	SetupRemoteEvents()
 
 	isInitialized = true
-	print(string.format("[%s %s] ✓ Initialized", MODULE_NAME, VERSION))
 	return true
 end
 
 function PilotUI.Show()
 	if not screenGui then return end
-
-	print(string.format("[%s %s] Show called, context: %s", MODULE_NAME, VERSION, currentContext or "nil"))
 
 	-- Always show "НАВІГАЦІЯ" title
 	titleLabel.Text = "НАВІГАЦІЯ"
@@ -461,7 +452,6 @@ end
 
 function PilotUI.SetContext(context)
 	currentContext = context
-	print(string.format("[%s %s] Context set to: %s", MODULE_NAME, VERSION, context))
 
 	if isVisible then
 		if context == TransitionConfig.Contexts.Orbit then

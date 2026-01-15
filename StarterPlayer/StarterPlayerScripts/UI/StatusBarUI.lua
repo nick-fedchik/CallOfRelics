@@ -182,14 +182,10 @@ local function CreateStatusBarUI()
 
 	-- Click handler for exit button
 	exit.MouseButton1Click:Connect(function()
-		print(string.format("[%s %s][ExitButton] Player clicked 'Вихід'", MODULE_NAME, VERSION))
-
 		-- Send LogOff request to server
 		local remoteEvents = ReplicatedStorage:WaitForChild("RemoteEvents")
 		local logOffRequest = remoteEvents:WaitForChild("LogOffRequest")
 		logOffRequest:FireServer()
-
-		print(string.format("[%s %s][ExitButton] LogOff request sent to server", MODULE_NAME, VERSION))
 	end)
 
 	return gui, bar, exit, planet, location
@@ -200,8 +196,6 @@ end
 -- ============================================================================
 
 function StatusBarUI.Initialize()
-	print(string.format("[%s %s][Initialize] Creating StatusBar UI", MODULE_NAME, VERSION))
-
 	local bar, exit, planet, location
 	screenGui, bar, exit, planet, location = CreateStatusBarUI()
 	screenGui.Parent = playerGui
@@ -210,20 +204,14 @@ function StatusBarUI.Initialize()
 	planetLabel = planet
 	locationLabel = location
 
-	print(string.format("[%s %s][Initialize] StatusBar UI ready", MODULE_NAME, VERSION))
 	return true
 end
 
 function StatusBarUI.Show()
-	if not screenGui then
-		warn(string.format("[%s %s][Show] StatusBar not initialized!", MODULE_NAME, VERSION))
-		return
-	end
+	if not screenGui then return end
 
 	screenGui.Enabled = true
 	isVisible = true
-
-	print(string.format("[%s %s][Show] StatusBar visible", MODULE_NAME, VERSION))
 end
 
 function StatusBarUI.Hide()
@@ -231,8 +219,6 @@ function StatusBarUI.Hide()
 
 	screenGui.Enabled = false
 	isVisible = false
-
-	print(string.format("[%s %s][Hide] StatusBar hidden", MODULE_NAME, VERSION))
 end
 
 function StatusBarUI.SetPlanet(planetName)
@@ -257,16 +243,11 @@ end
 
 local function SetupProfileSync()
 	local remoteEvents = ReplicatedStorage:FindFirstChild("RemoteEvents")
-	if not remoteEvents then
-		warn(string.format("[%s %s][ProfileSync] RemoteEvents not found", MODULE_NAME, VERSION))
-		return
-	end
+	if not remoteEvents then return end
 
 	local profileUpdate = remoteEvents:FindFirstChild("ProfileUpdate")
 	if profileUpdate then
 		profileUpdate.OnClientEvent:Connect(function(data)
-			print(string.format("[%s %s][ProfileSync] Received update: %s", MODULE_NAME, VERSION, data.type or "unknown"))
-
 			if data.type == "fullSync" and data.profile then
 				-- Full profile sync
 				if data.profile.currentPlanet then
@@ -287,7 +268,6 @@ local function SetupProfileSync()
 				end
 			end
 		end)
-		print(string.format("[%s %s][ProfileSync] Listener connected", MODULE_NAME, VERSION))
 	end
 
 	-- Request initial sync after short delay (ensure server is ready)
@@ -295,7 +275,6 @@ local function SetupProfileSync()
 	if requestSync then
 		task.delay(2, function()
 			requestSync:FireServer()
-			print(string.format("[%s %s][ProfileSync] Initial sync requested", MODULE_NAME, VERSION))
 		end)
 	end
 end

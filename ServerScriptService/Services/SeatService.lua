@@ -92,29 +92,22 @@ local ProfileService
 
 function SeatService.Initialize()
 	if isInitialized then
-		warn(string.format("[%s %s][Initialize] Already initialized", MODULE_NAME, VERSION))
 		return true
 	end
 
-	print(string.format("[%s %s] Initializing SeatService...", MODULE_NAME, VERSION))
-
-	-- Load SeatConfig
 	local Game = ReplicatedStorage:WaitForChild("Game")
 	SeatConfig = require(Game:WaitForChild("SeatConfig"))
 
-	-- Load ProfileService
 	local ServerScriptService = game:GetService("ServerScriptService")
 	local Services = ServerScriptService:WaitForChild("Services")
 	ProfileService = require(Services:WaitForChild("ProfileService"))
 
-	-- Get RemoteEvents
 	RemoteEvents = ReplicatedStorage:WaitForChild("RemoteEvents")
 	SeatOccupied = RemoteEvents:WaitForChild("SeatOccupied")
 	SeatVacated = RemoteEvents:WaitForChild("SeatVacated")
 	SeatActionRequest = RemoteEvents:WaitForChild("SeatActionRequest")
 	SeatActionResponse = RemoteEvents:WaitForChild("SeatActionResponse")
 
-	-- Connect event handlers
 	SeatOccupied.OnServerEvent:Connect(function(player, seatName)
 		SeatService.OnSeatOccupied(player, seatName)
 	end)
@@ -127,67 +120,36 @@ function SeatService.Initialize()
 		SeatService.ProcessSeatAction(player, seatName, action, data)
 	end)
 
-	-- Cleanup on player leave
 	Players.PlayerRemoving:Connect(function(player)
 		SeatService.CleanupPlayer(player)
 	end)
 
 	isInitialized = true
-	print(string.format("[%s %s] SeatService initialized", MODULE_NAME, VERSION))
+	print(string.format("[%s %s] ✓ SeatService ready", MODULE_NAME, VERSION))
 	return true
 end
 
 function SeatService.OnSeatOccupied(player, seatName)
-	print(string.format("[%s %s][OnSeatOccupied] %s sat in %s",
-		MODULE_NAME, VERSION, player.Name, seatName))
-
-	-- Validate seat exists in config
 	if not SeatConfig.IsSeatKnown(seatName) then
-		warn(string.format("[%s %s][OnSeatOccupied] Unknown seat: %s",
-			MODULE_NAME, VERSION, seatName))
 		return
 	end
 
-	-- Record occupancy
 	seatOccupants[seatName] = player
 
 	-- GDD: Save profile when player sits in PilotSeat (if changed)
 	if seatName == "PilotSeat" then
-		local saved = ProfileService.SaveIfChanged(player)
-		if saved then
-			print(string.format("[%s %s][OnSeatOccupied] Profile saved for %s (PilotSeat)",
-				MODULE_NAME, VERSION, player.Name))
-		end
-	end
-
-	-- Future: Trigger seat-specific server logic (e.g., enable scanner systems)
-	local seatConfig = SeatConfig.GetSeatConfig(seatName)
-	if seatConfig then
-		print(string.format("[%s %s][OnSeatOccupied] %s is now at %s",
-			MODULE_NAME, VERSION, player.Name, seatConfig.displayName))
+		ProfileService.SaveIfChanged(player)
 	end
 end
 
 function SeatService.OnSeatVacated(player, seatName)
-	print(string.format("[%s %s][OnSeatVacated] %s left %s",
-		MODULE_NAME, VERSION, player.Name, seatName))
-
-	-- Clear occupancy only if this player was in the seat
 	if seatOccupants[seatName] == player then
 		seatOccupants[seatName] = nil
 	end
-
-	-- Future: Trigger seat-specific cleanup (e.g., disable scanner systems)
 end
 
 function SeatService.ProcessSeatAction(player, seatName, action, data)
-	print(string.format("[%s %s][ProcessSeatAction] %s: %s from %s",
-		MODULE_NAME, VERSION, seatName, action, player.Name))
-
-	-- Validate player is in the seat
 	if seatOccupants[seatName] ~= player then
-		warn(string.format("[%s %s][ProcessSeatAction] %s not in %s",
-			MODULE_NAME, VERSION, player.Name, seatName))
 		SeatActionResponse:FireClient(player, seatName, action, {
 			success = false,
 			error = "NotInSeat"
@@ -195,7 +157,6 @@ function SeatService.ProcessSeatAction(player, seatName, action, data)
 		return
 	end
 
-	-- Look up handler
 	local seatHandlers = actionHandlers[seatName]
 	local handler = seatHandlers and seatHandlers[action]
 
@@ -204,16 +165,12 @@ function SeatService.ProcessSeatAction(player, seatName, action, data)
 		if success then
 			SeatActionResponse:FireClient(player, seatName, action, result)
 		else
-			warn(string.format("[%s %s][ProcessSeatAction] Handler error: %s",
-				MODULE_NAME, VERSION, tostring(result)))
 			SeatActionResponse:FireClient(player, seatName, action, {
 				success = false,
 				error = "HandlerError"
 			})
 		end
 	else
-		warn(string.format("[%s %s][ProcessSeatAction] No handler for %s.%s",
-			MODULE_NAME, VERSION, seatName, action))
 		SeatActionResponse:FireClient(player, seatName, action, {
 			success = false,
 			error = "UnknownAction"
@@ -226,8 +183,6 @@ function SeatService.RegisterActionHandler(seatName, action, handler)
 		actionHandlers[seatName] = {}
 	end
 	actionHandlers[seatName][action] = handler
-	print(string.format("[%s %s][RegisterActionHandler] Registered %s.%s",
-		MODULE_NAME, VERSION, seatName, action))
 end
 
 function SeatService.GetSeatOccupant(seatName)
@@ -251,8 +206,6 @@ function SeatService.CleanupPlayer(player)
 	for seatName, occupant in pairs(seatOccupants) do
 		if occupant == player then
 			seatOccupants[seatName] = nil
-			print(string.format("[%s %s][CleanupPlayer] Cleared %s from %s",
-				MODULE_NAME, VERSION, player.Name, seatName))
 		end
 	end
 end
