@@ -1,7 +1,7 @@
 # Структура Проєкту — Call of Relics: Orbital Silence
 
-**Версія:** 1.1
-**Дата:** 2026-01-14
+**Версія:** 1.2
+**Дата:** 2026-01-16
 **Статус:** Рекомендовано
 
 ---
@@ -26,54 +26,37 @@
 
 ## Структура ServerScriptService
 
-### Поточна структура (v0.7)
+### Поточна структура (v0.9)
 
 ```
 ServerScriptService/
 ├── Core/
 │   ├── GameStateManager.lua      -- Координатор станів (v0.2)
 │   ├── BootSequence.lua          -- 4-stage boot sequence (v0.4)
-│   └── ServerBootstrap.server.lua -- Точка входу (v0.2)
+│   └── ServerBootstrap.server.lua -- Точка входу (v0.3)
 │
 ├── Services/
 │   ├── PlayerService.lua         -- Життєвий цикл гравця (v0.2)
 │   ├── ProfileService.lua        -- DataStore профілі (v0.2)
-│   ├── LocationService.lua       -- Завантаження локацій (v0.2)
-│   ├── TransitionService.lua     -- Переходи Orbit↔Surface (v0.7) ← NEW
-│   └── SeatService.lua           -- Керування сидіннями (v0.1)
+│   ├── LocationService.lua       -- Завантаження локацій (v0.5)
+│   ├── ContextRegistryService.lua -- Реєстрація контенту (v0.1)
+│   ├── TransitionService.lua     -- Переходи Orbit↔Surface (v0.7)
+│   ├── SpaceShipService.lua      -- SpaceShip + Seat management (v0.4) ← NEW
+│   ├── PlanetScannerService.lua  -- Сканування планет (v0.1) ← NEW
+│   ├── EnginesService.lua        -- Двигуни корабля (v0.1) ← NEW
+│   ├── PlanetLocatorService.lua  -- Пошук планет (v0.1) ← NEW
+│   └── PersonalComputerService.lua -- Інвентар/Knowledge (v0.1) ← NEW
 │
 ├── Systems/
 │   └── (підготовлено для майбутніх систем)
 │
 └── Setup/
-    └── RemoteEventsSetup.server.lua -- RemoteEvents (v0.4)
+    └── RemoteEventsSetup.server.lua -- RemoteEvents (v0.5)
 ```
 
-### Майбутня структура
+### Видалено у v0.9
 
-```
-ServerScriptService/
-├── Core/
-│   ├── GameStateManager.lua
-│   ├── BootSequence.lua
-│   └── ServerBootstrap.server.lua
-│
-├── Services/
-│   ├── PlayerService.lua
-│   ├── ProfileService.lua
-│   ├── LocationService.lua
-│   ├── TransitionService.lua
-│   ├── SeatService.lua
-│   └── SaveService.lua           -- EPIC 2+
-│
-├── Systems/
-│   ├── ScanSystem.lua            -- EPIC 4+
-│   ├── CombatSystem.lua          -- EPIC 5+
-│   └── ResourceSystem.lua        -- EPIC 5+
-│
-└── Setup/
-    └── RemoteEventsSetup.server.lua
-```
+- `SeatService.lua` — merged into SpaceShipService
 
 ---
 
@@ -85,8 +68,8 @@ ServerScriptService/
 ReplicatedStorage/
 ├── Game/                         -- Конфігурація гри
 │   ├── GameConfig.lua            -- Основна конфігурація (v0.3)
-│   ├── SeatConfig.lua            -- Конфігурація сидінь (v0.1)
-│   └── TransitionConfig.lua      -- Конфігурація переходів (v0.1) ← NEW
+│   ├── SpaceShipConfig.lua       -- SpaceShip + Seats config (v0.1) ← NEW (renamed from SeatConfig)
+│   └── TransitionConfig.lua      -- Конфігурація переходів (v0.2)
 │
 ├── Modules/                      -- Загальні модулі
 │   └── (майбутнє)
@@ -100,11 +83,14 @@ ReplicatedStorage/
     ├── SeatVacated               -- Встав з сидіння
     ├── SeatActionRequest         -- Запит дії сидіння
     ├── SeatActionResponse        -- Відповідь дії сидіння
-    ├── RequestLanding            -- Запит посадки ← NEW
-    ├── RequestLiftoff            -- Запит підйому ← NEW
-    ├── TransitionUpdate          -- Стан переходу ← NEW
-    ├── TransitionLandingCamera   -- Дані камери посадки ← NEW
-    └── AvailableLocationsResponse -- Список локацій ← NEW
+    ├── RequestLanding            -- Запит посадки
+    ├── RequestLaunch             -- Запит зльоту (renamed from RequestLiftoff)
+    ├── TransitionUpdate          -- Стан переходу
+    ├── TransitionLandingCamera   -- Дані камери посадки
+    ├── AvailableLocationsResponse -- Список локацій
+    ├── RequestScan               -- Запит сканування ← NEW
+    ├── ScanProgress              -- Прогрес сканування ← NEW
+    └── ScanComplete              -- Результат сканування ← NEW
 ```
 
 ### StarterPlayer/StarterPlayerScripts
@@ -113,21 +99,22 @@ ReplicatedStorage/
 StarterPlayer/StarterPlayerScripts/
 ├── Core/
 │   ├── ClientBootstrap.client.lua -- Клієнтська ініціалізація (v0.3)
-│   ├── SeatController.client.lua  -- Детекція сидінь (v0.1)
-│   └── CameraController.lua       -- Керування камерою (v0.2)
+│   ├── SeatController.lua        -- Детекція сидінь (v0.2) ← UPDATED
+│   └── CameraController.client.lua -- Керування камерою (v0.2)
 │
 ├── UI/
 │   ├── ScreenSaverUI.lua         -- Boot sequence UI (v0.5)
-│   ├── StatusBarUI.lua           -- In-game status bar (v0.2)
+│   ├── StatusBarUI.lua           -- In-game status bar (v0.4)
 │   ├── UIManager.lua             -- Координатор UI (v0.2)
-│   ├── SeatUIManager.lua         -- Менеджер UI сидінь (v0.1)
-│   ├── TransitionUI.lua          -- UI переходів (v0.4) ← NEW
+│   ├── SeatUIManager.lua         -- Менеджер UI сидінь (v0.2) ← UPDATED
+│   ├── TransitionUI.lua          -- UI переходів (v0.9)
 │   └── SeatUI/                   -- Модулі UI для кожного сидіння
-│       ├── PilotUI.lua           -- Пілотське крісло (v0.5)
-│       ├── SurfaceScannerUI.lua  -- Сканер поверхні (v0.1)
-│       ├── DeepSpaceScannerUI.lua -- Глибокий космос (v0.1)
-│       ├── SystemsConsoleUI.lua  -- Консоль систем (v0.1)
-│       └── PersonalTerminalUI.lua -- Особистий термінал (v0.1)
+│       ├── PilotUI.lua           -- Пілотське крісло (v0.7)
+│       ├── GenericSeatUI.lua     -- Базовий UI для сидінь (v0.2) ← UPDATED
+│       ├── PlanetSurfaceScannerUI.lua -- Сканер поверхні (v0.1) ← NEW
+│       ├── EnginesUI.lua         -- UI двигунів (v0.1) ← NEW
+│       ├── PlanetLocatorUI.lua   -- UI локатора планет (v0.1) ← NEW
+│       └── PersonalComputerUI.lua -- UI персонального комп'ютера (v0.1) ← NEW
 │
 └── Systems/                      -- Майбутні клієнтські системи
     └── (порожня)
@@ -137,14 +124,18 @@ StarterPlayer/StarterPlayerScripts/
 
 ```
 ServerStorage/
-└── Planets/                      -- Контент планет (v0.7) ← EXPANDED
+├── Actors/                       -- SpaceShip моделі ← NEW
+│   ├── SpaceShip                 -- Default SpaceShip model
+│   ├── SpaceShip_Advanced        -- Upgraded model (TBD)
+│   └── SpaceShip_Elite           -- Upgraded model (TBD)
+│
+└── Planets/                      -- Контент планет (v0.9)
     └── Planet_1/                 -- Планета Біллі Рубін
         ├── Config.luau           -- Конфігурація планети
         ├── Orbit/                -- Орбітальна локація
         │   ├── Config.luau       -- Конфіг орбіти (з animationData)
         │   └── Workspace/        -- 3D об'єкти
         │       ├── Lighting/     -- Sky, Atmosphere, Effects
-        │       ├── SpaceShip/    -- Модель корабля (PilotSeat, seats)
         │       └── Planet/       -- Модель планети (Surface, CloudLayers)
         │
         └── Surface/              -- Поверхневі локації
@@ -164,6 +155,18 @@ ServerStorage/
                 ├── Config.luau
                 └── Workspace/
 ```
+
+---
+
+## SpaceShip Seats (SpaceShipConfig)
+
+| Seat | UI Module | Functionality |
+|------|-----------|---------------|
+| PilotSeat | PilotUI | Navigation, Weapons control |
+| Seat Engines | EnginesUI | Engine control |
+| Seat Planet Surface Scanner | PlanetSurfaceScannerUI | Planet scanning |
+| Seat Planet Locator | PlanetLocatorUI | Planet discovery |
+| Seat Personal Computer | PersonalComputerUI | Inventory, Knowledge |
 
 ---
 
@@ -204,19 +207,42 @@ ServerStorage/
 **ServerScriptService/Services:**
 - `PlayerService.lua`
 - `ProfileService.lua`
+- `LocationService.lua`
+- `ContextRegistryService.lua`
+- `TransitionService.lua`
+- `SpaceShipService.lua`
+- `PlanetScannerService.lua`
+- `EnginesService.lua`
+- `PlanetLocatorService.lua`
+- `PersonalComputerService.lua`
 
 **ServerScriptService/Setup:**
 - `RemoteEventsSetup.server.lua`
 
 **StarterPlayerScripts/Core:**
 - `ClientBootstrap.client.lua`
+- `SeatController.lua`
+- `CameraController.client.lua`
 
 **StarterPlayerScripts/UI:**
 - `ScreenSaverUI.lua`
+- `StatusBarUI.lua`
 - `UIManager.lua`
+- `SeatUIManager.lua`
+- `TransitionUI.lua`
+
+**StarterPlayerScripts/UI/SeatUI:**
+- `PilotUI.lua`
+- `GenericSeatUI.lua`
+- `PlanetSurfaceScannerUI.lua`
+- `EnginesUI.lua`
+- `PlanetLocatorUI.lua`
+- `PersonalComputerUI.lua`
 
 **ReplicatedStorage/Game:**
 - `GameConfig.lua`
+- `SpaceShipConfig.lua`
+- `TransitionConfig.lua`
 
 **Systems папки:**
 - Залишити порожніми (для майбутніх систем)
@@ -256,6 +282,7 @@ ServerStorage/
 
 **Файли:**
 - `GameStateManager.lua` — координатор станів
+- `BootSequence.lua` — 4-stage boot sequence
 - `ServerBootstrap.server.lua` — точка входу
 
 ---
@@ -275,11 +302,15 @@ ServerStorage/
 
 **Поточні файли:**
 - `PlayerService.lua` — керування гравцями
-
-**Майбутні файли:**
-- `SaveService.lua` — збереження/відновлення
-- `TeleportService.lua` — переміщення між контекстами
-- `LocationService.lua` — керування локаціями
+- `ProfileService.lua` — збереження/відновлення профілів
+- `LocationService.lua` — завантаження локацій
+- `ContextRegistryService.lua` — реєстрація контенту
+- `TransitionService.lua` — переходи між локаціями
+- `SpaceShipService.lua` — SpaceShip + seat management
+- `PlanetScannerService.lua` — сканування планет
+- `EnginesService.lua` — керування двигунами
+- `PlanetLocatorService.lua` — пошук планет
+- `PersonalComputerService.lua` — інвентар та knowledge
 
 ---
 
@@ -297,7 +328,6 @@ ServerStorage/
 - Працює в межах дозволеного контексту
 
 **Майбутні файли:**
-- `ScanSystem.lua` — система сканування планет
 - `CombatSystem.lua` — бойова система
 - `ResourceSystem.lua` — керування ресурсами
 
@@ -342,20 +372,11 @@ ServerStorage/
 
 ## Переваги Цієї Структури
 
-✅ **Чітке розмежування відповідальностей**
-- Легко зрозуміти, де що знаходиться
-
-✅ **Масштабованість**
-- Додавання нових модулів не вимагає реорганізації
-
-✅ **Відповідність TDD**
-- Структура відображає архітектурні принципи
-
-✅ **Запобігання "монолітним скриптам"**
-- Природний поділ на малі, зрозумілі модулі
-
-✅ **Сумісність з Script Sync**
-- Структура працює з обмеженнями Roblox Studio
+- **Чітке розмежування відповідальностей** — Легко зрозуміти, де що знаходиться
+- **Масштабованість** — Додавання нових модулів не вимагає реорганізації
+- **Відповідність TDD** — Структура відображає архітектурні принципи
+- **Запобігання "монолітним скриптам"** — Природний поділ на малі, зрозумілі модулі
+- **Сумісність з Script Sync** — Структура працює з обмеженнями Roblox Studio
 
 ---
 
@@ -364,11 +385,26 @@ ServerStorage/
 - **TDD Розділ 3** — Розмежування систем, сервісів, контенту
 - **TDD Розділ 11** — Стандарти логування та діагностики
 - **TDD Розділ 13.3** — Вимоги до структури проєкту
-- **EPIC1_IMPLEMENTATION.md** — Реалізація EPIC 1
+- **KB.md** — База знань проєкту
 
 ---
 
 ## ChangeLog
+
+- **1.2** — Оновлення структури v0.9 (2026-01-16)
+  - Видалено SeatService.lua (merged into SpaceShipService)
+  - Видалено SeatConfig.lua (renamed to SpaceShipConfig.lua)
+  - Додано SpaceShipService.lua (v0.4) — SpaceShip + seat management
+  - Додано SpaceShipConfig.lua — unified SpaceShip configuration
+  - Додано PlanetScannerService.lua — planet scanning
+  - Додано EnginesService.lua — engine control
+  - Додано PlanetLocatorService.lua — planet discovery
+  - Додано PersonalComputerService.lua — inventory/knowledge
+  - Додано SeatUI modules: PlanetSurfaceScannerUI, EnginesUI, PlanetLocatorUI, PersonalComputerUI
+  - Додано ServerStorage/Actors/ для SpaceShip моделей
+  - Додано Scanner RemoteEvents: RequestScan, ScanProgress, ScanComplete
+  - Оновлено RequestLiftoff → RequestLaunch
+  - Додано SpaceShip Seats таблицю
 
 - **1.1** — Оновлення структури v0.7 (2026-01-14)
   - Додано TransitionService.lua до Services/
