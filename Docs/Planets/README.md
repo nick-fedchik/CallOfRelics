@@ -14,7 +14,7 @@
 
 | Planet ID | Name | Status | Locations |
 |-----------|------|--------|-----------|
-| Planet_1 | Kepler-442b | Implemented | 2 |
+| Planet_1 | Біллі Рубін | Implemented | 2 |
 | Planet_Earth | Earth | Planned | 0 |
 
 ---
@@ -65,7 +65,7 @@ Planet_Id/
 
 | Type | Characteristics | Example |
 |------|----------------|---------|
-| Habitable | Breathable atmosphere, low hazards | Kepler-442b |
+| Habitable | Breathable atmosphere, low hazards | Біллі Рубін |
 | Hostile | Environmental hazards, time limits | TBD |
 | Barren | No atmosphere, suit required | TBD |
 | Gas Giant | Orbit only, no surface landing | TBD |
@@ -74,5 +74,5 @@ Planet_Id/
 
 ## Related Documents
 
-- [Planet_1/LOCAL_GDD.md](Planet_1/LOCAL_GDD.md) — Kepler-442b
-- [Planet_Earth/LOCAL_GDD.md](Planet_Earth/LOCAL_GDD.md) — Earth (origin)
+- [Planet_1/README.md](Planet_1/README.md) — Біллі Рубін
+- [Planet_Earth/README.md](Planet_Earth/README.md) — Earth (origin)

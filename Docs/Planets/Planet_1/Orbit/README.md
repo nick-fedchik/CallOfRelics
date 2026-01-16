@@ -1,12 +1,12 @@
 # LOCAL_GDD — Planet_1/Orbit
 **Project:** Call of Relics: Orbital Silence
-**Scope:** Kepler-442b Orbital View
+**Scope:** Біллі Рубін Orbital View
 
 ---
 
 ## Overview
 
-Орбітальний вигляд планети Kepler-442b. Центр навігації для сканування та вибору локацій.
+Орбітальний вигляд планети Біллі Рубін. Центр навігації для сканування та вибору локацій.
 
 ---
 
@@ -98,7 +98,7 @@ Orbit/Workspace/
 ```lua
 return {
     id = "Orbit",
-    displayName = "Kepler-442b Orbit",
+    displayName = "Біллі Рубін Orbit",
     context = "Orbit",
 
     -- Scanner settings
@@ -114,6 +114,6 @@ return {
 
 ## Related Documents
 
-- [../LOCAL_GDD.md](../LOCAL_GDD.md) — Planet_1 overview
-- [../Surface/Location_1/LOCAL_GDD.md](../Surface/Location_1/LOCAL_GDD.md) — Landing Site Alpha
-- [../Surface/Location_2/LOCAL_GDD.md](../Surface/Location_2/LOCAL_GDD.md) — Ancient Ruins
+- [../README.md](../README.md) — Planet_1 overview
+- [../Surface/Location_1/README.md](../Surface/Location_1/README.md) — Landing Site Alpha
+- [../Surface/Location_2/README.md](../Surface/Location_2/README.md) — Ancient Ruins

@@ -6,7 +6,7 @@
 
 ## Overview
 
-Landing Site Alpha — перша локація для дослідження на Kepler-442b. Безпечна зона для навчання базових механік.
+Landing Site Alpha — перша локація для дослідження на Біллі Рубін. Безпечна зона для навчання базових механік.
 
 ---
 
@@ -14,7 +14,7 @@ Landing Site Alpha — перша локація для дослідження �
 
 | Property | Value |
 |----------|-------|
-| Location ID | Location1 |
+| Location ID | Location_1 |
 | Display Name | Landing Site Alpha |
 | Parent Planet | Planet_1 |
 | Type | Exploration |
@@ -83,7 +83,7 @@ Landing Site Alpha — перша локація для дослідження �
 
 ## Technical Notes
 
-**Storage Path:** `ServerStorage/Planets/Planet_1/Surface/Location1/`
+**Storage Path:** `ServerStorage/Planets/Planet_1/Surface/Location_1/`
 
 **Required Elements:**
 - `Workspace/LandingPad` — посадковий майданчик
@@ -91,7 +91,7 @@ Landing Site Alpha — перша локація для дослідження �
 
 **Workspace Structure:**
 ```
-Location1/Workspace/
+Location_1/Workspace/
 ├── LandingPad (Model)       # Ship landing point
 ├── Terrain/                 # Ground models
 ├── Flora/                   # Plants and vegetation
@@ -107,7 +107,7 @@ Location1/Workspace/
 
 ```lua
 return {
-    id = "Location1",
+    id = "Location_1",
     displayName = "Landing Site Alpha",
     context = "Surface",
 
@@ -129,6 +129,6 @@ return {
 
 ## Related Documents
 
-- [../../LOCAL_GDD.md](../../LOCAL_GDD.md) — Planet_1 overview
-- [../../Orbit/LOCAL_GDD.md](../../Orbit/LOCAL_GDD.md) — Orbital view
-- [../Location_2/LOCAL_GDD.md](../Location_2/LOCAL_GDD.md) — Ancient Ruins
+- [../../README.md](../../README.md) — Planet_1 overview
+- [../../Orbit/README.md](../../Orbit/README.md) — Orbital view
+- [../Location_2/README.md](../Location_2/README.md) — Ancient Ruins

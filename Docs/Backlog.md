@@ -1,9 +1,13 @@
 # Backlog.md
 **Project:** Call of Relics: Orbital Silence
+
 **Type:** Single-player Exploration RPG (Roblox)
+
 **Backlog Version:** 0.5
+
 **Status:** Active Development
-**Current Version:** 0.8.2
+
+**Current Game Version:** 0.8.2
 
 ---
 
@@ -18,15 +22,17 @@
 > Орбіта → Локація → Повернення → Прогрес
 
 **Завершено:**
-- Перша планета (Kepler-442b)
-- 2 локації (Location1, Location2)
+- Перша планета (Біллі Рубін)
+- 2 локації (Location_1, Location_2)
 - Transition система (Landing/Launch)
 
 **В роботі:**
-- SpaceShip система (EPIC 3)
-- Planet & Location система (EPIC 4)
 - Сканування планет (EPIC 5)
 - Gameplay локацій (EPIC 7)
+
+**Завершено в Phase 1:**
+- SpaceShip система (EPIC 3) ✅
+- Planet & Location система (EPIC 4) ✅
 
 ### Phase 2 — Progression & Persistence ✅ COMPLETE
 - ProfileService v2 з auto-save
@@ -47,7 +53,7 @@
 
 ## 2. ACTIVE EPICS
 
-### EPIC 4 — Planet & Location System ⏳ 3/4
+### EPIC 4 — Planet & Location System ✅ COMPLETE
 
 **Опис:** Структура та конфігурація планет і локацій.
 
@@ -63,7 +69,7 @@ ServerStorage/Planets/Planet_Id/
 │   ├── Config.luau                # Orbit config
 │   ├── Workspace/
 │   │   ├── Planet (Model)         # ОБОВ'ЯЗКОВО — Game Error
-│   │   └── Lighting/              # → game.Workspace.Lighting
+│   │   └── Lighting/              # → game.Lighting
 │   ├── ReplicatedStorage/         # Orbit Scripts
 │   ├── ServerScriptService/       # Orbit Scripts
 │   └── StarterPlayer/             # Orbit Scripts
@@ -71,7 +77,7 @@ ServerStorage/Planets/Planet_Id/
     └── Location_Id/
         ├── Config.luau            # Location config
         ├── Workspace/
-        │   └── Lighting/          # → game.Workspace.Lighting
+        │   └── Lighting/          # → game.Lighting
         ├── ReplicatedStorage/     # Location Scripts
         ├── ServerScriptService/   # Location Scripts
         └── StarterPlayer/         # Location Scripts
@@ -90,18 +96,16 @@ Launch     → Location Fini → Orbit Init
 Leave Planet → Location/Orbit Fini → Planet Fini
 ```
 
-**Завершені Stories:**
+**Stories:**
 - [x] Planet configuration stored in Config.luau
 - [x] Orbit folder with Planet model
 - [x] Surface folder with Location subfolders
-
-**Незакриті Stories:**
-- [ ] Planet Init/Fini with PlanetScriptsRegistry
-- [ ] Orbit Init/Fini with OrbitObjectsRegistry + OrbitScriptsRegistry
-- [ ] Location Init/Fini with LocationObjectsRegistry + LocationScriptsRegistry
-- [ ] Workspace/Lighting objects copied to game.Workspace.Lighting
-- [ ] CurrentPlanetPath tracks active planet
-- [ ] Locations have independent rules (gravity, hazards, time limits)
+- [x] Planet Init/Fini with PlanetScriptsRegistry
+- [x] Orbit Init/Fini with OrbitObjectsRegistry + OrbitScriptsRegistry
+- [x] Location Init/Fini with LocationObjectsRegistry + LocationScriptsRegistry
+- [x] Workspace/Lighting objects copied to game.Lighting
+- [x] CurrentPlanetPath tracks active planet
+- [x] Locations have independent rules (gravity)
 
 ---
 
@@ -136,7 +140,7 @@ Leave Planet → Location/Orbit Fini → Planet Fini
 
 ---
 
-### EPIC 3 — SpaceShip System ⏳ 0/4
+### EPIC 3 — SpaceShip System ✅ COMPLETE
 
 **Опис:** SpaceShip як основна локація гравця, незалежна від планет.
 
@@ -160,10 +164,10 @@ ServerStorage/Actors/
 - Fallback до `SpaceShip` якщо модель не знайдена
 
 **Stories:**
-- [ ] SpaceShip model stored in ServerStorage/Actors/
-- [ ] SpaceShip cloned to Workspace on game start
-- [ ] SpaceShip destroyed from Workspace on game end
-- [ ] SpaceShip model loaded from player profile (upgrade system)
+- [x] SpaceShip model stored in ServerStorage/Actors/
+- [x] SpaceShip cloned to Workspace on game start
+- [x] SpaceShip destroyed from Workspace on game end
+- [x] SpaceShip model loaded from player profile (upgrade system)
 
 ---
 
@@ -173,6 +177,8 @@ ServerStorage/Actors/
 |------|---------|-------------|
 | EPIC 1 | v0.5 | Game Boot & Global States |
 | EPIC 2 | v0.5 | Game State Architecture |
+| EPIC 3 | v0.9 | SpaceShip System |
+| EPIC 4 | v0.9 | Planet & Location System (Init/Fini) |
 | EPIC 6 | v0.8.2 | Teleportation (Postponed — covered by TransitionService) |
 | EPIC 8 | v0.8 | Progression & Persistence |
 | EPIC 10 | v0.8.2 | Diagnostics & Logging |

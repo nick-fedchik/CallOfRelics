@@ -45,6 +45,7 @@ Dependencies:
 - ServerStorage.Planets structure
 
 ChangeLog:
+- 0.7: EPIC 3 - SpaceShipService integration, spawn from ServerStorage/Actors (2026-01-16)
 - 0.6: Add RestoreCharacterSounds after GameStart (2026-01-15)
 - 0.5: Rename Liftoff → Launch (StartLaunchSequence, States.Launch/Ascent) (2026-01-15)
 - 0.4: Two-phase landing animation, remove unused AnimateShipLanding (2026-01-15)
@@ -55,7 +56,7 @@ ChangeLog:
 ]]
 
 local MODULE_NAME = "TransitionService"
-local VERSION = "0.6"
+local VERSION = "0.7"
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
@@ -71,6 +72,7 @@ local TransitionConfig = require(ReplicatedStorage:WaitForChild("Game"):WaitForC
 -- Lazy-loaded to avoid circular dependencies
 local LocationService
 local ProfileService
+local SpaceShipService
 
 local function GetLocationService()
 	if not LocationService then
@@ -84,6 +86,13 @@ local function GetProfileService()
 		ProfileService = require(script.Parent.ProfileService)
 	end
 	return ProfileService
+end
+
+local function GetSpaceShipService()
+	if not SpaceShipService then
+		SpaceShipService = require(script.Parent.SpaceShipService)
+	end
+	return SpaceShipService
 end
 
 -- ============================================================================
@@ -210,7 +219,7 @@ local function GetLocationMetadata(planetId, locationId)
 	}
 end
 
-local function SpawnShipAboveLandingPad()
+local function SpawnShipAboveLandingPad(player)
 	local landingPad = Workspace:FindFirstChild("SpaceShipLandingPad", true)
 
 	if not landingPad then
@@ -219,41 +228,12 @@ local function SpawnShipAboveLandingPad()
 	end
 
 	local padWorldPosition = landingPad.CFrame.Position
-
-	-- Check if SpaceShip already exists (preserved from Orbit)
-	local existingShip = Workspace:FindFirstChild("SpaceShip")
-	if existingShip then
-		local spawnHeight = TransitionConfig.ShipSpawnHeight
-		local startPosition = padWorldPosition + Vector3.new(0, spawnHeight, 0)
-		existingShip:PivotTo(CFrame.new(startPosition) * CFrame.Angles(0, 0, 0))
-		return existingShip, landingPad
-	end
-
-	-- Fallback: clone from template
-	local planetFolder = ServerStorage.Planets:FindFirstChild("Planet_1")
-	if not planetFolder then return nil end
-
-	local orbitWorkspace = planetFolder.Orbit.Workspace
-	local shipTemplate = orbitWorkspace:FindFirstChild("SpaceShip")
-	if not shipTemplate then
-		warn(string.format("[%s %s] SpaceShip template not found!", MODULE_NAME, VERSION))
-		return nil
-	end
-
-	local ship = shipTemplate:Clone()
-	ship.Name = "SpaceShip"
-	ship.ModelStreamingMode = Enum.ModelStreamingMode.Persistent
-
-	for _, part in ipairs(ship:GetDescendants()) do
-		if part:IsA("BasePart") and not part:IsA("Seat") and not part:IsA("VehicleSeat") then
-			part.Anchored = true
-		end
-	end
-
 	local spawnHeight = TransitionConfig.ShipSpawnHeight
 	local startPosition = padWorldPosition + Vector3.new(0, spawnHeight, 0)
-	ship:PivotTo(CFrame.new(startPosition) * CFrame.Angles(0, 0, 0))
-	ship.Parent = Workspace
+
+	-- Use SpaceShipService (EPIC 3)
+	local spaceShipService = GetSpaceShipService()
+	local ship = spaceShipService.SpawnShip(player, startPosition)
 
 	return ship, landingPad
 end
@@ -373,7 +353,7 @@ function TransitionService.GetAvailableLocations(player)
 
 	-- If no explored locations, use default for debug
 	if #exploredLocations == 0 then
-		exploredLocations = {"Location1"}
+		exploredLocations = {"Location_1"}
 	end
 
 	local locations = {}
@@ -503,8 +483,8 @@ function TransitionService.StartLandingSequence(player, locationId)
 		task.wait(1.0)
 	end
 
-	-- Phase 4: Spawn ship above landing pad
-	local ship, landingPad = SpawnShipAboveLandingPad()
+	-- Phase 4: Spawn ship above landing pad (EPIC 3)
+	local ship, landingPad = SpawnShipAboveLandingPad(player)
 	if not ship then
 		warn(string.format("[%s %s] Failed to spawn ship!", MODULE_NAME, VERSION))
 	end
@@ -785,6 +765,28 @@ function TransitionService.StartGameSequence(player)
 		})
 		return false
 	end
+
+	-- === EPIC 3: Spawn SpaceShip from ServerStorage/Actors ===
+	local spaceShipService = GetSpaceShipService()
+	local orbitSpawnPos = Vector3.new(0, 50, 0) -- Default orbit position
+
+	-- Get SpaceShip position from Orbit Config animation data
+	local planetFolder = ServerStorage.Planets:FindFirstChild(planetId)
+	if planetFolder then
+		local orbitFolder = planetFolder:FindFirstChild("Orbit")
+		if orbitFolder then
+			local orbitConfigModule = orbitFolder:FindFirstChild("Config")
+			if orbitConfigModule then
+				local success, orbitConfig = pcall(require, orbitConfigModule)
+				if success and orbitConfig.animationData and orbitConfig.animationData.spaceShip then
+					orbitSpawnPos = orbitConfig.animationData.spaceShip.finalPosition or orbitSpawnPos
+				end
+			end
+		end
+	end
+
+	spaceShipService.SpawnShip(player, orbitSpawnPos)
+	-- === END EPIC 3 ===
 
 	task.wait(TransitionConfig.LoadingMinDuration)
 

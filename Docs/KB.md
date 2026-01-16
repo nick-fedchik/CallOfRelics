@@ -1,8 +1,8 @@
 # Knowledge Base - Call of Relics
 > База знань успішних рішень, ефективних алгоритмів та перевірених практик
 
-**Версія**: 0.2
-**Остання оновлення**: 2026-01-14
+**Версія**: 0.3
+**Остання оновлення**: 2026-01-16
 
 ---
 
@@ -1380,7 +1380,7 @@ ReplicatedStorage/
 - ✅ Оптимізований Boot Sequence — завантаження перенесено в TransitionService.StartGameSequence()
 - ✅ PilotUI context detection (Orbit/Surface)
 - ✅ **Planet Location System** - документація структури локацій
-- ✅ Оновлено Config.luau з повною структурою Location1
+- ✅ Оновлено Config.luau з повною структурою Location_1
 - ✅ ZoneWalls: LeftWall, RightWall, NearWall, FarWall з SurfaceGui labels
 - ✅ ExplorationZone (80%) та LandingZone (20%) з різними матеріалами
 - ✅ SpaceShipLandingPad з LandingLights та LandingPadFrame
@@ -1760,8 +1760,8 @@ ServerStorage/Planets/Planet_Id/
 │       ├── Planet (Model)   # Модель планети в космосі (ОБОВ'ЯЗКОВО)
 │       └── Lighting/        # Природні явища, вигляд космосу (опціонально)
 └── Surface/                 # Поверхневі локації (опціонально)
-    ├── Location1/
-    ├── Location2/
+    ├── Location_1/
+    ├── Location_2/
     └── ...
 ```
 
@@ -1788,7 +1788,7 @@ ServerStorage/Planets/Planet_Id/
 ```lua
 return {
     planetId = "Planet_1",
-    displayName = "Kepler-442b",
+    displayName = "Біллі Рубін",
     description = "...",
 
     -- Параметри орбіти
@@ -1882,61 +1882,75 @@ ServerStorage/Planets/Planet_Id/
 | `ServerScriptService/` | `game.ServerScriptService` |
 | `StarterPlayer/` | `game.StarterPlayer` |
 
-#### PlanetScriptsRegistry
+#### ContextRegistryService
 
-Для точного відслідковування скопійованих скриптів, при Planet Init створюється реєстр `PlanetScriptsRegistry` в `Config.luau`.
+Центральний сервіс для відслідковування скопійованого контенту. Зберігає реєстри окремо від Config файлів.
 
-**Структура реєстру:**
+**Файл:** `ServerScriptService/Services/ContextRegistryService.lua`
+
+**Структура реєстрів:**
 
 ```lua
--- В Config.luau планети
-return {
-    planetId = "Planet_1",
-    displayName = "Kepler-442b",
-    -- ...інші поля...
-
-    -- Реєстр скопійованих скриптів (заповнюється при Planet Init)
-    PlanetScriptsRegistry = {
-        ReplicatedStorage = {
-            -- { name = "ModuleName", instance = <reference> }
-        },
-        ServerScriptService = {
-            -- { name = "ServiceName", instance = <reference> }
-        },
-        StarterPlayer = {
-            -- { name = "ScriptName", instance = <reference> }
-        }
-    }
+-- Внутрішня структура ContextRegistryService
+local planetRegistry = {
+    scripts = {}  -- { instance = <reference>, targetFolder = "ReplicatedStorage" }
 }
+
+local orbitRegistry = {
+    objects = {},   -- { instance = <reference> }
+    scripts = {},   -- { instance = <reference>, targetFolder = "..." }
+    lighting = {}   -- { instance = <reference> }
+}
+
+local locationRegistry = {
+    objects = {},
+    scripts = {},
+    lighting = {}
+}
+```
+
+**API:**
+
+```lua
+-- Planet level
+ContextRegistryService.RegisterPlanetScript(player, instance, targetFolder)
+ContextRegistryService.ClearPlanetRegistry(player)
+
+-- Orbit level
+ContextRegistryService.RegisterOrbitObject(player, instance)
+ContextRegistryService.RegisterOrbitScript(player, instance, targetFolder)
+ContextRegistryService.RegisterOrbitLighting(player, instance)
+ContextRegistryService.ClearOrbitRegistry(player)
+
+-- Location level
+ContextRegistryService.RegisterLocationObject(player, instance)
+ContextRegistryService.RegisterLocationScript(player, instance, targetFolder)
+ContextRegistryService.RegisterLocationLighting(player, instance)
+ContextRegistryService.ClearLocationRegistry(player)
+
+-- Utility
+ContextRegistryService.SetCurrentPlanetPath(path)
+ContextRegistryService.GetCurrentPlanetPath()
+ContextRegistryService.GetRegistrySummary(player)
 ```
 
 #### Planet Init — Копіювання з реєстрацією
 
-При ініціалізації планети всі об'єкти копіюються та реєструються в `PlanetScriptsRegistry`.
+При ініціалізації планети скрипти копіюються та реєструються в ContextRegistryService.
 
 ```lua
--- Приклад: Planet Init з реєстрацією
-local planetConfig = require(ServerStorage.Planets.Planet_1.Config)
-local folders = {"ReplicatedStorage", "ServerScriptService", "StarterPlayer"}
+-- LocationService.InitPlanet() використовує ContextRegistryService
+local ContextRegistryService = require(ServerScriptService.Services.ContextRegistryService)
 
--- Ініціалізувати реєстр
-planetConfig.PlanetScriptsRegistry = {}
-
-for _, folderName in ipairs(folders) do
+for _, folderName in ipairs(SCRIPT_FOLDERS) do
     local sourceFolder = planetPath:FindFirstChild(folderName)
     if sourceFolder then
         local targetFolder = game:GetService(folderName)
-        planetConfig.PlanetScriptsRegistry[folderName] = {}
-
         for _, item in ipairs(sourceFolder:GetChildren()) do
             local clone = item:Clone()
             clone.Parent = targetFolder
-
-            -- Реєстрація скопійованого об'єкта
-            table.insert(planetConfig.PlanetScriptsRegistry[folderName], {
-                name = item.Name,
-                instance = clone
-            })
+            -- Реєстрація через централізований сервіс
+            ContextRegistryService.RegisterPlanetScript(player, clone, folderName)
         end
     end
 end
@@ -1944,33 +1958,22 @@ end
 
 #### Planet Fini — Видалення за реєстром
 
-При деініціалізації планети використовується `PlanetScriptsRegistry` для точного видалення.
+При деініціалізації планети ContextRegistryService автоматично видаляє всі зареєстровані об'єкти.
 
 ```lua
--- Приклад: Planet Fini за реєстром
-local planetConfig = require(ServerStorage.Planets.Planet_1.Config)
-local registry = planetConfig.PlanetScriptsRegistry
-
-if registry then
-    for folderName, items in pairs(registry) do
-        for _, entry in ipairs(items) do
-            if entry.instance and entry.instance.Parent then
-                entry.instance:Destroy()
-            end
-        end
-    end
-
-    -- Очистити реєстр
-    planetConfig.PlanetScriptsRegistry = nil
-end
+-- LocationService.FiniPlanet() викликає:
+ContextRegistryService.ClearPlanetRegistry(player)
+-- Це автоматично:
+-- 1. Destroy() кожного зареєстрованого скрипта
+-- 2. Очищає реєстр
 ```
 
 #### Важливо
 
 - Скрипти копіюються **тільки на час перебування на планеті**
 - При переході на іншу планету спочатку виконується Fini старої, потім Init нової
-- `PlanetScriptsRegistry` зберігає references на скопійовані Instance для точного видалення
-- Реєстр очищується після Planet Fini
+- ContextRegistryService зберігає references на скопійовані Instance для точного видалення
+- Реєстр очищується автоматично при виході гравця (PlayerRemoving)
 
 ### Orbit Init/Fini (EPIC 4)
 
@@ -1995,18 +1998,17 @@ ServerStorage/Planets/Planet_Id/Orbit/
 
 **Дії:**
 1. Скопіювати об'єкти з `Orbit/Workspace/` в `game.Workspace`
-2. Скопіювати об'єкти з `Orbit/Workspace/Lighting/` в `game.Workspace.Lighting`
+2. Скопіювати об'єкти з `Orbit/Workspace/Lighting/` в `game.Lighting`
 3. Скопіювати скрипти з `Orbit/{ReplicatedStorage,ServerScriptService,StarterPlayer}/`
-4. Зареєструвати всі скопійовані об'єкти в `OrbitObjectsRegistry` та `OrbitScriptsRegistry`
+4. Зареєструвати через `ContextRegistryService.RegisterOrbitObject/Script/Lighting()`
 
 #### Orbit Fini
 
 Виконується при виході гравця з орбіти (посадка на поверхню або перехід до іншої планети).
 
 **Дії:**
-1. Видалити всі об'єкти за `OrbitObjectsRegistry`
-2. Видалити всі скрипти за `OrbitScriptsRegistry`
-3. Очистити реєстри
+1. Викликати `ContextRegistryService.ClearOrbitRegistry(player)`
+2. Сервіс автоматично видаляє всі зареєстровані об'єкти, скрипти та lighting
 
 ### Location Init/Fini (EPIC 4)
 
@@ -2030,155 +2032,71 @@ ServerStorage/Planets/Planet_Id/Surface/Location_Id/
 
 **Дії:**
 1. Скопіювати об'єкти з `Location_Id/Workspace/` в `game.Workspace`
-2. Скопіювати об'єкти з `Location_Id/Workspace/Lighting/` в `game.Workspace.Lighting`
+2. Скопіювати об'єкти з `Location_Id/Workspace/Lighting/` в `game.Lighting`
 3. Скопіювати скрипти з `Location_Id/{ReplicatedStorage,ServerScriptService,StarterPlayer}/`
-4. Зареєструвати всі скопійовані об'єкти в `LocationObjectsRegistry` та `LocationScriptsRegistry`
+4. Зареєструвати через `ContextRegistryService.RegisterLocationObject/Script/Lighting()`
 
 #### Location Fini
 
 Виконується при виході гравця з локації (зліт на орбіту).
 
 **Дії:**
-1. Видалити всі об'єкти за `LocationObjectsRegistry`
-2. Видалити всі скрипти за `LocationScriptsRegistry`
-3. Очистити реєстри
+1. Викликати `ContextRegistryService.ClearLocationRegistry(player)`
+2. Сервіс автоматично видаляє всі зареєстровані об'єкти, скрипти та lighting
 
-### Orbit/Location Objects Registry (EPIC 4)
+### ContextRegistryService Usage (EPIC 4)
 
-Окремі реєстри для Workspace об'єктів (на відміну від скриптів).
+Центральний сервіс для відслідковування всього скопійованого контенту.
 
-#### Структура реєстрів в Config.luau
+#### Ієрархія виконання Init/Fini
+
+```
+Enter Game → Planet Init → Orbit Init
+Landing    → Orbit Fini → Location Init
+Launch     → Location Fini → Orbit Init
+Leave Planet → Location/Orbit Fini → Planet Fini
+```
+
+#### LocationService API
 
 ```lua
--- В Orbit/Config.luau або Surface/Location_Id/Config.luau
-return {
-    locationId = "Orbit", -- або "Location1"
-    displayName = "Орбіта",
-    -- ...інші поля...
+-- Публічний API для Init/Fini
+LocationService.InitPlanet(player, planetId)
+LocationService.FiniPlanet(player)
+LocationService.InitOrbit(player, planetId)
+LocationService.FiniOrbit(player)
+LocationService.InitLocation(player, planetId, locationId)
+LocationService.FiniLocation(player)
 
-    -- Реєстр скопійованих Workspace об'єктів
-    ObjectsRegistry = {
-        Workspace = {
-            -- { name = "Planet", instance = <reference> }
-            -- { name = "SpaceShip", instance = <reference> }
-        },
-        Lighting = {
-            -- { name = "Sky", instance = <reference> }
-            -- { name = "Atmosphere", instance = <reference> }
-        }
-    },
-
-    -- Реєстр скопійованих скриптів
-    ScriptsRegistry = {
-        ReplicatedStorage = {},
-        ServerScriptService = {},
-        StarterPlayer = {}
-    }
-}
+-- Utility
+LocationService.GetActiveContexts(player)  -- {planet, orbit, location}
+LocationService.GetRegistrySummary(player) -- debug info
 ```
 
-#### Init з реєстрацією об'єктів
+#### Приклад використання
 
 ```lua
--- Приклад: Location Init з реєстрацією
-local locationConfig = require(locationPath.Config)
+-- TransitionService при Landing:
+LocationService.FiniOrbit(player)          -- Очистити орбіту
+LocationService.InitLocation(player, planetId, locationId)  -- Завантажити локацію
 
--- Ініціалізувати реєстри
-locationConfig.ObjectsRegistry = { Workspace = {}, Lighting = {} }
-locationConfig.ScriptsRegistry = { ReplicatedStorage = {}, ServerScriptService = {}, StarterPlayer = {} }
-
--- Копіювати Workspace об'єкти
-local workspaceFolder = locationPath:FindFirstChild("Workspace")
-if workspaceFolder then
-    for _, item in ipairs(workspaceFolder:GetChildren()) do
-        if item.Name == "Lighting" then
-            -- Копіювати в game.Workspace.Lighting
-            for _, lightItem in ipairs(item:GetChildren()) do
-                local clone = lightItem:Clone()
-                clone.Parent = game.Workspace.Lighting
-                table.insert(locationConfig.ObjectsRegistry.Lighting, {
-                    name = lightItem.Name,
-                    instance = clone
-                })
-            end
-        else
-            -- Копіювати в game.Workspace
-            local clone = item:Clone()
-            clone.Parent = game.Workspace
-            table.insert(locationConfig.ObjectsRegistry.Workspace, {
-                name = item.Name,
-                instance = clone
-            })
-        end
-    end
-end
-
--- Копіювати скрипти (аналогічно Planet Scripts)
--- ...
+-- TransitionService при Launch:
+LocationService.FiniLocation(player)       -- Очистити локацію
+LocationService.InitOrbit(player, planetId) -- Завантажити орбіту
 ```
 
-#### Fini за реєстрами
+#### Fini автоматично очищує
 
-```lua
--- Приклад: Location Fini за реєстрами
-local locationConfig = require(locationPath.Config)
+При виклику `ClearOrbitRegistry()` або `ClearLocationRegistry()` ContextRegistryService автоматично:
+1. Викликає `Destroy()` на кожному зареєстрованому об'єкті
+2. Викликає `Destroy()` на кожному зареєстрованому скрипті
+3. Викликає `Destroy()` на кожному зареєстрованому lighting елементі
+4. Очищує внутрішні реєстри
 
--- Видалити Workspace об'єкти
-if locationConfig.ObjectsRegistry then
-    for _, entry in ipairs(locationConfig.ObjectsRegistry.Workspace or {}) do
-        if entry.instance and entry.instance.Parent then
-            entry.instance:Destroy()
-        end
-    end
-    for _, entry in ipairs(locationConfig.ObjectsRegistry.Lighting or {}) do
-        if entry.instance and entry.instance.Parent then
-            entry.instance:Destroy()
-        end
-    end
-end
-
--- Видалити скрипти
-if locationConfig.ScriptsRegistry then
-    for folderName, items in pairs(locationConfig.ScriptsRegistry) do
-        for _, entry in ipairs(items) do
-            if entry.instance and entry.instance.Parent then
-                entry.instance:Destroy()
-            end
-        end
-    end
-end
-
--- Очистити реєстри
-locationConfig.ObjectsRegistry = nil
-locationConfig.ScriptsRegistry = nil
-```
-
-#### Ієрархія Init/Fini
+### Структура Planet_1/Surface/Location_1
 
 ```
-Гравець заходить у гру:
-1. Planet Init (Planet_1)
-2. Orbit Init (Planet_1/Orbit)
-
-Гравець сідає на локацію:
-1. Orbit Fini
-2. Location Init (Location1)
-
-Гравець злітає на орбіту:
-1. Location Fini
-2. Orbit Init
-
-Гравець переходить на іншу планету:
-1. Location/Orbit Fini (поточна)
-2. Planet Fini (поточна)
-3. Planet Init (нова)
-4. Orbit Init (нова)
-```
-
-### Структура Planet_1/Surface/Location1
-
-```
-ServerStorage/Planets/Planet_1/Surface/Location1/
+ServerStorage/Planets/Planet_1/Surface/Location_1/
 ├── Config.luau              # Конфігурація локації
 ├── Workspace/               # 3D об'єкти
 │   ├── Lighting/
@@ -2433,18 +2351,18 @@ end
 
 #### ✅ DisplayName System для Локалізації
 
-**Проблема:** Технічні ID (Planet_1, Location1) не підходять для UI.
+**Проблема:** Технічні ID (Planet_1, Location_1) не підходять для UI.
 
 **Рішення:** `displayName` у кожному Config.luau:
 
 ```lua
 -- Planet1 Config
-displayName = "Kepler-442b"
+displayName = "Біллі Рубін"
 
 -- Orbit Config
 displayName = "Орбіта"
 
--- Location1 Config
+-- Location_1 Config
 displayName = "Зелена долина"
 ```
 
@@ -2452,7 +2370,7 @@ displayName = "Зелена долина"
 ```lua
 -- TransitionService відправляє displayName у Complete state
 transitionUpdate:FireClient(player, States.Complete, {
-    planetDisplayName = "Kepler-442b",
+    planetDisplayName = "Біллі Рубін",
     locationDisplayName = "Орбіта"
 })
 

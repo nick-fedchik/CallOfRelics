@@ -138,7 +138,7 @@ StarterPlayer/StarterPlayerScripts/
 ```
 ServerStorage/
 └── Planets/                      -- Контент планет (v0.7) ← EXPANDED
-    └── Planet_1/                 -- Планета Kepler-442b
+    └── Planet_1/                 -- Планета Біллі Рубін
         ├── Config.luau           -- Конфігурація планети
         ├── Orbit/                -- Орбітальна локація
         │   ├── Config.luau       -- Конфіг орбіти (з animationData)
@@ -148,7 +148,7 @@ ServerStorage/
         │       └── Planet/       -- Модель планети (Surface, CloudLayers)
         │
         └── Surface/              -- Поверхневі локації
-            ├── Location1/        -- "Зелена долина"
+            ├── Location_1/       -- "Зелена долина"
             │   ├── Config.luau   -- Конфіг локації
             │   └── Workspace/    -- 3D об'єкти
             │       ├── Lighting/ -- Sky конфігурація
@@ -160,7 +160,7 @@ ServerStorage/
             │           │   └── LandingPadFrame/  -- Рамка та декор
             │           └── ZoneWalls/        -- Стіни з мітками
             │
-            └── Location2/        -- "Гірський хребет"
+            └── Location_2/       -- "Гірський хребет"
                 ├── Config.luau
                 └── Workspace/
 ```
@@ -377,7 +377,7 @@ ServerStorage/
   - Оновлено PilotUI.lua (v0.5) - context detection
   - Розширено ServerStorage/Planets/ з повною структурою
   - Додано RemoteEvents для Transition System
-  - Документовано структуру Location1 з зонами та посадковим майданчиком
+  - Документовано структуру Location_1 з зонами та посадковим майданчиком
 
 - **1.0** — Початкова версія структури (2026-01-11)
   - Створено папки Core, Services, Systems, Setup

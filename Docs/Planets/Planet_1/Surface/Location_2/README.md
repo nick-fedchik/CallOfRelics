@@ -6,7 +6,7 @@
 
 ## Overview
 
-Ancient Ruins — друга локація на Kepler-442b. Залишки невідомої цивілізації з потенційними артефактами та знаннями.
+Ancient Ruins — друга локація на Біллі Рубін. Залишки невідомої цивілізації з потенційними артефактами та знаннями.
 
 ---
 
@@ -14,7 +14,7 @@ Ancient Ruins — друга локація на Kepler-442b. Залишки н�
 
 | Property | Value |
 |----------|-------|
-| Location ID | Location2 |
+| Location ID | Location_2 |
 | Display Name | Ancient Ruins |
 | Parent Planet | Planet_1 |
 | Type | Exploration / Discovery |
@@ -102,7 +102,7 @@ Ancient Ruins — друга локація на Kepler-442b. Залишки н�
 
 ## Technical Notes
 
-**Storage Path:** `ServerStorage/Planets/Planet_1/Surface/Location2/`
+**Storage Path:** `ServerStorage/Planets/Planet_1/Surface/Location_2/`
 
 **Required Elements:**
 - `Workspace/LandingPad` — посадковий майданчик
@@ -111,7 +111,7 @@ Ancient Ruins — друга локація на Kepler-442b. Залишки н�
 
 **Workspace Structure:**
 ```
-Location2/Workspace/
+Location_2/Workspace/
 ├── LandingPad (Model)       # Ship landing point
 ├── Ruins/                   # Ancient structures
 │   ├── Walls
@@ -130,7 +130,7 @@ Location2/Workspace/
 
 ```lua
 return {
-    id = "Location2",
+    id = "Location_2",
     displayName = "Ancient Ruins",
     context = "Surface",
 
@@ -152,6 +152,6 @@ return {
 
 ## Related Documents
 
-- [../../LOCAL_GDD.md](../../LOCAL_GDD.md) — Planet_1 overview
-- [../../Orbit/LOCAL_GDD.md](../../Orbit/LOCAL_GDD.md) — Orbital view
-- [../Location_1/LOCAL_GDD.md](../Location_1/LOCAL_GDD.md) — Landing Site Alpha
+- [../../README.md](../../README.md) — Planet_1 overview
+- [../../Orbit/README.md](../../Orbit/README.md) — Orbital view
+- [../Location_1/README.md](../Location_1/README.md) — Landing Site Alpha

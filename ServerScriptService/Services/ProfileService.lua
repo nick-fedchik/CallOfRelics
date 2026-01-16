@@ -196,12 +196,13 @@ local function CreateDefaultProfile(player)
 		exploredLocations = {
 			[GameConfig.StartPlanet] = {
 				["Orbit"] = { discoveredAt = timestamp, visitCount = 1 },
-				["Location1"] = { discoveredAt = timestamp, visitCount = 0 } -- Debug default
+				["Location_1"] = { discoveredAt = timestamp, visitCount = 0 } -- Debug default
 			}
 		},
 		visitHistory = {},
 
 		-- === SHIP STATE ===
+		spaceShipModel = "SpaceShip", -- Reference to ServerStorage/Actors/{model}
 		shipState = {
 			energyLevel = 100,
 			hullIntegrity = 100,
@@ -235,7 +236,7 @@ local function MigrateProfile(profileData)
 
 		-- Convert flat exploredLocations array to per-planet structure
 		if type(oldLocations) == "table" and #oldLocations > 0 then
-			-- Old format was array: {"Location1", "Location2"}
+			-- Old format was array: {"Location_1", "Location_2"}
 			local newLocations = {
 				[planetId] = {}
 			}
@@ -251,7 +252,7 @@ local function MigrateProfile(profileData)
 			profileData.exploredLocations = {
 				[planetId] = {
 					["Orbit"] = { discoveredAt = timestamp, visitCount = 1 },
-					["Location1"] = { discoveredAt = timestamp, visitCount = 0 }
+					["Location_1"] = { discoveredAt = timestamp, visitCount = 0 }
 				}
 			}
 		end

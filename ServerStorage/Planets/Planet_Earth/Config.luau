@@ -33,11 +33,11 @@ local Planet1Config = {
             type = "SurfaceContainer",
             children = {
                 {
-                    name = "Location1",
+                    name = "Location_1",
                     className = "Folder",
-                    path = "ServerStorage.Planets.Planet_1.Surface.Location1",
+                    path = "ServerStorage.Planets.Planet_1.Surface.Location_1",
                     description = "First surface location",
-                    configPath = "ServerStorage.Planets.Planet_1.Surface.Location1.Config",
+                    configPath = "ServerStorage.Planets.Planet_1.Surface.Location_1.Config",
                     type = "SurfaceLocation",
                     features = {
                         gravity = true,
@@ -46,11 +46,11 @@ local Planet1Config = {
                     }
                 },
                 {
-                    name = "Location2",
+                    name = "Location_2",
                     className = "Folder",
-                    path = "ServerStorage.Planets.Planet_1.Surface.Location2",
+                    path = "ServerStorage.Planets.Planet_1.Surface.Location_2",
                     description = "Second surface location",
-                    configPath = "ServerStorage.Planets.Planet_1.Surface.Location2.Config",
+                    configPath = "ServerStorage.Planets.Planet_1.Surface.Location_2.Config",
                     type = "SurfaceLocation",
                     features = {
                         gravity = true,
@@ -75,8 +75,8 @@ local Planet1Config = {
     -- Asset references
     assets = {
         orbitConfig = "ServerStorage.Planets.Planet_1.Orbit.Config",
-        surfaceLocation1Config = "ServerStorage.Planets.Planet_1.Surface.Location1.Config",
-        surfaceLocation2Config = "ServerStorage.Planets.Planet_1.Surface.Location2.Config"
+        surfaceLocation_1Config = "ServerStorage.Planets.Planet_1.Surface.Location_1.Config",
+        surfaceLocation_2Config = "ServerStorage.Planets.Planet_1.Surface.Location_2.Config"
     },
     
     -- Planet metadata
@@ -92,14 +92,14 @@ local Planet1Config = {
                 path = "ServerStorage.Planets.Planet_1.Orbit"
             },
             {
-                name = "Location1",
+                name = "Location_1",
                 type = "SurfaceLocation",
-                path = "ServerStorage.Planets.Planet_1.Surface.Location1"
+                path = "ServerStorage.Planets.Planet_1.Surface.Location_1"
             },
             {
-                name = "Location2",
+                name = "Location_2",
                 type = "SurfaceLocation",
-                path = "ServerStorage.Planets.Planet_1.Surface.Location2"
+                path = "ServerStorage.Planets.Planet_1.Surface.Location_2"
             }
         }
     }

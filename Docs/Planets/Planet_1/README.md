@@ -1,4 +1,4 @@
-# LOCAL_GDD — Planet_1 (Kepler-442b)
+# LOCAL_GDD — Planet_1 (Біллі Рубін)
 **Project:** Call of Relics: Orbital Silence
 **Scope:** First Playable Planet
 
@@ -6,7 +6,7 @@
 
 ## Overview
 
-Kepler-442b — перша планета, яку досліджує гравець. Екзопланета в зоні життя з потенційно придатними умовами.
+Біллі Рубін — перша планета, яку досліджує гравець. Екзопланета в зоні життя з потенційно придатними умовами.
 
 ---
 
@@ -15,7 +15,7 @@ Kepler-442b — перша планета, яку досліджує граве�
 | Property | Value |
 |----------|-------|
 | Planet ID | Planet_1 |
-| Display Name | Kepler-442b |
+| Display Name | Біллі Рубін |
 | Type | Habitable (Super-Earth) |
 | Atmosphere | Breathable |
 | Gravity | 1.2g |
@@ -28,8 +28,8 @@ Kepler-442b — перша планета, яку досліджує граве�
 | Location ID | Name | Status | Type |
 |-------------|------|--------|------|
 | Orbit | Orbital View | Implemented | Navigation Hub |
-| Location1 | Landing Site Alpha | Implemented | Exploration |
-| Location2 | Ancient Ruins | Implemented | Exploration |
+| Location_1 | Landing Site Alpha | Implemented | Exploration |
+| Location_2 | Ancient Ruins | Implemented | Exploration |
 
 ---
 
@@ -59,7 +59,7 @@ Kepler-442b — перша планета, яку досліджує граве�
 
 ## Narrative Context
 
-Kepler-442b — перша зупинка експедиції. Планета обрана через:
+Біллі Рубін — перша зупинка експедиції. Планета обрана через:
 - Стабільну орбіту в зоні життя
 - Сигнали невідомого походження
 - Потенційні сліди цивілізації
@@ -74,7 +74,7 @@ Kepler-442b — перша зупинка експедиції. Планета �
 ```lua
 return {
     id = "Planet_1",
-    displayName = "Kepler-442b",
+    displayName = "Біллі Рубін",
     type = "Habitable",
     gravity = 1.2,
     hasAtmosphere = true
@@ -85,6 +85,6 @@ return {
 
 ## Related Documents
 
-- [Orbit/LOCAL_GDD.md](Orbit/LOCAL_GDD.md) — Orbital view
-- [Surface/Location_1/LOCAL_GDD.md](Surface/Location_1/LOCAL_GDD.md) — Landing Site Alpha
-- [Surface/Location_2/LOCAL_GDD.md](Surface/Location_2/LOCAL_GDD.md) — Ancient Ruins
+- [Orbit/README.md](Orbit/README.md) — Orbital view
+- [Surface/Location_1/README.md](Surface/Location_1/README.md) — Landing Site Alpha
+- [Surface/Location_2/README.md](Surface/Location_2/README.md) — Ancient Ruins

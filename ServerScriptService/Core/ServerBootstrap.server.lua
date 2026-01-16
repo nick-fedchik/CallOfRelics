@@ -101,6 +101,12 @@ local function Boot()
 		error("[ServerBootstrap] SeatService initialization failed!")
 	end
 
+	local SpaceShipService = require(Services:WaitForChild("SpaceShipService"))
+	success = SpaceShipService.Initialize()
+	if not success then
+		error("[ServerBootstrap] SpaceShipService initialization failed!")
+	end
+
 	local TransitionService = require(Services:WaitForChild("TransitionService"))
 	success = TransitionService.Initialize()
 	if not success then

@@ -6,6 +6,75 @@
 
 ## [Unreleased]
 
+### Changed - Documentation
+
+- **Docs/** — замінено "Kepler-442b" на "Біллі Рубін" у всіх файлах
+- **Docs/Planets/** — перейменовано LOCAL_GDD.md → README.md у всіх підпапках
+  - Оновлено внутрішні посилання на README.md
+
+### Added - EPIC 3: SpaceShip System
+
+- **SpaceShipService.lua** (v0.1) — новий сервіс для управління SpaceShip
+  - Клонування SpaceShip з `ServerStorage/Actors/` замість `Planet_1/Orbit/Workspace`
+  - Підтримка `spaceShipModel` з профілю гравця
+  - Fallback до default "SpaceShip" якщо модель не знайдена
+  - `SpawnShip()`, `GetShip()`, `DestroyShip()`, `RepositionShip()` API
+
+- **ProfileService.lua** — додано `spaceShipModel` поле в profile schema
+  - Default value: "SpaceShip"
+  - Дозволяє upgrade system в майбутньому
+
+### Changed - SpaceShip Integration
+
+- **TransitionService.lua** (v0.7) — інтеграція з SpaceShipService
+  - `StartGameSequence()` — спавнить SpaceShip з ServerStorage/Actors перед player spawn
+  - `SpawnShipAboveLandingPad()` — використовує SpaceShipService замість clone з Orbit
+
+- **LocationService.lua** — SpaceShip більше не копіюється з location Workspace
+  - Skip SpaceShip в `CopyModelsToWorkspace()` — керується SpaceShipService
+
+- **ServerBootstrap.server.lua** — ініціалізація SpaceShipService
+
+### Fixed - SpaceShip/Planet Positioning
+
+- **TransitionService.lua** — читання позиції SpaceShip з Orbit Config animationData
+  - Замість пошуку SpaceShip в Orbit/Workspace (який тепер в Actors)
+  - SpaceShip: `(0, 100, 0)` — за замовчуванням
+
+- **LocationService.lua** (v0.4) — застосування animationData позицій після копіювання моделей
+  - `CopyModelsToWorkspace()` приймає animationData параметр
+  - Моделі (Planet) позиціонуються згідно з `config.animationData.{modelName}.finalPosition`
+
+- **Orbit/Config.luau** — оновлені позиції в animationData
+  - SpaceShip: `(0, 100, 0)` — початкова позиція корабля
+  - Planet: `(0, 100, 600)` — планета видима перед кораблем на осі +Z
+
+### Changed - Naming Convention
+
+- **Location ID Format:** `Location%d` → `Location_%d` (Location1 → Location_1)
+  - Уніфікація формату з Planet_Id для консистентності
+  - **ProfileService.lua** — оновлено default exploredLocations
+  - **TransitionService.lua** — оновлено fallback locations
+  - **ServerStorage/Planets/** — оновлено Config.luau файли
+  - **Docs/** — оновлено всі посилання на Location_1, Location_2
+
+### Added - EPIC 4: Planet & Location Init/Fini System
+
+- **ContextRegistryService.lua** (v0.1) — новий сервіс для відстеження контенту
+  - Реєстрація скопійованих скриптів, об'єктів, освітлення
+  - Три рівні: Planet, Orbit, Location
+  - `CurrentPlanetPath` tracking
+  - Автоматичний cleanup при виході гравця
+
+- **LocationService.lua** (v0.5) — Init/Fini система
+  - `InitPlanet()` / `FiniPlanet()` — Planet-level scripts
+  - `InitOrbit()` / `FiniOrbit()` — Orbit objects + scripts + lighting
+  - `InitLocation()` / `FiniLocation()` — Location objects + scripts + lighting
+  - Ієрархія: Enter Game → Planet Init → Orbit Init
+  - Ієрархія: Landing → Orbit Fini → Location Init
+  - Ієрархія: Launch → Location Fini → Orbit Init
+  - `GetActiveContexts()`, `GetRegistrySummary()` — utility API
+
 ---
 
 ## [0.8.2] - 2026-01-15 - Log Cleanup & Optimization

@@ -90,5 +90,5 @@ Earth — планета походження гравця. Точка стар�
 
 ## Related Documents
 
-- [../LOCAL_GDD.md](../LOCAL_GDD.md) — Planets overview
-- [../Planet_1/LOCAL_GDD.md](../Planet_1/LOCAL_GDD.md) — Kepler-442b (first destination)
+- [../README.md](../README.md) — Planets overview
+- [../Planet_1/README.md](../Planet_1/README.md) — Біллі Рубін (first destination)

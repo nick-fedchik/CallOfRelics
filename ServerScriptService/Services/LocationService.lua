@@ -5,20 +5,28 @@ KOSMICMAZER — LocationService
 
 Purpose:
 Manages loading and unloading of game locations (Planet Orbits, Surface Locations).
+Implements Init/Fini system for proper content lifecycle management.
 Handles workspace cleanup, content copying, and player spawning.
 Enforces TDD 5.6 "Complete Context Cleanup" principle.
 
 Version:
-0.3
+0.5
 
 Features:
 - Load location from ServerStorage.Planets structure
 - Unload current location with complete cleanup
-- Copy scripts, models, and lighting between locations and workspace
+- Init/Fini system for Planet, Orbit, and Location levels
+- Copy scripts, models, and lighting with registry tracking
 - Spawn player in PilotSeat or SpawnLocation
 - Track current active location per player
 - Support for Orbit and Surface location types
 - Preserve SpaceShip and Player Characters across location transitions
+
+Init/Fini Hierarchy:
+- Enter Game → Planet Init → Orbit Init
+- Landing    → Orbit Fini → Location Init
+- Launch     → Location Fini → Orbit Init
+- Leave Planet → Location/Orbit Fini → Planet Fini
 
 API:
 - Initialize() — Initialize service, must be called during boot
@@ -27,14 +35,22 @@ API:
 - GetCurrentLocation(player) — Returns current location info or nil
 - SpawnPlayerInLocation(player, spawnType) — Spawn player in loaded location
 
+Init/Fini API:
+- InitPlanet(player, planetId) — Initialize planet context
+- FiniPlanet(player) — Cleanup planet context
+- InitOrbit(player, planetId) — Initialize orbit context
+- FiniOrbit(player) — Cleanup orbit context
+- InitLocation(player, planetId, locationId) — Initialize surface location
+- FiniLocation(player) — Cleanup surface location
+
 Calls to:
 - ServerStorage.Planets (location configs and content)
-- GameConfig (future: spawn settings)
+- ContextRegistryService (track copied content)
 - Workspace (clearing and copying content)
 
 Called from:
 - BootSequence (Stage 4: load initial location)
-- TeleportService (future: location transitions)
+- TransitionService (location transitions)
 - GameStateManager (future: state-driven location changes)
 
 Events:
@@ -43,8 +59,11 @@ Events:
 Dependencies:
 - ServerStorage.Planets structure
 - Location Config.luau files
+- ContextRegistryService
 
 ChangeLog:
+- 0.5: Init/Fini system with ContextRegistryService integration (EPIC 4) (2026-01-16)
+- 0.4: Apply animationData positions to models after copying (EPIC 3) (2026-01-16)
 - 0.3: Unanchor character before spawning (fix for silent boot spawn) (2026-01-15)
 - 0.2: Preserve SpaceShip and Player Characters in ClearWorkspace (2026-01-15)
 - 0.1: Initial LocationService with Load/Unload/Spawn (2026-01-12)
@@ -52,11 +71,27 @@ ChangeLog:
 ]]
 
 local MODULE_NAME = "LocationService"
-local VERSION = "0.3"
+local VERSION = "0.5"
 
 local ServerStorage = game:GetService("ServerStorage")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
 local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
+
+-- ============================================================================
+-- DEPENDENCIES (Lazy-loaded)
+-- ============================================================================
+
+local ContextRegistryService
+
+local function GetContextRegistryService()
+	if not ContextRegistryService then
+		ContextRegistryService = require(script.Parent.ContextRegistryService)
+	end
+	return ContextRegistryService
+end
 
 -- ============================================================================
 -- STATE
@@ -69,16 +104,15 @@ local isInitialized = false
 -- Structure: {[player] = {planetId = "Planet_1", locationName = "Orbit", config = {...}}}
 local currentLocations = {}
 
--- Track spawned content for cleanup
--- Structure: {[player] = {models = {}, scripts = {}, lightingObjects = {}}}
-local spawnedContent = {}
+-- Track current context level per player
+-- Structure: {[player] = {planet = true/false, orbit = true/false, location = true/false}}
+local activeContexts = {}
 
 -- ============================================================================
 -- PRIVATE HELPERS
 -- ============================================================================
 
 local function IsPlayerCharacter(model)
-	-- Check if model is a player's character
 	for _, player in ipairs(Players:GetPlayers()) do
 		if player.Character == model then
 			return true
@@ -87,7 +121,7 @@ local function IsPlayerCharacter(model)
 	return false
 end
 
-local function ClearWorkspace()
+local function ClearWorkspaceObjects()
 	-- Clear workspace (keep Terrain, Camera, SpaceShip, Player Characters)
 	for _, child in ipairs(Workspace:GetChildren()) do
 		if child:IsA("Model") or child:IsA("Part") or child:IsA("Folder") then
@@ -101,9 +135,9 @@ local function ClearWorkspace()
 			end
 		end
 	end
+end
 
-	-- Clear Lighting effects
-	local Lighting = game:GetService("Lighting")
+local function ClearLightingEffects()
 	for _, child in ipairs(Lighting:GetChildren()) do
 		if child:IsA("Sky") or child:IsA("Atmosphere") or child:IsA("BloomEffect")
 			or child:IsA("DepthOfFieldEffect") or child:IsA("SunRaysEffect") then
@@ -112,26 +146,34 @@ local function ClearWorkspace()
 	end
 end
 
-local function CopyModelsToWorkspace(locationWorkspaceFolder)
+local function CopyScriptsToService(sourceFolder, targetService, player, registerFunc)
+	if not sourceFolder then return end
+
+	local registry = GetContextRegistryService()
+
+	for _, child in ipairs(sourceFolder:GetChildren()) do
+		if child:IsA("ModuleScript") or child:IsA("Script") or child:IsA("LocalScript") then
+			local clone = child:Clone()
+			clone.Parent = targetService
+			registerFunc(registry, player, clone)
+		end
+	end
+end
+
+local function CopyModelsToWorkspace(locationWorkspaceFolder, animationData, player, registerFunc)
 	if not locationWorkspaceFolder then
 		warn(string.format("[%s %s][CopyModels] No Workspace folder in location", MODULE_NAME, VERSION))
-		return {}
+		return
 	end
 
-	local copiedModels = {}
+	local registry = GetContextRegistryService()
 
 	for _, child in ipairs(locationWorkspaceFolder:GetChildren()) do
 		if child.Name ~= "Lighting" then -- Lighting handled separately
 
-			-- Special handling for SpaceShip - reuse existing if present
+			-- Skip SpaceShip - managed by SpaceShipService (EPIC 3)
 			if child.Name == "SpaceShip" then
-				local existingShip = Workspace:FindFirstChild("SpaceShip")
-				if existingShip then
-					local templateCFrame = child:GetPivot()
-					existingShip:PivotTo(templateCFrame)
-					table.insert(copiedModels, existingShip)
-					continue -- Skip cloning
-				end
+				continue
 			end
 
 			local clone = child:Clone()
@@ -149,28 +191,30 @@ local function CopyModelsToWorkspace(locationWorkspaceFolder)
 			end
 
 			clone.Parent = Workspace
-			table.insert(copiedModels, clone)
+
+			-- Apply position from animationData if available (EPIC 3)
+			if animationData and clone:IsA("Model") then
+				local modelKey = string.lower(clone.Name)
+				if animationData[modelKey] and animationData[modelKey].finalPosition then
+					clone:PivotTo(CFrame.new(animationData[modelKey].finalPosition))
+				end
+			end
+
+			registerFunc(registry, player, clone)
 		end
 	end
-
-	return copiedModels
 end
 
-local function CopyLightingObjects(locationLightingFolder)
-	if not locationLightingFolder then
-		return {}
-	end
+local function CopyLightingObjects(locationLightingFolder, player, registerFunc)
+	if not locationLightingFolder then return end
 
-	local Lighting = game:GetService("Lighting")
-	local copiedObjects = {}
+	local registry = GetContextRegistryService()
 
 	for _, child in ipairs(locationLightingFolder:GetChildren()) do
 		local clone = child:Clone()
 		clone.Parent = Lighting
-		table.insert(copiedObjects, clone)
+		registerFunc(registry, player, clone)
 	end
-
-	return copiedObjects
 end
 
 local function FindSpawnPoint()
@@ -193,8 +237,289 @@ local function FindSpawnPoint()
 	return nil, "Default"
 end
 
+local function EnsureActiveContexts(player)
+	if not activeContexts[player] then
+		activeContexts[player] = {
+			planet = false,
+			orbit = false,
+			location = false
+		}
+	end
+	return activeContexts[player]
+end
+
 -- ============================================================================
--- PUBLIC API
+-- INIT/FINI — PLANET LEVEL
+-- ============================================================================
+
+function LocationService.InitPlanet(player, planetId)
+	local contexts = EnsureActiveContexts(player)
+	if contexts.planet then
+		return true -- Already initialized
+	end
+
+	local planetFolder = ServerStorage.Planets:FindFirstChild(planetId)
+	if not planetFolder then
+		warn(string.format("[%s %s][InitPlanet] Planet not found: %s", MODULE_NAME, VERSION, planetId))
+		return false
+	end
+
+	local registry = GetContextRegistryService()
+
+	-- Set current planet path
+	registry.SetCurrentPlanetPath("ServerStorage.Planets." .. planetId)
+
+	-- Copy Planet-level scripts
+	local planetReplicatedStorage = planetFolder:FindFirstChild("ReplicatedStorage")
+	local planetServerScriptService = planetFolder:FindFirstChild("ServerScriptService")
+
+	if planetReplicatedStorage then
+		CopyScriptsToService(planetReplicatedStorage, ReplicatedStorage, player, registry.RegisterPlanetScript)
+	end
+
+	if planetServerScriptService then
+		CopyScriptsToService(planetServerScriptService, ServerScriptService, player, registry.RegisterPlanetScript)
+	end
+
+	contexts.planet = true
+	return true
+end
+
+function LocationService.FiniPlanet(player)
+	local contexts = activeContexts[player]
+	if not contexts or not contexts.planet then
+		return
+	end
+
+	-- First cleanup any active orbit or location
+	if contexts.location then
+		LocationService.FiniLocation(player)
+	end
+	if contexts.orbit then
+		LocationService.FiniOrbit(player)
+	end
+
+	-- Clear planet registry
+	local registry = GetContextRegistryService()
+	registry.ClearPlanetRegistry(player)
+
+	registry.SetCurrentPlanetPath(nil)
+	contexts.planet = false
+end
+
+-- ============================================================================
+-- INIT/FINI — ORBIT LEVEL
+-- ============================================================================
+
+function LocationService.InitOrbit(player, planetId)
+	local contexts = EnsureActiveContexts(player)
+
+	-- Ensure planet is initialized
+	if not contexts.planet then
+		LocationService.InitPlanet(player, planetId)
+	end
+
+	-- Cleanup any active location first
+	if contexts.location then
+		LocationService.FiniLocation(player)
+	end
+
+	if contexts.orbit then
+		return true -- Already initialized
+	end
+
+	local planetFolder = ServerStorage.Planets:FindFirstChild(planetId)
+	if not planetFolder then return false end
+
+	local orbitFolder = planetFolder:FindFirstChild("Orbit")
+	if not orbitFolder then
+		warn(string.format("[%s %s][InitOrbit] Orbit folder not found: %s", MODULE_NAME, VERSION, planetId))
+		return false
+	end
+
+	local orbitConfig = require(orbitFolder:WaitForChild("Config"))
+	local registry = GetContextRegistryService()
+
+	-- Clear previous workspace content
+	ClearWorkspaceObjects()
+	ClearLightingEffects()
+
+	-- Get animation data for model positioning
+	local animationData = nil
+	if orbitConfig.getAnimationData then
+		animationData = orbitConfig.getAnimationData()
+	end
+
+	-- Copy Orbit workspace objects
+	local workspaceFolder = orbitFolder:FindFirstChild("Workspace")
+	if workspaceFolder then
+		CopyModelsToWorkspace(workspaceFolder, animationData, player, registry.RegisterOrbitObject)
+
+		-- Copy Lighting
+		local lightingFolder = workspaceFolder:FindFirstChild("Lighting")
+		if lightingFolder then
+			CopyLightingObjects(lightingFolder, player, registry.RegisterOrbitLighting)
+		end
+	end
+
+	-- Copy Orbit scripts
+	local orbitReplicatedStorage = orbitFolder:FindFirstChild("ReplicatedStorage")
+	local orbitServerScriptService = orbitFolder:FindFirstChild("ServerScriptService")
+
+	if orbitReplicatedStorage then
+		CopyScriptsToService(orbitReplicatedStorage, ReplicatedStorage, player, registry.RegisterOrbitScript)
+	end
+
+	if orbitServerScriptService then
+		CopyScriptsToService(orbitServerScriptService, ServerScriptService, player, registry.RegisterOrbitScript)
+	end
+
+	-- Apply Orbit settings
+	local settings = orbitConfig.getSettings and orbitConfig.getSettings()
+	if settings and settings.gravity then
+		Workspace.Gravity = math.abs(settings.gravity.Y)
+	end
+
+	-- Track current location
+	currentLocations[player] = {
+		planetId = planetId,
+		locationName = "Orbit",
+		config = orbitConfig,
+		planetConfig = require(planetFolder:WaitForChild("Config"))
+	}
+
+	contexts.orbit = true
+	return true
+end
+
+function LocationService.FiniOrbit(player)
+	local contexts = activeContexts[player]
+	if not contexts or not contexts.orbit then
+		return
+	end
+
+	-- Clear orbit registry (destroys all tracked objects/scripts/lighting)
+	local registry = GetContextRegistryService()
+	registry.ClearOrbitRegistry(player)
+
+	-- Clear workspace (in case anything was missed)
+	ClearWorkspaceObjects()
+	ClearLightingEffects()
+
+	contexts.orbit = false
+end
+
+-- ============================================================================
+-- INIT/FINI — LOCATION LEVEL
+-- ============================================================================
+
+function LocationService.InitLocation(player, planetId, locationId)
+	local contexts = EnsureActiveContexts(player)
+
+	-- Ensure planet is initialized
+	if not contexts.planet then
+		LocationService.InitPlanet(player, planetId)
+	end
+
+	-- Cleanup orbit if active (mutually exclusive with location)
+	if contexts.orbit then
+		LocationService.FiniOrbit(player)
+	end
+
+	-- Cleanup previous location if any
+	if contexts.location then
+		LocationService.FiniLocation(player)
+	end
+
+	local planetFolder = ServerStorage.Planets:FindFirstChild(planetId)
+	if not planetFolder then return false end
+
+	local surfaceFolder = planetFolder:FindFirstChild("Surface")
+	if not surfaceFolder then
+		warn(string.format("[%s %s][InitLocation] Surface folder not found: %s", MODULE_NAME, VERSION, planetId))
+		return false
+	end
+
+	local locationFolder = surfaceFolder:FindFirstChild(locationId)
+	if not locationFolder then
+		warn(string.format("[%s %s][InitLocation] Location not found: %s/%s", MODULE_NAME, VERSION, planetId, locationId))
+		return false
+	end
+
+	local locationConfig = require(locationFolder:WaitForChild("Config"))
+	local registry = GetContextRegistryService()
+
+	-- Clear previous workspace content
+	ClearWorkspaceObjects()
+	ClearLightingEffects()
+
+	-- Get animation data if available
+	local animationData = nil
+	if locationConfig.getAnimationData then
+		animationData = locationConfig.getAnimationData()
+	end
+
+	-- Copy Location workspace objects
+	local workspaceFolder = locationFolder:FindFirstChild("Workspace")
+	if workspaceFolder then
+		CopyModelsToWorkspace(workspaceFolder, animationData, player, registry.RegisterLocationObject)
+
+		-- Copy Lighting
+		local lightingFolder = workspaceFolder:FindFirstChild("Lighting")
+		if lightingFolder then
+			CopyLightingObjects(lightingFolder, player, registry.RegisterLocationLighting)
+		end
+	end
+
+	-- Copy Location scripts
+	local locationReplicatedStorage = locationFolder:FindFirstChild("ReplicatedStorage")
+	local locationServerScriptService = locationFolder:FindFirstChild("ServerScriptService")
+
+	if locationReplicatedStorage then
+		CopyScriptsToService(locationReplicatedStorage, ReplicatedStorage, player, registry.RegisterLocationScript)
+	end
+
+	if locationServerScriptService then
+		CopyScriptsToService(locationServerScriptService, ServerScriptService, player, registry.RegisterLocationScript)
+	end
+
+	-- Apply Location settings
+	local settings = locationConfig.getSettings and locationConfig.getSettings()
+	if settings and settings.gravity then
+		Workspace.Gravity = math.abs(settings.gravity.Y)
+	end
+
+	-- Track current location
+	currentLocations[player] = {
+		planetId = planetId,
+		locationName = locationId,
+		config = locationConfig,
+		planetConfig = require(planetFolder:WaitForChild("Config"))
+	}
+
+	contexts.location = true
+	return true
+end
+
+function LocationService.FiniLocation(player)
+	local contexts = activeContexts[player]
+	if not contexts or not contexts.location then
+		return
+	end
+
+	-- Clear location registry
+	local registry = GetContextRegistryService()
+	registry.ClearLocationRegistry(player)
+
+	-- Clear workspace
+	ClearWorkspaceObjects()
+	ClearLightingEffects()
+
+	contexts.location = false
+end
+
+-- ============================================================================
+-- PUBLIC API — LEGACY COMPATIBILITY
 -- ============================================================================
 
 function LocationService.Initialize()
@@ -207,6 +532,9 @@ function LocationService.Initialize()
 		error(string.format("[%s %s] ServerStorage.Planets not found!", MODULE_NAME, VERSION))
 	end
 
+	-- Initialize ContextRegistryService
+	GetContextRegistryService().Initialize()
+
 	isInitialized = true
 	print(string.format("[%s %s] ✓ LocationService ready", MODULE_NAME, VERSION))
 	return true
@@ -217,96 +545,25 @@ function LocationService.LoadLocation(player, planetId, locationName)
 		error(string.format("[%s %s][LoadLocation] Service not initialized!", MODULE_NAME, VERSION))
 	end
 
-	-- Unload current location if any
-	if currentLocations[player] then
-		LocationService.UnloadLocation(player)
-	end
-
-	-- Load Planet Config
-	local planetFolder = ServerStorage.Planets:FindFirstChild(planetId)
-	if not planetFolder then
-		error(string.format("[%s %s][LoadLocation] Planet not found: %s", MODULE_NAME, VERSION, planetId))
-	end
-
-	local planetConfig = require(planetFolder:WaitForChild("Config"))
-
-	-- Load Location Config
-	local locationFolder
+	-- Use Init/Fini system
 	if locationName == "Orbit" then
-		locationFolder = planetFolder:FindFirstChild("Orbit")
+		return LocationService.InitOrbit(player, planetId)
 	else
-		local surfaceFolder = planetFolder:FindFirstChild("Surface")
-		if surfaceFolder then
-			locationFolder = surfaceFolder:FindFirstChild(locationName)
-		end
+		return LocationService.InitLocation(player, planetId, locationName)
 	end
-
-	if not locationFolder then
-		error(string.format("[%s %s][LoadLocation] Location not found: %s/%s", MODULE_NAME, VERSION, planetId, locationName))
-	end
-
-	local locationConfig = require(locationFolder:WaitForChild("Config"))
-
-	-- Clear Workspace
-	ClearWorkspace()
-
-	-- Copy Location Content
-	local workspaceFolder = locationFolder:FindFirstChild("Workspace")
-	local lightingFolder = workspaceFolder and workspaceFolder:FindFirstChild("Lighting")
-
-	local copiedModels = CopyModelsToWorkspace(workspaceFolder)
-	local copiedLighting = CopyLightingObjects(lightingFolder)
-
-	-- Track spawned content
-	spawnedContent[player] = {
-		models = copiedModels,
-		lightingObjects = copiedLighting,
-		scripts = {}
-	}
-
-	-- Apply location settings
-	local settings = locationConfig.getSettings()
-	if settings and settings.gravity then
-		Workspace.Gravity = math.abs(settings.gravity.Y)
-	end
-
-	-- Track current location
-	currentLocations[player] = {
-		planetId = planetId,
-		locationName = locationName,
-		config = locationConfig,
-		planetConfig = planetConfig
-	}
-
-	print(string.format("[%s %s] ✓ Location loaded: %s/%s", MODULE_NAME, VERSION, planetId, locationName))
-
-	return true
 end
 
 function LocationService.UnloadLocation(player)
-	if not currentLocations[player] then
-		return
-	end
+	local contexts = activeContexts[player]
+	if not contexts then return end
 
-	-- Cleanup spawned content (but preserve SpaceShip)
-	if spawnedContent[player] then
-		for _, model in ipairs(spawnedContent[player].models) do
-			if model and model.Parent and model.Name ~= "SpaceShip" then
-				model:Destroy()
-			end
-		end
-
-		for _, lightingObj in ipairs(spawnedContent[player].lightingObjects) do
-			if lightingObj and lightingObj.Parent then
-				lightingObj:Destroy()
-			end
-		end
-
-		spawnedContent[player] = nil
+	if contexts.location then
+		LocationService.FiniLocation(player)
+	elseif contexts.orbit then
+		LocationService.FiniOrbit(player)
 	end
 
 	currentLocations[player] = nil
-	ClearWorkspace()
 end
 
 function LocationService.GetCurrentLocation(player)
@@ -371,32 +628,53 @@ function LocationService.SpawnPlayerInLocation(player, spawnType)
 		if spawnPoint:IsA("Seat") or spawnPoint:IsA("VehicleSeat") then
 			spawnPoint:Sit(humanoid)
 			task.wait(0.3)
-			print(string.format("[%s %s] ✓ %s spawned in PilotSeat", MODULE_NAME, VERSION, player.Name))
 		end
 
 		return true
 
 	elseif foundSpawnType == "SpawnLocation" and spawnPoint then
 		humanoidRootPart.CFrame = spawnPoint.CFrame + Vector3.new(0, 3, 0)
-		print(string.format("[%s %s] ✓ %s spawned at SpawnLocation", MODULE_NAME, VERSION, player.Name))
 		return true
 
 	else
 		humanoidRootPart.CFrame = CFrame.new(0, 5, 0)
-		print(string.format("[%s %s] ✓ %s spawned at default", MODULE_NAME, VERSION, player.Name))
 		return true
 	end
+end
+
+-- ============================================================================
+-- UTILITY
+-- ============================================================================
+
+function LocationService.GetActiveContexts(player)
+	return activeContexts[player]
+end
+
+function LocationService.GetRegistrySummary(player)
+	return GetContextRegistryService().GetRegistrySummary(player)
 end
 
 -- ============================================================================
 -- CLEANUP
 -- ============================================================================
 
--- Cleanup when player leaves
 Players.PlayerRemoving:Connect(function(player)
-	if currentLocations[player] then
-		LocationService.UnloadLocation(player)
+	-- Full cleanup when player leaves
+	local contexts = activeContexts[player]
+	if contexts then
+		if contexts.location then
+			LocationService.FiniLocation(player)
+		end
+		if contexts.orbit then
+			LocationService.FiniOrbit(player)
+		end
+		if contexts.planet then
+			LocationService.FiniPlanet(player)
+		end
 	end
+
+	activeContexts[player] = nil
+	currentLocations[player] = nil
 end)
 
 -- ============================================================================

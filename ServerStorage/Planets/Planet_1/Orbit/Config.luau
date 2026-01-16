@@ -269,8 +269,8 @@ local OrbitConfig = {
         -- SpaceShip final position and scale (parked in orbit)
         spaceShip = {
             -- Final position where ship stops after arriving from surface
-            finalPosition = Vector3.new(0, 50, 0),
-            -- Final rotation (facing planet)
+            finalPosition = Vector3.new(0, 100, 0),
+            -- Final rotation (facing planet on +Z axis)
             finalRotation = CFrame.Angles(0, 0, 0),
             -- Original scale (for scaling animations)
             originalScale = 1.0,
@@ -280,9 +280,9 @@ local OrbitConfig = {
 
         -- Planet final position and scale (visible from orbit)
         planet = {
-            -- Planet center position (in front of ship, below horizon)
-            -- X=0 (centered), Y=-2500 (below), Z=-3000 (in front, negative Z)
-            finalPosition = Vector3.new(0, -2500, -3000),
+            -- Planet center position (in front of ship on +Z axis)
+            -- X=0 (centered), Y=100 (same level as ship), Z=600 (in front of ship)
+            finalPosition = Vector3.new(0, 100, 600),
             -- Original scale (for scaling animations)
             originalScale = 1.0,
             -- Planet radius (Surface part)
@@ -293,19 +293,19 @@ local OrbitConfig = {
 
         -- Animation waypoints for ship arrival (liftoff → orbit)
         arrivalPath = {
-            -- Ship appears from "below" (coming from planet)
-            startOffset = Vector3.new(0, -500, 200),
+            -- Ship appears from direction of planet (+Z)
+            startOffset = Vector3.new(0, 0, 400),
             -- Intermediate point
-            midOffset = Vector3.new(0, -100, 50),
+            midOffset = Vector3.new(0, 0, 100),
             -- Final position (see spaceShip.finalPosition)
         },
 
         -- Animation waypoints for ship departure (orbit → landing)
         departurePath = {
-            -- Ship moves toward planet
-            midOffset = Vector3.new(0, -200, 100),
-            -- Ship disappears toward planet
-            endOffset = Vector3.new(0, -800, 400),
+            -- Ship moves toward planet (+Z direction)
+            midOffset = Vector3.new(0, 0, 200),
+            -- Ship continues toward planet
+            endOffset = Vector3.new(0, 0, 400),
         },
     }
 }
