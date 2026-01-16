@@ -4,18 +4,72 @@
 
 ---
 
+## [0.10.0] - 2026-01-16 - Scanner System v2 & Documentation
+
+### Added - Scanner System v2
+
+- **PlanetScannerService.lua** (v0.5) — повна система сканування з persistence
+  - Власна батарея сканера (500 одиниць, 100 за скан)
+  - Система зношення (wear): -5% точності за кожне сканування
+  - Формула виявлення: `discoveryChance = effectiveAccuracy × (visibility / 100)`
+  - Перший скан гарантовано успішний (`guaranteedFirstScan = true`)
+  - Стан сканера зберігається в профілі гравця (persistent)
+  - Ремонт та підзарядка сканера
+
+- **SpaceShipConfig.lua** (v0.3) — конфігурація сканера
+  - `Scanner.battery` — батарея (maxCapacity: 500, rechargeRate: 2/sec)
+  - `Scanner.accuracy` — зношення (baseAccuracy: 100%, wearPerScan: 5%)
+  - `CalculateDiscoveryChance()` — формула ймовірності виявлення
+  - `CalculateScanAccuracy()` — розрахунок точності по зношенню
+  - `GetScansUntilWornOut()` — макс. сканувань до повного зношення (20)
+
+- **ProfileService.lua** (v0.5) — збереження стану сканера
+  - `shipState.modules.scanner` — batteryCharge, scanCount в профілі
+  - `GetScannerState()`, `UpdateScannerBattery()`, `IncrementScannerWear()`
+  - `RepairScanner()`, `RechargeScannerBattery()`
+  - Автоматична міграція старих профілів
+
+- **Location Visibility** — параметр видимості локацій
+  - Location_1: visibility = 100% (завжди видима)
+  - Location_2: visibility = 70% (типова локація)
+  - Впливає на ймовірність виявлення при скануванні
+
+### Added - Documentation
+
+- **PLAYER.md** — новий документ персонажа гравця
+  - Походження та передісторія
+  - Повна схема профілю (Profile Schema v2)
+  - Інвентар: ресурси (втрачаються) vs знання (ніколи)
+  - Технічна реалізація ProfileService
+
+- **SPACESHIP.md** (v1.3) — оновлена документація корабля
+  - Характеристики швидкості, енергетики, захисту
+  - Детальний опис сканера з формулою виявлення
+  - Таблиця ймовірності виявлення
+  - Механіка зношення та ремонту
+
+- **README.md** (v1.1) — оновлена навігація GameDesign
+  - Додано PLAYER.md до структури
+  - Оновлено швидкі посилання
+
+### Changed
+
+- **Location Configs** — додано параметр `visibility` для сканування
+
+---
+
 ## [0.9.0] - 2026-01-16 - EPIC 3, 4, 5: SpaceShip & Planet Systems
 
 ### Added - EPIC 5: Scanner Systems
 
-- **ScannerService.lua** (v0.1) — серверний сервіс для сканування планети
+- **PlanetScannerService.lua** (v0.1) — серверний сервіс для сканування планети
   - `RequestScan()` — обробка запитів на сканування
   - Прогрес-бар з 10 кроків (5 секунд)
   - Cooldown 10 секунд між скануваннями
   - Випадкове відкриття локації з undiscovered list
   - Валідація контексту (тільки Orbit)
 
-- **SurfaceScannerUI.lua** (v0.1) — клієнтський UI для сканера
+- **PlanetSurfaceScannerUI.lua** (v0.1) — клієнтський UI для сканера
   - Кнопка сканування
   - Прогрес-бар анімація
   - Список виявлених локацій

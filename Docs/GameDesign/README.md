@@ -21,6 +21,7 @@
 Docs/GameDesign/
 ├── README.md              ← Цей файл (навігація)
 ├── GDD.md                 ← Головний Game Design Document
+├── PLAYER.md              ← Персонаж гравця та профіль
 ├── SPACESHIP.md           ← Космічний корабель
 └── Planets/               ← Планети та локації
     ├── README.md          ← Огляд планетарної системи
@@ -91,6 +92,32 @@ Docs/GameDesign/
 | Seat Personal Computer | Інвентар, база знань |
 
 **Посилання:** [SPACESHIP.md](SPACESHIP.md)
+
+---
+
+### PLAYER.md — Персонаж Гравця
+
+**Детальний опис персонажа гравця та системи профілю.**
+
+**Зміст:**
+- Походження та передісторія
+- Роль у геймплеї
+- Структура профілю (Profile Schema)
+- Система збереження прогресу
+- Інвентар (ресурси та знання)
+- Статистика гравця
+
+**Ключові характеристики профілю:**
+| Секція | Опис |
+|--------|------|
+| Identity | userId, createdAt, lastLogin |
+| Location State | currentPlanet, currentLocation, lastSafeState |
+| Discovery | discoveredPlanets, exploredLocations |
+| Ship State | energyLevel, hullIntegrity, modules (scanner) |
+| Inventory | resources (втрачаються), knowledge (ніколи) |
+| Statistics | playTime, locationsExplored, resourcesCollected |
+
+**Посилання:** [PLAYER.md](PLAYER.md)
 
 ---
 
@@ -209,8 +236,11 @@ KB.md (Knowledge Base)
 | Що шукаєте? | Де знайти? |
 |-------------|------------|
 | Концепція гри | [GDD.md](GDD.md) |
+| Персонаж гравця | [PLAYER.md](PLAYER.md) |
+| Профіль гравця | [PLAYER.md#3-профіль-гравця-player-profile](PLAYER.md) |
 | Космічний корабель | [SPACESHIP.md](SPACESHIP.md) |
 | Робочі місця корабля | [SPACESHIP.md#3-робочі-місця-seats](SPACESHIP.md) |
+| Сканер поверхні | [SPACESHIP.md#сканер-поверхні-планети-seat-planet-surface-scanner](SPACESHIP.md) |
 | Планети | [Planets/README.md](Planets/README.md) |
 | Перша планета | [Planet_1/README.md](Planets/Planet_1/README.md) |
 | Локації планети | [Planet_1/Surface/](Planets/Planet_1/Surface/) |
@@ -220,5 +250,9 @@ KB.md (Knowledge Base)
 
 ---
 
-**Версія:** 1.0
+**Версія:** 1.1
 **Дата:** 2026-01-16
+
+**Changelog:**
+- 1.1: Додано PLAYER.md (персонаж гравця та профіль)
+- 1.0: Початкова версія

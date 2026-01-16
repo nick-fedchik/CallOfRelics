@@ -85,6 +85,11 @@ local Location2Config = {
         }
     },
     
+    -- Scanner visibility (0-100%)
+    -- 100% = always visible when scanning
+    -- Lower values = harder to discover
+    visibility = 70,
+
     -- Location-specific settings
     settings = {
         gravity = Vector3.new(0, -196.2, 0), -- Standard Roblox gravity

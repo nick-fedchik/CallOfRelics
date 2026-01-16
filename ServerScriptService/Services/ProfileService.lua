@@ -8,7 +8,7 @@ Manages player profiles with DataStore persistence.
 Handles profile loading, creation, saving, and progression tracking.
 
 Version:
-0.4
+0.5
 
 Features:
 - LoadProfile(player) — Load existing profile or create new
@@ -16,6 +16,7 @@ Features:
 - SaveProfile(player, profileData) — Save profile to DataStore
 - GetProfile(player) — Get cached profile
 - Profile v2 schema with per-planet location tracking
+- Scanner state persistence (battery, wear)
 - Backward compatible v1 → v2 migration
 - Retry logic with exponential backoff (3 attempts)
 - Temporary in-memory fallback on DataStore failure
@@ -38,6 +39,11 @@ API:
 - GetExploredLocationsForPlanet(player, planetId) → array
 - IsProfileChanged(player) → boolean
 - SaveIfChanged(player) → success
+- GetScannerState(player) → {batteryCharge, scanCount}
+- UpdateScannerBattery(player, newCharge) → success
+- IncrementScannerWear(player) → success
+- RepairScanner(player) → success
+- RechargeScannerBattery(player, amount, maxCapacity) → success, actualCharge
 
 Calls to:
 - None (DataStore direct access)
@@ -60,12 +66,13 @@ ChangeLog:
 - 0.2: EPIC 8 - Full progression tracking, auto-save, v2 schema (2026-01-15)
 - 0.3: GDD compliance - save on PilotSeat sit, knowledge saved immediately (2026-01-15)
 - 0.4: Send displayName instead of ID for planet/location in ProfileUpdate (2026-01-15)
+- 0.5: Scanner state persistence (battery, wear) in shipState.modules.scanner (2026-01-16)
 ================================================================================
 ]]
 
 local ProfileService = {}
 
-local VERSION = "0.4"
+local VERSION = "0.5"
 local MODULE_NAME = "ProfileService"
 
 -- ============================================================================
@@ -206,7 +213,13 @@ local function CreateDefaultProfile(player)
 		shipState = {
 			energyLevel = 100,
 			hullIntegrity = 100,
-			modules = {}
+			modules = {
+				-- Planet Surface Scanner state
+				scanner = {
+					batteryCharge = 500,  -- Full charge on start (matches SpaceShipConfig.Scanner.battery.maxCapacity)
+					scanCount = 0,        -- No wear on start (0 = 100% accuracy)
+				}
+			}
 		},
 
 		-- === INVENTORY ===
@@ -283,11 +296,23 @@ local function MigrateProfile(profileData)
 			if profileData.shipState.modules == nil then
 				profileData.shipState.modules = {}
 			end
+			-- Migrate scanner state (v2.1)
+			if profileData.shipState.modules.scanner == nil then
+				profileData.shipState.modules.scanner = {
+					batteryCharge = 500,  -- Full charge
+					scanCount = 0,        -- No wear
+				}
+			end
 		else
 			profileData.shipState = {
 				energyLevel = 100,
 				hullIntegrity = 100,
-				modules = {}
+				modules = {
+					scanner = {
+						batteryCharge = 500,
+						scanCount = 0,
+					}
+				}
 			}
 		end
 
@@ -662,6 +687,90 @@ end
 -- Legacy compatibility (replaced by SaveIfChanged)
 function ProfileService.TriggerEventSave(player, _eventName)
 	return ProfileService.SaveIfChanged(player)
+end
+
+-- ============================================================================
+-- SCANNER STATE METHODS
+-- ============================================================================
+
+-- Get scanner state from profile
+function ProfileService.GetScannerState(player)
+	local profile = profileCache[player.UserId]
+	if not profile then return nil end
+
+	-- Ensure scanner state exists (for old profiles)
+	if not profile.shipState then
+		profile.shipState = { energyLevel = 100, hullIntegrity = 100, modules = {} }
+	end
+	if not profile.shipState.modules then
+		profile.shipState.modules = {}
+	end
+	if not profile.shipState.modules.scanner then
+		profile.shipState.modules.scanner = {
+			batteryCharge = 500,
+			scanCount = 0,
+		}
+	end
+
+	return profile.shipState.modules.scanner
+end
+
+-- Update scanner battery charge
+function ProfileService.UpdateScannerBattery(player, newCharge)
+	local profile = profileCache[player.UserId]
+	if not profile then return false end
+
+	local scanner = ProfileService.GetScannerState(player)
+	if scanner then
+		scanner.batteryCharge = newCharge
+		MarkProfileChanged(player)
+		return true
+	end
+	return false
+end
+
+-- Increment scanner scan count (wear)
+function ProfileService.IncrementScannerWear(player)
+	local profile = profileCache[player.UserId]
+	if not profile then return false end
+
+	local scanner = ProfileService.GetScannerState(player)
+	if scanner then
+		scanner.scanCount = (scanner.scanCount or 0) + 1
+		MarkProfileChanged(player)
+		return true
+	end
+	return false
+end
+
+-- Repair scanner (reset scan count to 0)
+function ProfileService.RepairScanner(player)
+	local profile = profileCache[player.UserId]
+	if not profile then return false end
+
+	local scanner = ProfileService.GetScannerState(player)
+	if scanner then
+		scanner.scanCount = 0
+		MarkProfileChanged(player)
+		return true
+	end
+	return false
+end
+
+-- Recharge scanner battery
+function ProfileService.RechargeScannerBattery(player, amount, maxCapacity)
+	local profile = profileCache[player.UserId]
+	if not profile then return false, 0 end
+
+	local scanner = ProfileService.GetScannerState(player)
+	if scanner then
+		local oldCharge = scanner.batteryCharge or 0
+		scanner.batteryCharge = math.min(oldCharge + amount, maxCapacity)
+		local actualCharge = scanner.batteryCharge - oldCharge
+		MarkProfileChanged(player)
+		return true, actualCharge
+	end
+	return false, 0
 end
 
 -- Fire profile update to client
