@@ -1,361 +1,113 @@
-# Backlog.md  
-**Project:** Call of Relics: Orbital Silence  
-**Type:** Single-player Exploration RPG (Roblox)  
-**Backlog Version:** 0.4  
-**Status:** Active Development  
-**Scope:** Architecture-first, Content-later  
+# Backlog.md
+**Project:** Call of Relics: Orbital Silence
+**Type:** Single-player Exploration RPG (Roblox)
+**Backlog Version:** 0.5
+**Status:** Active Development
+**Current Version:** 0.8.2
 
 ---
 
 ## 1. ROADMAP
 
-Roadmap визначає **етапи розвитку гри** на високому рівні.
-Кожен етап завершується **стабільним ігровим станом**, а не набором фіч.
+### Phase 0 — Foundations ✅ COMPLETE
+- Архітектурне ядро гри
+- Глобальні стани (LoggedOff, Initializing, InGame)
+- Boot sequence з 4-stage UI
 
----
-
-### Phase 0 — Foundations (Architecture First)
-
-**Ціль:**  
-Створити стабільне архітектурне ядро гри.
-
-**Ключові результати:**
-- Гра запускається без контенту
-- Чіткі глобальні та локальні стани
-- Коректний lifecycle гри
-- Повна керованість через GameState
-
-**Вихідний стан:**
-- Player може LogOn / LogOff
-- Працює ScreenSaver
-- Корабель існує як безпечний контекст
-
----
-
-### Phase 1 — Core Gameplay Loop
-
-**Ціль:**  
-Реалізувати базову петлю гри:
+### Phase 1 — Core Gameplay Loop ⏳ IN PROGRESS
 > Орбіта → Локація → Повернення → Прогрес
 
-**Ключові результати:**
-- Перша планета «Рубін»
-- 2 локації (Story + Exploration)
-- Сканування планет і локацій
-- Teleport через SpawnLocation
+**Завершено:**
+- Перша планета (Kepler-442b)
+- 2 локації (Location1, Location2)
+- Transition система (Landing/Launch)
 
----
+**В роботі:**
+- Сканування планет (EPIC 5)
+- Gameplay локацій (EPIC 7)
 
-### Phase 2 — Progression & Persistence
-
-**Ціль:**  
-Закріпити RPG-складову.
-
-**Ключові результати:**
-- Збереження прогресу
-- Ресурси і знання
-- Розвиток корабля
-- Повторні візити до локацій
-
----
+### Phase 2 — Progression & Persistence ✅ COMPLETE
+- ProfileService v2 з auto-save
+- Ресурси та знання
+- Повторні візити
 
 ### Phase 3 — Expansion & Variety
-
-**Ціль:**  
-Збільшення різноманіття гри.
-
-**Ключові результати:**
 - Нові типи локацій
 - Нові планети
-- Підвищення складності
 - Наративні розгалуження
 
----
-
-### Phase 4 — Polishing & Release Readiness
-
-**Ціль:**  
-Стабільність, баланс, підготовка до релізу.
-
-**Ключові результати:**
-- Баланс локацій
+### Phase 4 — Polishing & Release
+- Баланс
 - UI/UX polish
 - Оптимізація
-- Маркетингова підготовка (Roblox Discover)
 
 ---
 
-## 2. EPICS AND STORIES
+## 2. ACTIVE EPICS
 
-Backlog організований за **Epic → User Stories**.  
-User Stories формулюються з точки зору **гравця** або **системи**.
+### EPIC 4 — Planet & Location System ⏳ 3/4
 
----
-
-### EPIC 1 — Game Boot & Global States ✅ COMPLETE
-
-**Опис:**
-Життєвий цикл гри від запуску до завершення сесії.
-
-**Status:** ✅ Complete (v0.5)
-
-#### Stories:
-- ✅ Player can see ScreenSaver and avatar before entering the game
-- ✅ Player can Log In and start a new session
-- ✅ Player can Log Off and return to ScreenSaver
-- ✅ Game handles unexpected disconnects safely
-- ✅ Game initializes in a clean and deterministic state
+**Незакриті Stories:**
+- [ ] Locations have independent rules (gravity, hazards, time limits)
 
 ---
 
-### EPIC 2 — Game State Architecture ✅ COMPLETE
+### EPIC 5 — Scanner Systems 🆕 0/4
 
-**Опис:**
-Єдина система глобальних і локальних станів.
-
-**Status:** ✅ Complete (v0.5)
-
-#### Stories:
-- ✅ Game has a single source of truth for state
-- ✅ Systems react to state changes, not raw events
-- ✅ Context switching is atomic and safe
-- ✅ Transition states block player actions
-
----
-
-### EPIC 3 — Space Ship as Core Location ✅ COMPLETE
-
-**Опис:**
-Корабель як безпечний хаб гри.
-
-**Status:** ✅ Complete (v0.7)
-
-#### Stories:
-- ✅ Player always spawns on the ship (PilotSeat)
-- ✅ Ship acts as save and restore point
-- ✅ Player can view planet from orbit
-- ✅ Ship systems reflect player progression (5 seats with UI)
-
----
-
-### EPIC 4 — Planet & Location System ⏳ IN PROGRESS
-
-**Опис:**
-Планети як контейнери локацій.
-
-**Status:** ⏳ In Progress (v0.7)
-
-#### Stories:
-- ✅ Planet contains multiple locations (LocationService, Config.luau)
-- ✅ Locations can be discovered and visited (TransitionService landing)
-- Locations have independent rules
-- ✅ Player can revisit locations with updated state (liftoff → landing cycle)
-
----
-
-### EPIC 5 — Scanner Systems
-
-**Опис:**  
-Виявлення нового контенту.
-
-#### Stories:
-- Player can scan planet surface from orbit
-- Scanner reveals undiscovered locations
-- Scanner feedback is visual and clear
-- Scanner cannot be used in invalid contexts
-
----
-
-### EPIC 6 — Teleportation & SpawnLocation ⏳ IN PROGRESS
-
-**Опис:**
-Переміщення між контекстами гри.
-
-**Status:** ⏳ In Progress (v0.7)
-
-**Note:** Реалізовано через TransitionService (Landing/Liftoff) замість традиційного Teleport.
-
-#### Stories:
-- ✅ SpawnLocation acts as teleport point (LandingPad with PilotSeat)
-- SpawnLocation has active / inactive states
-- ✅ Teleport GUI shows available destinations (PilotUI location list)
-- Player can cancel teleport safely
-
----
-
-### EPIC 7 — Location Gameplay (Arcades)
-
-**Опис:**  
-Локації як окремі ігрові аркади.
-
-#### Stories:
-- Each location has a primary goal
-- Locations may have optional objectives
-- Player can fail exploration
-- Failure has consequences but preserves knowledge
-
----
-
-### EPIC 8 — Progression & Persistence ✅ COMPLETE
-
-**Опис:**
-Довготривалий прогрес гравця.
-
-**Status:** ✅ Complete (v0.8)
-
-#### Stories:
-- ✅ Player progress is saved reliably (auto-save + event saves)
-- ✅ Player returns to last known safe state (lastSafeState in profile)
-- ✅ Resources may be lost on failure (RemoveResources API)
-- ✅ Knowledge is never lost (AddKnowledge only, no removal)
-
----
-
-### EPIC 9 — UI & UX ⏳ IN PROGRESS
-
-**Опис:**
-Контекстний інтерфейс гри.
-
-**Status:** ⏳ In Progress (v0.7)
-
-#### Stories:
-- ✅ UI reflects current game state (StatusBarUI, PilotUI context)
-- ✅ Contextual menus appear only when allowed (SeatUI system)
-- ✅ UI never bypasses game logic (server-authoritative)
-- UI explains restrictions to player
-
----
-
-### EPIC 10 — Diagnostics & Logging ✅ COMPLETE
-
-**Опис:**
-Прозорість та керованість розробки.
-
-**Status:** ✅ Complete (v0.7)
-
-#### Stories:
-- ✅ Every system logs its initialization
-- ✅ Logs are concise and structured
-- ✅ Output logs can be analyzed externally
-- ✅ Scripts have standardized headers (KOSMICMAZER format, TDD 11.8)
-
----
-
-## 3. SPRINT BACKLOG
-
-Sprint Backlog формується **інкрементально**.
-Перші спринти зосереджені **виключно на архітектурі**.
-
----
-
-### Sprint 0 — Project Skeleton & Standards
-
-**Goal:**  
-Підготувати основу для розробки.
+**Опис:** Виявлення нового контенту через сканування.
 
 **Stories:**
-- Create repository structure
-- Add GDD.md, TDD.md, Backlog.md
-- Define logging standard
-- Define script header template
-- Prepare ScreenSaver placeholder
+- [ ] Player can scan planet surface from orbit
+- [ ] Scanner reveals undiscovered locations
+- [ ] Scanner feedback is visual and clear
+- [ ] Scanner cannot be used in invalid contexts
 
 ---
 
-### Sprint 1 — Global State & Boot Flow
+### EPIC 7 — Location Gameplay (Arcades) 🆕 0/4
 
-**Goal:**  
-Гра запускається стабільно.
+**Опис:** Локації як окремі ігрові аркади.
 
 **Stories:**
-- Implement Game Boot sequence
-- Implement ScreenSaver state
-- Implement LogOn / LogOff flow
-- Implement global state coordinator
-- Log init of all core systems
+- [ ] Each location has a primary goal
+- [ ] Locations may have optional objectives
+- [ ] Player can fail exploration
+- [ ] Failure has consequences but preserves knowledge
 
 ---
 
-### Sprint 2 — Space Ship Context
+### EPIC 9 — UI & UX ⏳ 3/4
 
-**Goal:**  
-Корабель як стабільний контекст.
-
-**Stories:**
-- Initialize Space Ship location
-- Spawn player on ship
-- Define safe save point
-- Display planet from orbit
-ServerStorage
-└── Planets
-    └── Planet_1
-        ├── Orbit
-        │   ├── StarterPlayer
-        │   │   ├── StarterCharacterScript
-        │   │   └── StarterPlayerScript
-        │   ├── ReplicatedStorage
-        │   ├── ServerScriptService
-        │   └── Workspace
-        │       ├── Lighting
-        │       │   └── Sky
-        │       └── SpaceShip
-        │           ├── Configuration
-        │           │   ├── MaxShield
-        │           │   ├── MaxHull
-        │           │   ├── ExplosionSize
-        │           │   ├── Description
-        │           │   ├── Class
-        │           │   └── Mass
-        │           ├── ShipParts (багато частин та зварних з'єднань)
-        │           ├── TurretPlate (5 шт.)
-        │           ├── PilotSeat
-        │           ├── Seat (4 шт.)
-        │           ├── DockPoint
-        │           └── CenterPoint
-        └── Surface
-            ├── Location1
-            │   ├── Workspace
-            │   │   └── Lighting
-            │   │       └── Sky
-            │   ├── ServerScriptService
-            │   ├── ReplicatedStorage
-            │   └── StarterPlayer
-            │       ├── StarterCharacterScript
-            │       └── StarterPlayerScript
-            └── Location2
-                ├── Workspace
-                │   └── Lighting
-                │       └── Sky
-                ├── ServerScriptService
-                ├── ReplicatedStorage
-                └── StarterPlayer
-                    ├── StarterCharacterScript
-                    └── StarterPlayerScript
----
-
-### Sprint 3 — First Planet & Scanning
-
-**Goal:**  
-Перший контакт з планетою.
-
-**Stories:**
-- Add Planet “Рубін”
-- Implement planet surface scanner
-- Discover locations
-- Visual feedback for scanning
+**Незакриті Stories:**
+- [ ] UI explains restrictions to player (tooltips, disabled states)
 
 ---
 
-### Sprint 4 — First Locations
+## 3. COMPLETED EPICS (Archive)
 
-**Goal:**  
-Початковий геймплей.
+| EPIC | Version | Description |
+|------|---------|-------------|
+| EPIC 1 | v0.5 | Game Boot & Global States |
+| EPIC 2 | v0.5 | Game State Architecture |
+| EPIC 3 | v0.7 | Space Ship as Core Location |
+| EPIC 6 | v0.8.2 | Teleportation (Postponed — covered by TransitionService) |
+| EPIC 8 | v0.8 | Progression & Persistence |
+| EPIC 10 | v0.8.2 | Diagnostics & Logging |
+
+---
+
+## 4. NEXT SPRINT
+
+### Sprint 5 — Scanner & Discovery
+
+**Goal:** Гравець відкриває локації через сканування.
 
 **Stories:**
-- Location “Візитка” (Story)
-- Location “Садочок” (Exploration)
-- Location entry and exit flow
-- Minimal success / failure conditions
+- [ ] Create ScannerUI for PilotSeat
+- [ ] Add ScannerService (server-side)
+- [ ] Implement scan progress animation
+- [ ] Mark locations as discovered in ProfileService
+- [ ] Update PilotUI to show only discovered locations
 
 ---
 
@@ -364,6 +116,3 @@ ServerStorage
 - Backlog є **живим документом**
 - Пріоритет — **стабільність ядра**
 - Контент додається після стабілізації систем
-- Будь-яка Story може бути переглянута після архітектурного рев’ю
-
----
