@@ -4,7 +4,52 @@
 
 ---
 
-## [Unreleased]
+## [0.9.0] - 2026-01-16 - EPIC 3, 4, 5: SpaceShip & Planet Systems
+
+### Added - EPIC 5: Scanner Systems
+
+- **ScannerService.lua** (v0.1) — серверний сервіс для сканування планети
+  - `RequestScan()` — обробка запитів на сканування
+  - Прогрес-бар з 10 кроків (5 секунд)
+  - Cooldown 10 секунд між скануваннями
+  - Випадкове відкриття локації з undiscovered list
+  - Валідація контексту (тільки Orbit)
+
+- **SurfaceScannerUI.lua** (v0.1) — клієнтський UI для сканера
+  - Кнопка сканування
+  - Прогрес-бар анімація
+  - Список виявлених локацій
+  - Контекст-aware (доступний лише на орбіті)
+
+- **SpaceShipConfig.lua** (v0.1) — об'єднана конфігурація SpaceShip
+  - Перейменовано з SeatConfig.lua
+  - `Structure` — структура компонентів SpaceShip
+  - `Seats` — конфігурація всіх сидінь
+  - `GetStructure()`, `GetSeatNames()`, `GetComponentInfo()` API
+  - `GetSeatConfig()`, `GetDisplayName()`, `IsSeatKnown()` API
+
+- **SpaceShipService.lua** (v0.4) — структура SpaceShip + seat management
+  - Використовує SpaceShipConfig замість локальної структури
+  - `GetStructure()`, `GetSeatNames()` делегують до SpaceShipConfig
+  - Merged SeatService: seat occupancy tracking, action handlers
+  - `OnSeatOccupied()`, `OnSeatVacated()`, `ProcessSeatAction()`
+  - `RegisterActionHandler()`, `GetSeatOccupant()`, `GetPlayerSeat()`
+
+### Removed
+
+- **SeatService.lua** — merged into SpaceShipService (seat management now part of ship)
+- **SeatConfig.lua** — renamed to SpaceShipConfig.lua
+
+- **RemoteEventsSetup** — Scanner events
+  - `RequestScan` — клієнт запитує сканування
+  - `ScanProgress` — сервер відправляє прогрес
+  - `ScanComplete` — сервер відправляє результат
+
+### Changed - EPIC 5
+
+- **TransitionService.lua** — видалено fallback до Location_1
+  - PilotUI показує лише discovered locations
+  - Порожній список якщо нічого не відкрито
 
 ### Changed - Documentation
 

@@ -20,6 +20,15 @@ API:
 - Show(seatConfig) -- Display the UI
 - Hide() -- Hide the UI
 
+Calls to:
+- None
+
+Called from:
+- SeatUIManager.lua
+
+Dependencies:
+- TweenService
+
 ChangeLog:
 - 0.1: Initial GenericSeatUI (2026-01-13)
 ================================================================================

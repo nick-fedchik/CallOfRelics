@@ -8,7 +8,7 @@ Manages seat-specific UI panels. Shows/hides UI based on seat occupancy.
 Loads and caches seat UI modules dynamically.
 
 Version:
-0.1
+0.2
 
 Features:
 - Dynamic loading of seat UI modules
@@ -25,17 +25,18 @@ API:
 
 Calls to:
 - SeatUI modules (PilotUI, SurfaceScannerUI, etc.)
-- ReplicatedStorage.Game.SeatConfig
+- ReplicatedStorage.Game.SpaceShipConfig
 
 Called from:
 - SeatController
 - ClientBootstrap
 
 Dependencies:
-- SeatConfig
+- SpaceShipConfig
 - Individual UI modules in SeatUI folder
 
 ChangeLog:
+- 0.2: Use SpaceShipConfig instead of SpaceShipConfig (2026-01-16)
 - 0.1: Initial SeatUIManager (2026-01-13)
 ================================================================================
 ]]
@@ -61,7 +62,7 @@ local activeUI = nil -- Currently shown UI name
 
 -- Module references
 local SeatUIFolder
-local SeatConfig
+local SpaceShipConfig
 
 -- ============================================================================
 -- PRIVATE FUNCTIONS
@@ -103,7 +104,7 @@ function SeatUIManager.Initialize()
 	if isInitialized then return true end
 
 	local Game = ReplicatedStorage:WaitForChild("Game")
-	SeatConfig = require(Game:WaitForChild("SeatConfig"))
+	SpaceShipConfig = require(Game:WaitForChild("SpaceShipConfig"))
 
 	local PlayerScripts = LocalPlayer:WaitForChild("PlayerScripts")
 	local UI = PlayerScripts:WaitForChild("UI")
@@ -128,7 +129,7 @@ function SeatUIManager.ShowSeatUI(seatName, seatConfig)
 end
 
 function SeatUIManager.HideSeatUI(seatName)
-	local seatConfig = SeatConfig.GetSeatConfig(seatName)
+	local seatConfig = SpaceShipConfig.GetSeatConfig(seatName)
 
 	if seatConfig then
 		local moduleName = seatConfig.uiModule

@@ -7,7 +7,7 @@
 
 **Status:** Active Development
 
-**Current Game Version:** 0.8.2
+**Current Game Version:** 0.9.1
 
 ---
 
@@ -109,15 +109,21 @@ Leave Planet → Location/Orbit Fini → Planet Fini
 
 ---
 
-### EPIC 5 — Scanner Systems 🆕 0/4
+### EPIC 5 — Surface Scanner System ⏳ IN PROGRESS
 
 **Опис:** Виявлення нового контенту через сканування.
 
+**Implementation:**
+- ScannerService (server-side) — scan processing, cooldown, discovery
+- SurfaceScannerUI (client-side) — scan button, progress bar, discovered list
+- "Seat Planet Surface Scanner" — dedicated scanner seat on SpaceShip
+- RemoteEvents: RequestScan, ScanProgress, ScanComplete
+
 **Stories:**
-- [ ] Player can scan planet surface from orbit
-- [ ] Scanner reveals undiscovered locations
-- [ ] Scanner feedback is visual and clear
-- [ ] Scanner cannot be used in invalid contexts
+- [x] Player can scan planet surface from orbit
+- [x] Scanner reveals undiscovered locations
+- [x] Scanner feedback is visual and clear (progress bar + messages)
+- [x] Scanner cannot be used in invalid contexts (Orbit only)
 
 ---
 
@@ -133,6 +139,54 @@ Leave Planet → Location/Orbit Fini → Planet Fini
 
 ---
 
+### EPIC 11 — Engines System 🆕 0/4
+
+**Опис:** Керування двигунами корабля через "Seat Engines".
+
+**Seat:** `Seat Engines`
+**UI Module:** `EnginesUI`
+**Functionality:** `canControlEngines = true`
+
+**Stories:**
+- [ ] EnginesUI displays ship engine status
+- [ ] Player can monitor fuel/energy levels
+- [ ] Player can adjust engine power distribution
+- [ ] Engine state affects ship capabilities (speed, maneuverability)
+
+---
+
+### EPIC 12 — Planet Locator System 🆕 0/4
+
+**Опис:** Планетний локатор для виявлення та навігації до нових планет.
+
+**Seat:** `Seat Locator`
+**UI Module:** `PlanetLocatorUI`
+**Functionality:** `canLocatePlanets = true`
+
+**Stories:**
+- [ ] PlanetLocatorUI displays known planets
+- [ ] Player can scan for undiscovered planets
+- [ ] Player can set navigation target
+- [ ] Discovered planets saved to ProfileService
+
+---
+
+### EPIC 13 — Personal Computer System 🆕 0/4
+
+**Опис:** Персональний комп'ютер для доступу до інвентарю та бази знань.
+
+**Seat:** `Seat Personal Computer`
+**UI Module:** `PersonalComputerUI`
+**Functionality:** `canAccessInventory = true`, `canAccessKnowledge = true`
+
+**Stories:**
+- [ ] PersonalComputerUI displays inventory (resources)
+- [ ] PersonalComputerUI displays knowledge base
+- [ ] Player can view collected resources
+- [ ] Player can browse discovered knowledge entries
+
+---
+
 ### EPIC 9 — UI & UX ⏳ 3/4
 
 **Незакриті Stories:**
@@ -140,9 +194,9 @@ Leave Planet → Location/Orbit Fini → Planet Fini
 
 ---
 
-### EPIC 3 — SpaceShip System ✅ COMPLETE
+### EPIC 3 — SpaceShip System ⏳ 4/8
 
-**Опис:** SpaceShip як основна локація гравця, незалежна від планет.
+**Опис:** SpaceShip як основна локація гравця з 5 функціональними кріслами.
 
 **Специфікація:**
 
@@ -152,6 +206,15 @@ ServerStorage/Actors/
 ├── SpaceShip_Advanced           # Upgraded model (TBD)
 └── SpaceShip_Elite              # Upgraded model (TBD)
 ```
+
+**SpaceShip Seats (SpaceShipConfig):**
+| Seat | UI Module | Functionality |
+|------|-----------|---------------|
+| PilotSeat | PilotUI | Navigation, Weapons control |
+| Seat Engines | EnginesUI | Engine control |
+| Seat Planet Surface Scanner | PlanetSurfaceScannerUI | Planet scanning |
+| Seat Planet Locator | PlanetLocatorUI | Planet discovery |
+| Seat Personal Computer | PersonalComputerUI | Inventory, Knowledge |
 
 **SpaceShip Lifecycle:**
 - Clone до `game.Workspace` на старті гри
@@ -168,6 +231,10 @@ ServerStorage/Actors/
 - [x] SpaceShip cloned to Workspace on game start
 - [x] SpaceShip destroyed from Workspace on game end
 - [x] SpaceShip model loaded from player profile (upgrade system)
+- [x] Game detects when player sits in any seat (logging)
+- [ ] PilotSeat: Navigation system functional
+- [ ] PilotSeat: Weapons control system (TBD)
+- [ ] All seat UIs show proper content (not "NOT WORKING")
 
 ---
 
@@ -177,8 +244,9 @@ ServerStorage/Actors/
 |------|---------|-------------|
 | EPIC 1 | v0.5 | Game Boot & Global States |
 | EPIC 2 | v0.5 | Game State Architecture |
-| EPIC 3 | v0.9 | SpaceShip System |
+| EPIC 3 | v0.9 | SpaceShip System (base) |
 | EPIC 4 | v0.9 | Planet & Location System (Init/Fini) |
+| EPIC 5 | v0.9 | Surface Scanner System (in progress) |
 | EPIC 6 | v0.8.2 | Teleportation (Postponed — covered by TransitionService) |
 | EPIC 8 | v0.8 | Progression & Persistence |
 | EPIC 10 | v0.8.2 | Diagnostics & Logging |
@@ -187,16 +255,26 @@ ServerStorage/Actors/
 
 ## 4. NEXT SPRINT
 
-### Sprint 5 — Scanner & Discovery
+### Sprint 5 — Scanner & Discovery ✅ COMPLETE
 
 **Goal:** Гравець відкриває локації через сканування.
 
 **Stories:**
-- [ ] Create ScannerUI for PilotSeat
-- [ ] Add ScannerService (server-side)
-- [ ] Implement scan progress animation
-- [ ] Mark locations as discovered in ProfileService
-- [ ] Update PilotUI to show only discovered locations
+- [x] Create SurfaceScannerUI for "Seat Planet Surface Scanner"
+- [x] Add ScannerService (server-side)
+- [x] Implement scan progress animation
+- [x] Mark locations as discovered in ProfileService
+- [x] Update PilotUI to show only discovered locations
+
+### Sprint 6 — Location Gameplay (EPIC 7)
+
+**Goal:** Локації мають геймплей.
+
+**Stories:**
+- [ ] Define primary goal for Location_1 (tutorial)
+- [ ] Define primary goal for Location_2 (exploration)
+- [ ] Implement goal completion tracking
+- [ ] Add failure/success outcomes
 
 ---
 

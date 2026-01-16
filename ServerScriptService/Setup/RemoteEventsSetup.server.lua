@@ -99,4 +99,9 @@ CreateRemoteEvent("TransitionLandingCamera")
 CreateRemoteEvent("ProfileUpdate")
 CreateRemoteEvent("RequestProfileSync")
 
+-- Scanner System Events
+CreateRemoteEvent("RequestScan")
+CreateRemoteEvent("ScanProgress")
+CreateRemoteEvent("ScanComplete")
+
 print(string.format("[%s %s] ✓ RemoteEvents ready", MODULE_NAME, VERSION))

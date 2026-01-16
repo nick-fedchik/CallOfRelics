@@ -349,12 +349,8 @@ function TransitionService.GetAvailableLocations(player)
 	local planetId = profile.currentPlanet or "Planet_1"
 
 	-- Use new per-planet location structure (EPIC 8)
+	-- Returns only discovered locations (via Scanner system)
 	local exploredLocations = profileService.GetExploredLocationsForPlanet(player, planetId)
-
-	-- If no explored locations, use default for debug
-	if #exploredLocations == 0 then
-		exploredLocations = {"Location_1"}
-	end
 
 	local locations = {}
 	for _, locationId in ipairs(exploredLocations) do

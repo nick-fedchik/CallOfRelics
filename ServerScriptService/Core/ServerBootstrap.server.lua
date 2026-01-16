@@ -95,12 +95,7 @@ local function Boot()
 		error("[ServerBootstrap] PlayerService initialization failed!")
 	end
 
-	local SeatService = require(Services:WaitForChild("SeatService"))
-	success = SeatService.Initialize()
-	if not success then
-		error("[ServerBootstrap] SeatService initialization failed!")
-	end
-
+	-- SpaceShipService now includes seat management (merged from SeatService)
 	local SpaceShipService = require(Services:WaitForChild("SpaceShipService"))
 	success = SpaceShipService.Initialize()
 	if not success then
@@ -111,6 +106,12 @@ local function Boot()
 	success = TransitionService.Initialize()
 	if not success then
 		error("[ServerBootstrap] TransitionService initialization failed!")
+	end
+
+	local PlanetScannerService = require(Services:WaitForChild("PlanetScannerService"))
+	success = PlanetScannerService.Initialize()
+	if not success then
+		error("[ServerBootstrap] PlanetScannerService initialization failed!")
 	end
 
 	print(string.format("[%s %s] ✓ Server ready, state: %s", MODULE_NAME, VERSION, GameStateManager.GetCurrentState()))
