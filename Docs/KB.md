@@ -1423,6 +1423,120 @@ ReplicatedStorage/
 
 ---
 
+## SpaceShip System (EPIC 3)
+
+### Огляд
+
+Космічний корабель — незалежний від планет та локацій актор, що супроводжує гравця протягом всієї гри.
+
+### SpaceShip Storage
+
+#### Розташування моделі
+
+```
+ServerStorage/Actors/
+└── SpaceShip              # Default SpaceShip model
+```
+
+**Важливо:**
+- SpaceShip **НЕ** залежить від Planet або Location
+- Модель зберігається окремо від планетарного контенту
+- Може бути замінена на іншу модель (Upgrade system)
+
+#### Життєвий цикл SpaceShip
+
+```
+Game Start:
+1. Отримати шлях до моделі з профілю гравця (або Default)
+2. Clone SpaceShip з ServerStorage/Actors/
+3. Parent до game.Workspace
+4. Атрибути можуть змінюватися скриптами під час гри
+
+Game End:
+1. Destroy SpaceShip з game.Workspace
+```
+
+#### Код копіювання
+
+```lua
+-- При старті гри
+local function SpawnSpaceShip(player)
+    local profile = ProfileService.GetProfile(player)
+
+    -- Отримати шлях до моделі (default або upgraded)
+    local shipModelPath = profile.spaceShipModel or "SpaceShip"
+    local actorsFolder = ServerStorage:WaitForChild("Actors")
+    local shipTemplate = actorsFolder:FindFirstChild(shipModelPath)
+
+    if not shipTemplate then
+        warn("SpaceShip model not found:", shipModelPath)
+        shipTemplate = actorsFolder:FindFirstChild("SpaceShip") -- Fallback to default
+    end
+
+    -- Clone та налаштувати
+    local ship = shipTemplate:Clone()
+    ship.ModelStreamingMode = Enum.ModelStreamingMode.Persistent
+    ship.Parent = game.Workspace
+
+    return ship
+end
+
+-- При завершенні гри
+local function DespawnSpaceShip()
+    local ship = game.Workspace:FindFirstChild("SpaceShip")
+    if ship then
+        ship:Destroy()
+    end
+end
+```
+
+### SpaceShip Upgrade System
+
+#### Концепція
+
+Покращення космічного корабля впливають на зовнішній вигляд (заміна моделі).
+
+#### Структура Actors
+
+```
+ServerStorage/Actors/
+├── SpaceShip              # Default model
+├── SpaceShip_Upgraded1    # Upgrade tier 1
+├── SpaceShip_Upgraded2    # Upgrade tier 2
+└── SpaceShip_Custom       # Special models
+```
+
+#### Профіль гравця
+
+```lua
+-- В ProfileService schema
+profile = {
+    -- ...інші поля...
+
+    -- SpaceShip reference
+    spaceShipModel = "SpaceShip",  -- Посилання на модель в ServerStorage/Actors/
+
+    -- SpaceShip state (атрибути що змінюються під час гри)
+    spaceShipState = {
+        hullIntegrity = 100,
+        fuelLevel = 100,
+        modules = {}
+    }
+}
+```
+
+#### Upgrade Flow
+
+```
+1. Гравець отримує upgrade (quest reward, purchase, etc.)
+2. ProfileService.UpdateSpaceShipModel(player, "SpaceShip_Upgraded1")
+3. При наступному старті гри — нова модель
+```
+
+**Примітка:** Деталі системи Upgrade будуть уточнені в подальшому.
+
+---
+
 ## Seat Control System
 
 ### Огляд
@@ -1631,6 +1745,435 @@ end
 ### Огляд
 
 Система організації планетарних локацій. Кожна локація зберігається в `ServerStorage/Planets/` та містить власну конфігурацію, 3D об'єкти та скрипти.
+
+### Planet Configuration (EPIC 4)
+
+#### Структура Планети
+
+Усі об'єкти і моделі зберігаються в `ServerStorage/Planets/Planet_Id/`
+
+```
+ServerStorage/Planets/Planet_Id/
+├── Config.luau              # Конфігурація планети (ОБОВ'ЯЗКОВО)
+├── Orbit/                   # Орбітальний рівень (ОБОВ'ЯЗКОВО)
+│   └── Workspace/
+│       ├── Planet (Model)   # Модель планети в космосі (ОБОВ'ЯЗКОВО)
+│       └── Lighting/        # Природні явища, вигляд космосу (опціонально)
+└── Surface/                 # Поверхневі локації (опціонально)
+    ├── Location1/
+    ├── Location2/
+    └── ...
+```
+
+#### Обов'язкові Елементи
+
+| Елемент | Шлях | При відсутності |
+|---------|------|-----------------|
+| **Planet Config** | `ServerStorage/Planets/Planet_Id/Config.luau` | Game Error |
+| **Orbit Folder** | `ServerStorage/Planets/Planet_Id/Orbit/` | Game Error |
+| **Planet Model** | `ServerStorage/Planets/Planet_Id/Orbit/Workspace/Planet` | Game Error |
+
+#### Опціональні Елементи
+
+| Елемент | Шлях | При відсутності/порожній |
+|---------|------|--------------------------|
+| **Planet Lighting** | `ServerStorage/Planets/Planet_Id/Orbit/Workspace/Lighting/` | Warning в лог |
+| **Surface Folder** | `ServerStorage/Planets/Planet_Id/Surface/` | Warning в лог |
+| **Surface Locations** | `ServerStorage/Planets/Planet_Id/Surface/Location_Id/` | - |
+
+#### Planet Config (Config.luau)
+
+Конфігурація планети зберігається в скрипті `Config.luau`:
+
+```lua
+return {
+    planetId = "Planet_1",
+    displayName = "Kepler-442b",
+    description = "...",
+
+    -- Параметри орбіти
+    orbit = {
+        displayName = "Орбіта",
+        gravity = Vector3.new(0, -10, 0),  -- Низька гравітація
+    },
+
+    -- Метадані
+    discovered = false,
+    explorable = true,
+}
+```
+
+#### Orbit Folder
+
+Спеціальна локація "Орбіта планети". Присутня у кожної планети.
+
+**Вміст:**
+- `Workspace/Planet` — модель планети (вигляд з космосу)
+- `Workspace/Lighting/` — об'єкти копіюються в `Workspace.Lighting`
+
+#### Planet Model
+
+Модель планети — це візуальне представлення планети у космосі на рівні Orbit.
+
+**Вимоги:**
+- Шлях: `ServerStorage/Planets/Planet_Id/Orbit/Workspace/Planet`
+- Тип: Model
+- Наявність: ОБОВ'ЯЗКОВА або Game Error
+
+#### Planet Lighting
+
+Природні явища та вигляд космосу на орбіті планети.
+
+**Поведінка:**
+- Об'єкти з `Orbit/Workspace/Lighting/` копіюються в `Workspace.Lighting`
+- Папка може бути порожньою → Warning в лог
+
+#### Planet Surface (Surface Locations)
+
+Контейнери даних про планетні локації.
+
+**Поведінка:**
+- Якщо папка `Surface/` порожня → Warning в лог
+- Локації зберігаються в `Surface/Location_Id/`
+
+### Planet Init/Fini (EPIC 4)
+
+Гра керує станом перебування гравця в межах конкретної Планети через дві стадії.
+
+#### Planet Init (Ініціалізація)
+
+Виконується коли гравець прибуває до Планети.
+
+**Дії:**
+1. Встановити `CurrentPlanetPath = ServerStorage/Planets/Planet_Id/`
+2. Скопіювати Planet Scripts у відповідні Roblox папки
+3. Ініціалізувати планетарні ресурси
+
+#### Planet Fini (Деініціалізація)
+
+Виконується коли гравець полишає Планету.
+
+**Дії:**
+1. Видалити раніше скопійовані Planet Scripts
+2. Очистити планетарні ресурси
+3. Скинути `CurrentPlanetPath`
+
+### Planet Scripts (EPIC 4)
+
+Папка контейнера планети може містити додаткові папки зі скриптами, специфічними для цієї планети.
+
+#### Структура
+
+```
+ServerStorage/Planets/Planet_Id/
+├── Config.luau
+├── Orbit/
+├── Surface/
+├── ReplicatedStorage/      # Опціонально — скрипти для ReplicatedStorage
+├── ServerScriptService/    # Опціонально — серверні скрипти
+└── StarterPlayer/          # Опціонально — клієнтські скрипти
+```
+
+#### Підтримувані папки
+
+| Папка в Planet_Id | Цільова папка Roblox |
+|-------------------|---------------------|
+| `ReplicatedStorage/` | `game.ReplicatedStorage` |
+| `ServerScriptService/` | `game.ServerScriptService` |
+| `StarterPlayer/` | `game.StarterPlayer` |
+
+#### PlanetScriptsRegistry
+
+Для точного відслідковування скопійованих скриптів, при Planet Init створюється реєстр `PlanetScriptsRegistry` в `Config.luau`.
+
+**Структура реєстру:**
+
+```lua
+-- В Config.luau планети
+return {
+    planetId = "Planet_1",
+    displayName = "Kepler-442b",
+    -- ...інші поля...
+
+    -- Реєстр скопійованих скриптів (заповнюється при Planet Init)
+    PlanetScriptsRegistry = {
+        ReplicatedStorage = {
+            -- { name = "ModuleName", instance = <reference> }
+        },
+        ServerScriptService = {
+            -- { name = "ServiceName", instance = <reference> }
+        },
+        StarterPlayer = {
+            -- { name = "ScriptName", instance = <reference> }
+        }
+    }
+}
+```
+
+#### Planet Init — Копіювання з реєстрацією
+
+При ініціалізації планети всі об'єкти копіюються та реєструються в `PlanetScriptsRegistry`.
+
+```lua
+-- Приклад: Planet Init з реєстрацією
+local planetConfig = require(ServerStorage.Planets.Planet_1.Config)
+local folders = {"ReplicatedStorage", "ServerScriptService", "StarterPlayer"}
+
+-- Ініціалізувати реєстр
+planetConfig.PlanetScriptsRegistry = {}
+
+for _, folderName in ipairs(folders) do
+    local sourceFolder = planetPath:FindFirstChild(folderName)
+    if sourceFolder then
+        local targetFolder = game:GetService(folderName)
+        planetConfig.PlanetScriptsRegistry[folderName] = {}
+
+        for _, item in ipairs(sourceFolder:GetChildren()) do
+            local clone = item:Clone()
+            clone.Parent = targetFolder
+
+            -- Реєстрація скопійованого об'єкта
+            table.insert(planetConfig.PlanetScriptsRegistry[folderName], {
+                name = item.Name,
+                instance = clone
+            })
+        end
+    end
+end
+```
+
+#### Planet Fini — Видалення за реєстром
+
+При деініціалізації планети використовується `PlanetScriptsRegistry` для точного видалення.
+
+```lua
+-- Приклад: Planet Fini за реєстром
+local planetConfig = require(ServerStorage.Planets.Planet_1.Config)
+local registry = planetConfig.PlanetScriptsRegistry
+
+if registry then
+    for folderName, items in pairs(registry) do
+        for _, entry in ipairs(items) do
+            if entry.instance and entry.instance.Parent then
+                entry.instance:Destroy()
+            end
+        end
+    end
+
+    -- Очистити реєстр
+    planetConfig.PlanetScriptsRegistry = nil
+end
+```
+
+#### Важливо
+
+- Скрипти копіюються **тільки на час перебування на планеті**
+- При переході на іншу планету спочатку виконується Fini старої, потім Init нової
+- `PlanetScriptsRegistry` зберігає references на скопійовані Instance для точного видалення
+- Реєстр очищується після Planet Fini
+
+### Orbit Init/Fini (EPIC 4)
+
+Аналогічна система для рівня Orbit.
+
+#### Структура Orbit
+
+```
+ServerStorage/Planets/Planet_Id/Orbit/
+├── Config.luau              # Конфігурація орбіти
+├── Workspace/               # Об'єкти для game.Workspace
+│   ├── Planet (Model)       # ОБОВ'ЯЗКОВО
+│   └── Lighting/            # Об'єкти для game.Workspace.Lighting
+├── ReplicatedStorage/       # Опціонально — скрипти для орбіти
+├── ServerScriptService/     # Опціонально — серверні скрипти орбіти
+└── StarterPlayer/           # Опціонально — клієнтські скрипти орбіти
+```
+
+#### Orbit Init
+
+Виконується при переході гравця на орбіту планети.
+
+**Дії:**
+1. Скопіювати об'єкти з `Orbit/Workspace/` в `game.Workspace`
+2. Скопіювати об'єкти з `Orbit/Workspace/Lighting/` в `game.Workspace.Lighting`
+3. Скопіювати скрипти з `Orbit/{ReplicatedStorage,ServerScriptService,StarterPlayer}/`
+4. Зареєструвати всі скопійовані об'єкти в `OrbitObjectsRegistry` та `OrbitScriptsRegistry`
+
+#### Orbit Fini
+
+Виконується при виході гравця з орбіти (посадка на поверхню або перехід до іншої планети).
+
+**Дії:**
+1. Видалити всі об'єкти за `OrbitObjectsRegistry`
+2. Видалити всі скрипти за `OrbitScriptsRegistry`
+3. Очистити реєстри
+
+### Location Init/Fini (EPIC 4)
+
+Аналогічна система для поверхневих локацій.
+
+#### Структура Location
+
+```
+ServerStorage/Planets/Planet_Id/Surface/Location_Id/
+├── Config.luau              # Конфігурація локації
+├── Workspace/               # Об'єкти для game.Workspace
+│   └── Lighting/            # Об'єкти для game.Workspace.Lighting
+├── ReplicatedStorage/       # Опціонально — скрипти для локації
+├── ServerScriptService/     # Опціонально — серверні скрипти локації
+└── StarterPlayer/           # Опціонально — клієнтські скрипти локації
+```
+
+#### Location Init
+
+Виконується при посадці гравця на локацію.
+
+**Дії:**
+1. Скопіювати об'єкти з `Location_Id/Workspace/` в `game.Workspace`
+2. Скопіювати об'єкти з `Location_Id/Workspace/Lighting/` в `game.Workspace.Lighting`
+3. Скопіювати скрипти з `Location_Id/{ReplicatedStorage,ServerScriptService,StarterPlayer}/`
+4. Зареєструвати всі скопійовані об'єкти в `LocationObjectsRegistry` та `LocationScriptsRegistry`
+
+#### Location Fini
+
+Виконується при виході гравця з локації (зліт на орбіту).
+
+**Дії:**
+1. Видалити всі об'єкти за `LocationObjectsRegistry`
+2. Видалити всі скрипти за `LocationScriptsRegistry`
+3. Очистити реєстри
+
+### Orbit/Location Objects Registry (EPIC 4)
+
+Окремі реєстри для Workspace об'єктів (на відміну від скриптів).
+
+#### Структура реєстрів в Config.luau
+
+```lua
+-- В Orbit/Config.luau або Surface/Location_Id/Config.luau
+return {
+    locationId = "Orbit", -- або "Location1"
+    displayName = "Орбіта",
+    -- ...інші поля...
+
+    -- Реєстр скопійованих Workspace об'єктів
+    ObjectsRegistry = {
+        Workspace = {
+            -- { name = "Planet", instance = <reference> }
+            -- { name = "SpaceShip", instance = <reference> }
+        },
+        Lighting = {
+            -- { name = "Sky", instance = <reference> }
+            -- { name = "Atmosphere", instance = <reference> }
+        }
+    },
+
+    -- Реєстр скопійованих скриптів
+    ScriptsRegistry = {
+        ReplicatedStorage = {},
+        ServerScriptService = {},
+        StarterPlayer = {}
+    }
+}
+```
+
+#### Init з реєстрацією об'єктів
+
+```lua
+-- Приклад: Location Init з реєстрацією
+local locationConfig = require(locationPath.Config)
+
+-- Ініціалізувати реєстри
+locationConfig.ObjectsRegistry = { Workspace = {}, Lighting = {} }
+locationConfig.ScriptsRegistry = { ReplicatedStorage = {}, ServerScriptService = {}, StarterPlayer = {} }
+
+-- Копіювати Workspace об'єкти
+local workspaceFolder = locationPath:FindFirstChild("Workspace")
+if workspaceFolder then
+    for _, item in ipairs(workspaceFolder:GetChildren()) do
+        if item.Name == "Lighting" then
+            -- Копіювати в game.Workspace.Lighting
+            for _, lightItem in ipairs(item:GetChildren()) do
+                local clone = lightItem:Clone()
+                clone.Parent = game.Workspace.Lighting
+                table.insert(locationConfig.ObjectsRegistry.Lighting, {
+                    name = lightItem.Name,
+                    instance = clone
+                })
+            end
+        else
+            -- Копіювати в game.Workspace
+            local clone = item:Clone()
+            clone.Parent = game.Workspace
+            table.insert(locationConfig.ObjectsRegistry.Workspace, {
+                name = item.Name,
+                instance = clone
+            })
+        end
+    end
+end
+
+-- Копіювати скрипти (аналогічно Planet Scripts)
+-- ...
+```
+
+#### Fini за реєстрами
+
+```lua
+-- Приклад: Location Fini за реєстрами
+local locationConfig = require(locationPath.Config)
+
+-- Видалити Workspace об'єкти
+if locationConfig.ObjectsRegistry then
+    for _, entry in ipairs(locationConfig.ObjectsRegistry.Workspace or {}) do
+        if entry.instance and entry.instance.Parent then
+            entry.instance:Destroy()
+        end
+    end
+    for _, entry in ipairs(locationConfig.ObjectsRegistry.Lighting or {}) do
+        if entry.instance and entry.instance.Parent then
+            entry.instance:Destroy()
+        end
+    end
+end
+
+-- Видалити скрипти
+if locationConfig.ScriptsRegistry then
+    for folderName, items in pairs(locationConfig.ScriptsRegistry) do
+        for _, entry in ipairs(items) do
+            if entry.instance and entry.instance.Parent then
+                entry.instance:Destroy()
+            end
+        end
+    end
+end
+
+-- Очистити реєстри
+locationConfig.ObjectsRegistry = nil
+locationConfig.ScriptsRegistry = nil
+```
+
+#### Ієрархія Init/Fini
+
+```
+Гравець заходить у гру:
+1. Planet Init (Planet_1)
+2. Orbit Init (Planet_1/Orbit)
+
+Гравець сідає на локацію:
+1. Orbit Fini
+2. Location Init (Location1)
+
+Гравець злітає на орбіту:
+1. Location Fini
+2. Orbit Init
+
+Гравець переходить на іншу планету:
+1. Location/Orbit Fini (поточна)
+2. Planet Fini (поточна)
+3. Planet Init (нова)
+4. Orbit Init (нова)
+```
 
 ### Структура Planet_1/Surface/Location1
 

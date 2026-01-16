@@ -23,6 +23,8 @@
 - Transition система (Landing/Launch)
 
 **В роботі:**
+- SpaceShip система (EPIC 3)
+- Planet & Location система (EPIC 4)
 - Сканування планет (EPIC 5)
 - Gameplay локацій (EPIC 7)
 
@@ -47,7 +49,58 @@
 
 ### EPIC 4 — Planet & Location System ⏳ 3/4
 
+**Опис:** Структура та конфігурація планет і локацій.
+
+**Специфікація:**
+
+```
+ServerStorage/Planets/Planet_Id/
+├── Config.luau                    # ОБОВ'ЯЗКОВО — Game Error
+├── ReplicatedStorage/             # Planet Scripts
+├── ServerScriptService/           # Planet Scripts
+├── StarterPlayer/                 # Planet Scripts
+├── Orbit/                         # ОБОВ'ЯЗКОВО — Game Error
+│   ├── Config.luau                # Orbit config
+│   ├── Workspace/
+│   │   ├── Planet (Model)         # ОБОВ'ЯЗКОВО — Game Error
+│   │   └── Lighting/              # → game.Workspace.Lighting
+│   ├── ReplicatedStorage/         # Orbit Scripts
+│   ├── ServerScriptService/       # Orbit Scripts
+│   └── StarterPlayer/             # Orbit Scripts
+└── Surface/
+    └── Location_Id/
+        ├── Config.luau            # Location config
+        ├── Workspace/
+        │   └── Lighting/          # → game.Workspace.Lighting
+        ├── ReplicatedStorage/     # Location Scripts
+        ├── ServerScriptService/   # Location Scripts
+        └── StarterPlayer/         # Location Scripts
+```
+
+**Init/Fini System:**
+- `Planet Init/Fini` — Planet Scripts + `PlanetScriptsRegistry`
+- `Orbit Init/Fini` — Orbit Scripts + Workspace + `OrbitObjectsRegistry` + `OrbitScriptsRegistry`
+- `Location Init/Fini` — Location Scripts + Workspace + `LocationObjectsRegistry` + `LocationScriptsRegistry`
+
+**Ієрархія:**
+```
+Enter Game → Planet Init → Orbit Init
+Landing    → Orbit Fini → Location Init
+Launch     → Location Fini → Orbit Init
+Leave Planet → Location/Orbit Fini → Planet Fini
+```
+
+**Завершені Stories:**
+- [x] Planet configuration stored in Config.luau
+- [x] Orbit folder with Planet model
+- [x] Surface folder with Location subfolders
+
 **Незакриті Stories:**
+- [ ] Planet Init/Fini with PlanetScriptsRegistry
+- [ ] Orbit Init/Fini with OrbitObjectsRegistry + OrbitScriptsRegistry
+- [ ] Location Init/Fini with LocationObjectsRegistry + LocationScriptsRegistry
+- [ ] Workspace/Lighting objects copied to game.Workspace.Lighting
+- [ ] CurrentPlanetPath tracks active planet
 - [ ] Locations have independent rules (gravity, hazards, time limits)
 
 ---
@@ -83,13 +136,43 @@
 
 ---
 
+### EPIC 3 — SpaceShip System ⏳ 0/4
+
+**Опис:** SpaceShip як основна локація гравця, незалежна від планет.
+
+**Специфікація:**
+
+```
+ServerStorage/Actors/
+├── SpaceShip                    # Default model
+├── SpaceShip_Advanced           # Upgraded model (TBD)
+└── SpaceShip_Elite              # Upgraded model (TBD)
+```
+
+**SpaceShip Lifecycle:**
+- Clone до `game.Workspace` на старті гри
+- Destroy з `game.Workspace` по завершенні гри
+- Незалежний від Planet/Location системи
+- `ModelStreamingMode = Persistent`
+
+**SpaceShip Upgrade:**
+- Профіль гравця зберігає `spaceShipModel` посилання
+- Fallback до `SpaceShip` якщо модель не знайдена
+
+**Stories:**
+- [ ] SpaceShip model stored in ServerStorage/Actors/
+- [ ] SpaceShip cloned to Workspace on game start
+- [ ] SpaceShip destroyed from Workspace on game end
+- [ ] SpaceShip model loaded from player profile (upgrade system)
+
+---
+
 ## 3. COMPLETED EPICS (Archive)
 
 | EPIC | Version | Description |
 |------|---------|-------------|
 | EPIC 1 | v0.5 | Game Boot & Global States |
 | EPIC 2 | v0.5 | Game State Architecture |
-| EPIC 3 | v0.7 | Space Ship as Core Location |
 | EPIC 6 | v0.8.2 | Teleportation (Postponed — covered by TransitionService) |
 | EPIC 8 | v0.8 | Progression & Persistence |
 | EPIC 10 | v0.8.2 | Diagnostics & Logging |
