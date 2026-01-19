@@ -155,8 +155,32 @@ SpaceShipConfig.Structure = {
 		-- Ship structural parts
 		ShipParts = {
 			className = "Model",
-			description = "Ship structural components"
+			description = "Ship structural components",
+			subComponents = {
+				RearShipExit = {
+					className = "Part",
+					description = "Rear ship exit point for crew disembarkation",
+					attributes = {
+						material = "DiamondPlate",
+						size = "4, 6, 1",
+						color = "Toothpaste (Cyan)",
+						transparency = 0.25,
+						canCollide = false,
+						canTouch = true,
+						surfaces = {
+							top = "Weld",
+							bottom = "Weld",
+							left = "Weld",
+							right = "Weld",
+							front = "Smooth",
+							back = "Smooth"
+						}
+					}
+				}
+			}
 		},
+
+
 
 		-- Weapon systems
 		Torpedoes = {
@@ -194,6 +218,216 @@ SpaceShipConfig.Structure = {
 		CenterPoint = {
 			className = "Part",
 			description = "Ship center reference point"
+		},
+
+		-- Ramp system
+		ShipRamp = {
+			className = "Model",
+			description = "Ship boarding ramp model with 10 metal steps for crew boarding",
+			attributes = {
+				totalSteps = 10,
+				stepMaterial = "Metal",
+				stepColor = "0.639216, 0.635294, 0.647059 (Silver Gray)",
+				stepSize = "10.178728103637695, 2.035745620727539, 5.089364051818848",
+				stepHeight = 2.035745620727539,
+				stepWidth = 10.178728103637695,
+				stepDepth = 5.089364051818848,
+				anchored = true,
+				canCollide = true,
+				transparency = 0,
+				reflectance = 0,
+				surfaceProperties = {
+					topSurface = "Studs",
+					bottomSurface = "Inlet",
+					frontSurface = "Smooth",
+					backSurface = "Smooth",
+					leftSurface = "Smooth",
+					rightSurface = "Smooth"
+				}
+			},
+			subComponents = {
+				Step1 = {
+					className = "Part",
+					description = "First step of the boarding ramp (highest position)",
+					attributes = {
+						position = "485.8764953613281, -438.93768310546875, 36.36967468261719",
+						size = "10.178728103637695, 2.035745620727539, 5.089364051818848",
+						material = "Metal",
+						color = "0.639216, 0.635294, 0.647059 (Silver Gray)",
+						anchored = true,
+						canCollide = true,
+						transparency = 0,
+						reflectance = 0
+					}
+				},
+				Step2 = {
+					className = "Part",
+					description = "Second step of the boarding ramp",
+					attributes = {
+						position = "485.8885803222656, -440.973876953125, 31.280502319335938",
+						size = "10.178728103637695, 2.035745620727539, 5.089364051818848",
+						material = "Metal",
+						color = "0.639216, 0.635294, 0.647059 (Silver Gray)",
+						anchored = true,
+						canCollide = true,
+						transparency = 0,
+						reflectance = 0
+					}
+				},
+				Step3 = {
+					className = "Part",
+					description = "Third step of the boarding ramp",
+					attributes = {
+						position = "485.90069580078125, -443.01007080078125, 26.19131851196289",
+						size = "10.178728103637695, 2.035745620727539, 5.089364051818848",
+						material = "Metal",
+						color = "0.639216, 0.635294, 0.647059 (Silver Gray)",
+						anchored = true,
+						canCollide = true,
+						transparency = 0,
+						reflectance = 0
+					}
+				},
+				Step4 = {
+					className = "Part",
+					description = "Fourth step of the boarding ramp",
+					attributes = {
+						position = "485.9126892089844, -445.0462646484375, 21.102144241333008",
+						size = "10.178728103637695, 2.035745620727539, 5.089364051818848",
+						material = "Metal",
+						color = "0.639216, 0.635294, 0.647059 (Silver Gray)",
+						anchored = true,
+						canCollide = true,
+						transparency = 0,
+						reflectance = 0
+					}
+				},
+				Step5 = {
+					className = "Part",
+					description = "Fifth step of the boarding ramp (middle position)",
+					attributes = {
+						position = "485.92486572265625, -447.08233642578125, 16.012958526611328",
+						size = "10.178728103637695, 2.035745620727539, 5.089364051818848",
+						material = "Metal",
+						color = "0.639216, 0.635294, 0.647059 (Silver Gray)",
+						anchored = true,
+						canCollide = true,
+						transparency = 0,
+						reflectance = 0
+					}
+				},
+				Step6 = {
+					className = "Part",
+					description = "Sixth step of the boarding ramp",
+					attributes = {
+						position = "485.9369201660156, -449.1185302734375, 10.923778533935547",
+						size = "10.178728103637695, 2.035745620727539, 5.089364051818848",
+						material = "Metal",
+						color = "0.639216, 0.635294, 0.647059 (Silver Gray)",
+						anchored = true,
+						canCollide = true,
+						transparency = 0,
+						reflectance = 0
+					}
+				},
+				Step7 = {
+					className = "Part",
+					description = "Seventh step of the boarding ramp",
+					attributes = {
+						position = "485.9490051269531, -451.15472412109375, 5.834601402282715",
+						size = "10.178728103637695, 2.035745620727539, 5.089364051818848",
+						material = "Metal",
+						color = "0.639216, 0.635294, 0.647059 (Silver Gray)",
+						anchored = true,
+						canCollide = true,
+						transparency = 0,
+						reflectance = 0
+					}
+				},
+				Step8 = {
+					className = "Part",
+					description = "Eighth step of the boarding ramp",
+					attributes = {
+						position = "485.961181640625, -453.19091796875, 0.7454242706298828",
+						size = "10.178728103637695, 2.035745620727539, 5.089364051818848",
+						material = "Metal",
+						color = "0.639216, 0.635294, 0.647059 (Silver Gray)",
+						anchored = true,
+						canCollide = true,
+						transparency = 0,
+						reflectance = 0
+					}
+				},
+				Step9 = {
+					className = "Part",
+					description = "Ninth step of the boarding ramp",
+					attributes = {
+						position = "485.9731750488281, -455.22711181640625, -4.343758583068848",
+						size = "10.178728103637695, 2.035745620727539, 5.089364051818848",
+						material = "Metal",
+						color = "0.639216, 0.635294, 0.647059 (Silver Gray)",
+						anchored = true,
+						canCollide = true,
+						transparency = 0,
+						reflectance = 0
+					}
+				},
+				Step10 = {
+					className = "Part",
+					description = "Tenth step of the boarding ramp (lowest position, ground level)",
+					attributes = {
+						position = "485.98529052734375, -457.26324462890625, -9.432936668395996",
+						size = "10.178728103637695, 2.035745620727539, 5.089364051818848",
+						material = "Metal",
+						color = "0.639216, 0.635294, 0.647059 (Silver Gray)",
+						anchored = true,
+						canCollide = true,
+						transparency = 0,
+						reflectance = 0
+					}
+				}
+			}
+		},
+		RampTrigger = {
+			className = "Part",
+			description = "Trigger zone for automatic ramp activation/deactivation when players approach",
+			attributes = {
+				position = "486, -437.9664001464844, 41.900001525878906",
+				size = "4, 1, 5.800000190734863",
+				shape = "Block",
+				material = "Metal",
+				color = "0.3333333432674408, 0.3333333432674408, 1 (Royal Purple)",
+				brickColor = "Royal purple",
+				anchored = false,
+				canCollide = true,
+				canTouch = true,
+				canQuery = true,
+				transparency = 0,
+				reflectance = 0,
+				castShadow = true,
+				massless = false,
+				locked = false,
+				collisionGroup = "Default",
+				rootPriority = 0,
+				enableFluidForces = true,
+				audioCanCollide = true,
+				surfaceProperties = {
+					topSurface = "Smooth",
+					bottomSurface = "Smooth",
+					frontSurface = "Smooth",
+					backSurface = "Smooth",
+					leftSurface = "Smooth",
+					rightSurface = "Smooth"
+				},
+				physicsProperties = {
+					assemblyLinearVelocity = "0, 0, 0",
+					assemblyAngularVelocity = "0, 0, 0",
+					pivotOffset = {
+						position = "0, 0, 0",
+						rotation = "1, 0, 0, 0, 1, 0, 0, 0, 1"
+					}
+				}
+			}
 		},
 	},
 
