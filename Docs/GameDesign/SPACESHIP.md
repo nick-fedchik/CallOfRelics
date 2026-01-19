@@ -71,6 +71,12 @@
 SpaceShip Model
 ├── Configuration/         -- Технічні параметри
 ├── ShipParts/            -- Структурні частини корабля
+│   └── RearShipExit      -- Задній вихід (блокується в космосі)
+├── ShipRamp/             -- Посадочний трап (10 сходинок)
+│   ├── Step1             -- Верхня сходинка (біля виходу)
+│   ├── Step2...Step9
+│   └── Step10            -- Нижня сходинка (рівень землі)
+├── RampTrigger           -- Тригер для активації трапу
 ├── Torpedoes/            -- Система торпед (майбутнє)
 ├── DockPoint             -- Точка стиковки
 ├── CenterPoint           -- Центр корабля (для анімацій)
@@ -363,9 +369,130 @@ discoveryChance = effectiveAccuracy × (locationVisibility / 100)
 
 ---
 
-## 4. СИСТЕМИ КОРАБЛЯ
+## 4. СИСТЕМА ТРАПУ (RAMP SYSTEM)
 
-### 4.1. Сканери
+### 4.1. Загальний опис
+
+Посадочний трап — система для безпечного виходу/входу екіпажу на поверхню планети. Трап працює тільки коли корабель приземлився.
+
+### 4.2. Компоненти
+
+| Компонент | Тип | Опис |
+|-----------|-----|------|
+| ShipRamp | Model | Модель трапу з 10 металевих сходинок |
+| RampTrigger | Part | Тригер-зона для активації трапу |
+| RearShipExit | Part | Задній вихід (ShipParts/RearShipExit) |
+
+### 4.3. Стани системи
+
+| Контекст | ShipRamp | RearShipExit | RampTrigger |
+|----------|----------|--------------|-------------|
+| **В космосі/польоті** | Схований | Блокує вихід | Неактивний |
+| **Після приземлення** | Готовий до deploy | Прохідний | Активний (підсвітка) |
+| **Трап розгорнутий** | Видимий | Прохідний | Активний |
+
+### 4.4. Властивості компонентів
+
+**RearShipExit (задній вихід):**
+
+| Стан | CanCollide | Transparency | Опис |
+|------|------------|--------------|------|
+| Blocked | true | 0.25 | Блокує вихід в космосі |
+| Open | false | 0.8 | Дозволяє вихід на поверхні |
+
+**RampTrigger:**
+
+| Стан | Transparency | Highlight | Опис |
+|------|--------------|-----------|------|
+| Inactive | 1.0 | Off | Невидимий в космосі |
+| Active | 0.7 | Green glow | Активний після приземлення |
+
+**ShipRamp Steps (Step1-Step10):**
+
+| Стан | Transparency | CanCollide | Опис |
+|------|--------------|------------|------|
+| Hidden | 1.0 | false | Схований |
+| Visible | 0.0 | true | Видимий, можна ходити |
+
+### 4.5. Анімація трапу
+
+**Deploy (розгортання):**
+1. Step1 → Step10 з'являються послідовно
+2. Fade in: 0.3 sec на сходинку
+3. Затримка: 0.1 sec між сходинками
+4. Загальний час: ~1.5 sec
+
+**Retract (згортання):**
+1. Step10 → Step1 зникають послідовно
+2. Fade out: 0.3 sec на сходинку
+3. Затримка: 0.1 sec між сходинками
+4. Загальний час: ~1.5 sec
+
+### 4.6. Логіка роботи
+
+**При старті гри / spawn корабля:**
+- Трап схований
+- RearShipExit блокує вихід
+- RampTrigger неактивний
+
+**Після приземлення (Landing complete):**
+1. `SetShipLanded(player, true)` викликається
+2. RearShipExit стає прохідним
+3. RampTrigger активується (зелена підсвітка)
+4. Touch detection включається
+
+**Коли гравець торкається RampTrigger:**
+1. `DeployRamp(player)` викликається
+2. Анімація розгортання трапу
+3. Гравець може вийти на поверхню
+
+**Перед зльотом (Launch):**
+1. Якщо трап розгорнутий → `RetractRamp(player)`
+2. Чекаємо 1.5 sec на анімацію згортання
+3. `SetShipLanded(player, false)` викликається
+4. RearShipExit блокує вихід
+5. RampTrigger деактивується
+6. Корабель злітає
+
+### 4.7. API (SpaceShipService)
+
+```lua
+-- Стан приземлення
+SpaceShipService.SetShipLanded(player, isLanded)
+SpaceShipService.IsShipLanded(player) -> boolean
+
+-- Керування трапом
+SpaceShipService.DeployRamp(player) -> boolean
+SpaceShipService.RetractRamp(player) -> boolean
+SpaceShipService.IsRampDeployed(player) -> boolean
+```
+
+### 4.8. Конфігурація (SpaceShipConfig)
+
+```lua
+SpaceShipConfig.Ramp = {
+    animation = {
+        deployDuration = 1.5,    -- Час розгортання
+        retractDuration = 1.5,   -- Час згортання
+        stepDelay = 0.1,         -- Затримка між сходинками
+        fadeTime = 0.3,          -- Час fade для сходинки
+    },
+    trigger = {
+        highlightColor = Color3.fromRGB(0, 255, 128),  -- Зелена підсвітка
+        highlightTransparency = 0.5,
+        inactiveTransparency = 1,
+    },
+    exitBlockedTransparency = 0.25,
+    exitOpenTransparency = 0.8,
+    totalSteps = 10,
+}
+```
+
+---
+
+## 5. СИСТЕМИ КОРАБЛЯ
+
+### 5.1. Сканери
 
 | Система | Робоче місце | Результат |
 |---------|--------------|-----------|
@@ -506,10 +633,11 @@ API:
 
 ---
 
-**Версія документа:** 1.3
-**Дата:** 2026-01-16
+**Версія документа:** 1.4
+**Дата:** 2026-01-19
 
 **Changelog:**
+- 1.4: Додано секцію Ramp System (посадочний трап, RampTrigger, RearShipExit)
 - 1.3: Додано формулу ймовірності виявлення локації (visibility, chargeRatio, wearAccuracy)
 - 1.2: Нова модель сканера: власна батарея, система зношення (wear), ремонт
 - 1.1: Додано характеристики швидкості, енергетики, захисту; деталізовано сканер (точність, енергоспоживання)

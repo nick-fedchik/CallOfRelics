@@ -9,7 +9,7 @@ Clones SpaceShip from ServerStorage/Actors based on player profile.
 Tracks seat occupancy and processes seat-based actions.
 
 Version:
-0.4
+0.5
 
 Features:
 - Clone SpaceShip from ServerStorage/Actors/{modelName}
@@ -23,6 +23,7 @@ Features:
 - Extensible action handler registry
 - GDD: Save profile when player sits in PilotSeat (if changed)
 - Cleanup on game end / player disconnect
+- Ramp system: deploy/retract ramp, RampTrigger detection, RearShipExit control
 
 API:
 Ship Management:
@@ -43,6 +44,13 @@ Seat Management:
 - GetSeatOccupant(seatName) -- Get player in seat (or nil)
 - IsSeatOccupied(seatName) -- Check if seat is occupied
 - GetPlayerSeat(player) -- Get seat name for player
+
+Ramp Management:
+- SetShipLanded(player, isLanded) -- Set landed state, control exit/trigger
+- IsShipLanded(player) -- Check if ship is landed
+- DeployRamp(player) -- Deploy ramp with animation
+- RetractRamp(player) -- Retract ramp with animation
+- IsRampDeployed(player) -- Check if ramp is deployed
 
 Calls to:
 - ServerStorage.Actors
@@ -68,6 +76,7 @@ Dependencies:
 - RemoteEvents
 
 ChangeLog:
+- 0.5: Ramp system: SetShipLanded, DeployRamp, RetractRamp, RampTrigger, RearShipExit (2026-01-19)
 - 0.4: Use SpaceShipConfig instead of local SPACESHIP_STRUCTURE (2026-01-16)
 - 0.3: Merge SeatService functionality (seat occupancy, actions) (2026-01-16)
 - 0.2: Add SPACESHIP_STRUCTURE reference, GetStructure(), GetSeatNames() (2026-01-16)
@@ -77,7 +86,7 @@ ChangeLog:
 
 local SpaceShipService = {}
 
-local VERSION = "0.4"
+local VERSION = "0.5"
 local MODULE_NAME = "SpaceShipService"
 
 -- ============================================================================
@@ -88,6 +97,7 @@ local ServerStorage = game:GetService("ServerStorage")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
 
 -- ============================================================================
 -- MODULES
@@ -113,6 +123,12 @@ local isInitialized = false
 -- Seat Management State
 local seatOccupants = {} -- {[seatName] = player}
 local actionHandlers = {} -- {[seatName] = {[actionName] = handlerFunction}}
+
+-- Ramp System State
+local shipLandedState = {} -- [player] = boolean
+local rampDeployedState = {} -- [player] = boolean
+local rampConnections = {} -- [player] = {touchConnection, ...}
+local rampAnimating = {} -- [player] = boolean (prevents double animation)
 
 -- Remote Events (set during Initialize)
 local RemoteEvents
@@ -270,6 +286,44 @@ function SpaceShipService.SpawnShip(player, position, rotation)
 	-- Track
 	activeShips[player] = ship
 
+	-- Initialize ramp system: ship starts in flight mode (ramp hidden, exit blocked)
+	-- Note: Must be done here since ramp functions are defined later
+	shipLandedState[player] = false
+	rampDeployedState[player] = false
+	rampAnimating[player] = false
+
+	-- Hide ramp steps immediately after spawn
+	local ramp = ship:FindFirstChild("ShipRamp")
+	if ramp then
+		for i = 1, 10 do
+			local step = ramp:FindFirstChild("Step" .. i)
+			if step then
+				step.Transparency = 1
+				step.CanCollide = false
+			end
+		end
+	end
+
+	-- Block rear exit
+	local shipParts = ship:FindFirstChild("ShipParts")
+	local rearExit = shipParts and shipParts:FindFirstChild("RearShipExit") or ship:FindFirstChild("RearShipExit")
+	if rearExit then
+		rearExit.CanCollide = true
+		rearExit.Transparency = 0.25
+	end
+
+	-- Hide ramp trigger
+	local trigger = ship:FindFirstChild("RampTrigger")
+	if trigger then
+		trigger.Transparency = 1
+		local highlight = trigger:FindFirstChild("RampHighlight")
+		if highlight then
+			highlight.Enabled = false
+		end
+	end
+
+	print(string.format("[%s %s] Ramp initialized: flight mode (hidden, exit blocked)", MODULE_NAME, VERSION))
+
 	return ship
 end
 
@@ -311,6 +365,7 @@ end
 
 -- Cleanup when player leaves
 function SpaceShipService.OnPlayerRemoving(player)
+	SpaceShipService.CleanupRampState(player)
 	SpaceShipService.DestroyShip(player)
 	SpaceShipService.CleanupPlayerSeats(player)
 end
@@ -415,6 +470,297 @@ function SpaceShipService.CleanupPlayerSeats(player)
 			seatOccupants[seatName] = nil
 		end
 	end
+end
+
+-- ============================================================================
+-- RAMP SYSTEM - PRIVATE FUNCTIONS
+-- ============================================================================
+
+-- Find ShipRamp model in ship
+local function GetShipRamp(ship)
+	if not ship then return nil end
+	return ship:FindFirstChild("ShipRamp")
+end
+
+-- Find RampTrigger part in ship
+local function GetRampTrigger(ship)
+	if not ship then return nil end
+	return ship:FindFirstChild("RampTrigger")
+end
+
+-- Find RearShipExit in ship (inside ShipParts)
+local function GetRearShipExit(ship)
+	if not ship then return nil end
+	local shipParts = ship:FindFirstChild("ShipParts")
+	if shipParts then
+		return shipParts:FindFirstChild("RearShipExit")
+	end
+	return ship:FindFirstChild("RearShipExit")
+end
+
+-- Set RearShipExit collision state
+local function SetRearShipExitCollision(ship, canCollide)
+	local rearExit = GetRearShipExit(ship)
+	if not rearExit then return end
+
+	local rampConfig = SpaceShipConfig.GetRampConfig()
+	rearExit.CanCollide = canCollide
+
+	-- Visual feedback: more transparent when open
+	if canCollide then
+		rearExit.Transparency = rampConfig.exitBlockedTransparency
+	else
+		rearExit.Transparency = rampConfig.exitOpenTransparency
+	end
+end
+
+-- Set RampTrigger active state (visual highlight)
+local function SetRampTriggerActive(ship, isActive)
+	local trigger = GetRampTrigger(ship)
+	if not trigger then return end
+
+	local triggerConfig = SpaceShipConfig.GetRampTriggerConfig()
+
+	if isActive then
+		-- Create or update highlight
+		local highlight = trigger:FindFirstChild("RampHighlight")
+		if not highlight then
+			highlight = Instance.new("Highlight")
+			highlight.Name = "RampHighlight"
+			highlight.Adornee = trigger
+			highlight.FillColor = triggerConfig.highlightColor
+			highlight.FillTransparency = triggerConfig.highlightTransparency
+			highlight.OutlineColor = triggerConfig.highlightColor
+			highlight.OutlineTransparency = 0.3
+			highlight.Parent = trigger
+		end
+		highlight.Enabled = true
+		trigger.Transparency = 0.7
+	else
+		-- Hide highlight
+		local highlight = trigger:FindFirstChild("RampHighlight")
+		if highlight then
+			highlight.Enabled = false
+		end
+		trigger.Transparency = triggerConfig.inactiveTransparency
+	end
+end
+
+-- Hide all ramp steps (initial state)
+local function HideRampSteps(ship)
+	local ramp = GetShipRamp(ship)
+	if not ramp then return end
+
+	for i = 1, SpaceShipConfig.GetRampTotalSteps() do
+		local step = ramp:FindFirstChild("Step" .. i)
+		if step then
+			step.Transparency = 1
+			step.CanCollide = false
+		end
+	end
+end
+
+-- Show all ramp steps (for instant show if needed)
+local function ShowRampSteps(ship)
+	local ramp = GetShipRamp(ship)
+	if not ramp then return end
+
+	for i = 1, SpaceShipConfig.GetRampTotalSteps() do
+		local step = ramp:FindFirstChild("Step" .. i)
+		if step then
+			step.Transparency = 0
+			step.CanCollide = true
+		end
+	end
+end
+
+-- Animate ramp deployment (Step1 → Step10)
+local function AnimateRampDeploy(ship)
+	local ramp = GetShipRamp(ship)
+	if not ramp then return end
+
+	local animConfig = SpaceShipConfig.GetRampAnimationTiming()
+	local totalSteps = SpaceShipConfig.GetRampTotalSteps()
+
+	for i = 1, totalSteps do
+		local step = ramp:FindFirstChild("Step" .. i)
+		if step then
+			-- Fade in step
+			step.CanCollide = true
+			local tween = TweenService:Create(
+				step,
+				TweenInfo.new(animConfig.fadeTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{Transparency = 0}
+			)
+			tween:Play()
+			task.wait(animConfig.stepDelay)
+		end
+	end
+end
+
+-- Animate ramp retraction (Step10 → Step1)
+local function AnimateRampRetract(ship)
+	local ramp = GetShipRamp(ship)
+	if not ramp then return end
+
+	local animConfig = SpaceShipConfig.GetRampAnimationTiming()
+	local totalSteps = SpaceShipConfig.GetRampTotalSteps()
+
+	for i = totalSteps, 1, -1 do
+		local step = ramp:FindFirstChild("Step" .. i)
+		if step then
+			-- Fade out step
+			local tween = TweenService:Create(
+				step,
+				TweenInfo.new(animConfig.fadeTime, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+				{Transparency = 1}
+			)
+			tween:Play()
+			task.wait(animConfig.stepDelay)
+			step.CanCollide = false
+		end
+	end
+end
+
+-- Setup RampTrigger touch detection
+local function SetupRampTrigger(player, ship)
+	local trigger = GetRampTrigger(ship)
+	if not trigger then return end
+
+	-- Cleanup existing connections
+	if rampConnections[player] then
+		for _, conn in ipairs(rampConnections[player]) do
+			conn:Disconnect()
+		end
+	end
+	rampConnections[player] = {}
+
+	-- Connect touch event
+	local touchConnection = trigger.Touched:Connect(function(hit)
+		local character = hit.Parent
+		local hitPlayer = Players:GetPlayerFromCharacter(character)
+
+		-- Only react to the ship owner and only when landed
+		if hitPlayer == player and shipLandedState[player] then
+			-- Deploy ramp if not already deployed and not animating
+			if not rampDeployedState[player] and not rampAnimating[player] then
+				SpaceShipService.DeployRamp(player)
+			end
+		end
+	end)
+
+	table.insert(rampConnections[player], touchConnection)
+end
+
+-- Cleanup ramp connections for player
+local function CleanupRampConnections(player)
+	if rampConnections[player] then
+		for _, conn in ipairs(rampConnections[player]) do
+			conn:Disconnect()
+		end
+		rampConnections[player] = nil
+	end
+end
+
+-- ============================================================================
+-- RAMP SYSTEM - PUBLIC API
+-- ============================================================================
+
+-- Set ship landed state (called by TransitionService after landing/before launch)
+function SpaceShipService.SetShipLanded(player, isLanded)
+	local ship = SpaceShipService.GetShip(player)
+	if not ship then
+		warn(string.format("[%s %s] SetShipLanded: No ship found for %s", MODULE_NAME, VERSION, player.Name))
+		return false
+	end
+
+	shipLandedState[player] = isLanded
+
+	if isLanded then
+		-- Ship just landed: enable exit, activate trigger, setup detection
+		SetRearShipExitCollision(ship, false) -- Allow exit
+		SetRampTriggerActive(ship, true) -- Show trigger highlight
+		SetupRampTrigger(player, ship) -- Enable touch detection
+		HideRampSteps(ship) -- Ramp starts hidden, deploys on trigger
+
+		print(string.format("[%s %s] Ship landed: exit open, trigger active", MODULE_NAME, VERSION))
+	else
+		-- Ship taking off: block exit, hide trigger, cleanup
+		SetRearShipExitCollision(ship, true) -- Block exit
+		SetRampTriggerActive(ship, false) -- Hide trigger
+		CleanupRampConnections(player) -- Disable touch detection
+		HideRampSteps(ship) -- Hide ramp
+
+		rampDeployedState[player] = false
+
+		print(string.format("[%s %s] Ship in flight: exit blocked, ramp hidden", MODULE_NAME, VERSION))
+	end
+
+	return true
+end
+
+-- Check if ship is landed
+function SpaceShipService.IsShipLanded(player)
+	return shipLandedState[player] == true
+end
+
+-- Deploy ramp with animation
+function SpaceShipService.DeployRamp(player)
+	if rampDeployedState[player] then return false end
+	if rampAnimating[player] then return false end
+
+	local ship = SpaceShipService.GetShip(player)
+	if not ship then return false end
+
+	rampAnimating[player] = true
+
+	print(string.format("[%s %s] Deploying ramp for %s", MODULE_NAME, VERSION, player.Name))
+
+	-- Run animation
+	AnimateRampDeploy(ship)
+
+	rampDeployedState[player] = true
+	rampAnimating[player] = false
+
+	print(string.format("[%s %s] Ramp deployed for %s", MODULE_NAME, VERSION, player.Name))
+
+	return true
+end
+
+-- Retract ramp with animation
+function SpaceShipService.RetractRamp(player)
+	if not rampDeployedState[player] then return false end
+	if rampAnimating[player] then return false end
+
+	local ship = SpaceShipService.GetShip(player)
+	if not ship then return false end
+
+	rampAnimating[player] = true
+
+	print(string.format("[%s %s] Retracting ramp for %s", MODULE_NAME, VERSION, player.Name))
+
+	-- Run animation
+	AnimateRampRetract(ship)
+
+	rampDeployedState[player] = false
+	rampAnimating[player] = false
+
+	print(string.format("[%s %s] Ramp retracted for %s", MODULE_NAME, VERSION, player.Name))
+
+	return true
+end
+
+-- Check if ramp is deployed
+function SpaceShipService.IsRampDeployed(player)
+	return rampDeployedState[player] == true
+end
+
+-- Cleanup ramp state for player (called on player leaving)
+function SpaceShipService.CleanupRampState(player)
+	CleanupRampConnections(player)
+	shipLandedState[player] = nil
+	rampDeployedState[player] = nil
+	rampAnimating[player] = nil
 end
 
 return SpaceShipService

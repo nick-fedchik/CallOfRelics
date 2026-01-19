@@ -4,6 +4,43 @@
 
 ---
 
+## [0.11.0] - 2026-01-19 - Ramp System
+
+### Added - Ship Ramp System
+
+- **SpaceShipService.lua** (v0.5) — система посадочного трапу
+  - `SetShipLanded(player, isLanded)` — контроль стану приземлення
+  - `DeployRamp(player)` — розгортання трапу з анімацією (Step1 → Step10)
+  - `RetractRamp(player)` — згортання трапу з анімацією (Step10 → Step1)
+  - `IsShipLanded(player)`, `IsRampDeployed(player)` — перевірка стану
+  - RampTrigger touch detection — автоматичне розгортання при наближенні
+  - RearShipExit collision control — блокування виходу в космосі/польоті
+  - Ініціалізація трапу при spawn (flight mode: hidden, blocked)
+
+- **SpaceShipConfig.lua** (v0.4) — конфігурація трапу
+  - `Ramp.animation` — deployDuration, retractDuration, stepDelay, fadeTime
+  - `Ramp.trigger` — highlightColor, highlightTransparency, inactiveTransparency
+  - `Ramp.exitBlockedTransparency`, `exitOpenTransparency` — візуальний feedback
+  - `GetRampConfig()`, `GetRampAnimationTiming()`, `GetRampTriggerConfig()`
+
+- **TransitionService.lua** (v0.8) — інтеграція з Ramp System
+  - Landing: `SetShipLanded(player, true)` після приземлення
+  - Launch: `RetractRamp()` + `SetShipLanded(player, false)` перед зльотом
+
+### Changed - Ramp Behavior
+
+- **В космосі/польоті:**
+  - ShipRamp — схований (Transparency = 1, CanCollide = false)
+  - RearShipExit — блокує вихід (CanCollide = true, Transparency = 0.25)
+  - RampTrigger — неактивний (без підсвітки)
+
+- **Після приземлення:**
+  - RearShipExit — прохідний (CanCollide = false, Transparency = 0.8)
+  - RampTrigger — активний (зелена підсвітка, touch detection)
+  - ShipRamp — розгортається при торканні тригера
+
+---
+
 ## [0.10.0] - 2026-01-16 - Scanner System v2 & Documentation
 
 ### Added - Scanner System v2

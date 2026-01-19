@@ -8,7 +8,7 @@ Centralized game configuration. Single source of truth for game identity and
 initial settings. Used during boot sequence and throughout game lifecycle.
 
 Version:
-0.6
+0.7
 
 Features:
 - Game name and version information
@@ -31,6 +31,7 @@ Dependencies:
 - None
 
 ChangeLog:
+- 0.7: Version bump to 0.11.0 - Ramp System (2026-01-19)
 - 0.6: Version bump to 0.10.0 - Scanner System v2 & Documentation (2026-01-16)
 - 0.5: Version bump to 0.8.1 - Launch/Landing naming refactor (2026-01-15)
 - 0.4: Version bump for EPIC 8 - Progression System (2026-01-15)
@@ -47,8 +48,8 @@ local GameConfig = {
 
 	GameName = "CALL OF RELICS",
 	GameSubtitle = "Orbital Silence",
-	Version = "0.10.0",
-	VersionTag = "Scanner System v2",
+	Version = "0.11.0",
+	VersionTag = "Ramp System",
 	Developer = "KosmicMazer",
 
 	-- ============================================================================

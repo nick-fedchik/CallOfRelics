@@ -8,7 +8,7 @@ Centralized configuration for SpaceShip structure and seats.
 Defines ship components, seat types, and UI/camera settings.
 
 Version:
-0.3
+0.4
 
 Features:
 - SpaceShip structure definition (components, seats, reference points)
@@ -18,6 +18,7 @@ Features:
 - Camera settings per seat type
 - Functionality flags for seat capabilities
 - Scanner configuration (battery, wear system, power consumption)
+- Ramp configuration (animation timing, highlight color)
 
 API:
 Structure:
@@ -46,7 +47,12 @@ Scanner:
 - CalculateScanAccuracy(scanCount) -- Calculate accuracy based on wear
 - GetScansUntilWornOut() -- Get max scans before worn out
 
+Ramp:
+- GetRampConfig() -- Returns ramp configuration
+- GetRampAnimationTiming() -- Returns animation timing settings
+
 ChangeLog:
+- 0.4: Ramp configuration (animation timing, trigger highlight) (2026-01-19)
 - 0.3: New scanner model: battery system, wear-based accuracy, power consumption (2026-01-16)
 - 0.2: Added ship stats (speed, energy), scanner config (accuracy, energy cost) (2026-01-16)
 - 0.1: Created from SeatConfig + SpaceShipService SPACESHIP_STRUCTURE (2026-01-16)
@@ -130,6 +136,34 @@ SpaceShipConfig.Scanner = {
 	-- Discovery settings
 	maxDiscoveriesPerScan = 1,    -- Max locations discovered per scan
 	guaranteedFirstScan = true,   -- First scan always discovers something (ignores accuracy)
+}
+
+-- ============================================================================
+-- RAMP CONFIGURATION
+-- ============================================================================
+
+SpaceShipConfig.Ramp = {
+	-- Animation timing
+	animation = {
+		deployDuration = 1.5,     -- Total time to deploy ramp (seconds)
+		retractDuration = 1.5,    -- Total time to retract ramp (seconds)
+		stepDelay = 0.1,          -- Delay between each step appearing/disappearing
+		fadeTime = 0.3,           -- Fade in/out time for each step
+	},
+
+	-- Trigger settings
+	trigger = {
+		highlightColor = Color3.fromRGB(0, 255, 128),  -- Green glow when active
+		highlightTransparency = 0.5,                   -- Highlight transparency
+		inactiveTransparency = 1,                      -- Fully invisible when inactive
+	},
+
+	-- RearShipExit settings
+	exitBlockedTransparency = 0.25,   -- Semi-transparent when blocking (visual cue)
+	exitOpenTransparency = 0.8,       -- More transparent when open
+
+	-- Step count (should match ShipRamp model)
+	totalSteps = 10,
 }
 
 -- ============================================================================
@@ -728,6 +762,26 @@ function SpaceShipConfig.CalculateDiscoveryChance(scanCount, currentCharge, loca
 	local discoveryChance = effectiveAccuracy * visibility
 
 	return math.clamp(discoveryChance, 0, 1)
+end
+
+-- ============================================================================
+-- RAMP API
+-- ============================================================================
+
+function SpaceShipConfig.GetRampConfig()
+	return SpaceShipConfig.Ramp
+end
+
+function SpaceShipConfig.GetRampAnimationTiming()
+	return SpaceShipConfig.Ramp.animation
+end
+
+function SpaceShipConfig.GetRampTriggerConfig()
+	return SpaceShipConfig.Ramp.trigger
+end
+
+function SpaceShipConfig.GetRampTotalSteps()
+	return SpaceShipConfig.Ramp.totalSteps
 end
 
 -- ============================================================================

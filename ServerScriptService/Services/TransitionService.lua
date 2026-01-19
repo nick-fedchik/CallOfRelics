@@ -8,7 +8,7 @@ Coordinates location transitions between Orbit and Surface locations.
 Manages landing and launch sequences with client-server synchronization.
 
 Version:
-0.6
+0.8
 
 Features:
 - StartLandingSequence(player, locationId) — Orbit → Surface transition
@@ -45,6 +45,7 @@ Dependencies:
 - ServerStorage.Planets structure
 
 ChangeLog:
+- 0.8: Ramp system integration - SetShipLanded after landing, RetractRamp before launch (2026-01-19)
 - 0.7: EPIC 3 - SpaceShipService integration, spawn from ServerStorage/Actors (2026-01-16)
 - 0.6: Add RestoreCharacterSounds after GameStart (2026-01-15)
 - 0.5: Rename Liftoff → Launch (StartLaunchSequence, States.Launch/Ascent) (2026-01-15)
@@ -56,7 +57,7 @@ ChangeLog:
 ]]
 
 local MODULE_NAME = "TransitionService"
-local VERSION = "0.7"
+local VERSION = "0.8"
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
@@ -548,6 +549,10 @@ function TransitionService.StartLandingSequence(player, locationId)
 	-- Brief pause after landing
 	task.wait(0.5)
 
+	-- === RAMP SYSTEM: Enable ramp after landing ===
+	GetSpaceShipService().SetShipLanded(player, true)
+	-- === END RAMP SYSTEM ===
+
 	-- Transition complete
 	SetTransitionState(player, TransitionConfig.States.Complete, locationId)
 	local planetDisplayName = GetPlanetDisplayName(planetId)
@@ -593,6 +598,15 @@ function TransitionService.StartLaunchSequence(player)
 	local profile = GetProfileService().GetProfile(player)
 	local planetId = profile and profile.currentPlanet or "Planet_1"
 	local planetDisplayName = GetPlanetDisplayName(planetId)
+
+	-- === RAMP SYSTEM: Retract ramp before launch ===
+	local spaceShipService = GetSpaceShipService()
+	if spaceShipService.IsRampDeployed(player) then
+		spaceShipService.RetractRamp(player)
+		task.wait(1.5) -- Wait for retract animation
+	end
+	spaceShipService.SetShipLanded(player, false)
+	-- === END RAMP SYSTEM ===
 
 	-- Find ship in workspace for launch animation
 	local ship = Workspace:FindFirstChild("SpaceShip")
