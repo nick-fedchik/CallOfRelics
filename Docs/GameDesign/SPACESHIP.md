@@ -454,39 +454,6 @@ discoveryChance = effectiveAccuracy × (locationVisibility / 100)
 5. RampTrigger деактивується
 6. Корабель злітає
 
-### 4.7. API (SpaceShipService)
-
-```lua
--- Стан приземлення
-SpaceShipService.SetShipLanded(player, isLanded)
-SpaceShipService.IsShipLanded(player) -> boolean
-
--- Керування трапом
-SpaceShipService.DeployRamp(player) -> boolean
-SpaceShipService.RetractRamp(player) -> boolean
-SpaceShipService.IsRampDeployed(player) -> boolean
-```
-
-### 4.8. Конфігурація (SpaceShipConfig)
-
-```lua
-SpaceShipConfig.Ramp = {
-    animation = {
-        deployDuration = 1.5,    -- Час розгортання
-        retractDuration = 1.5,   -- Час згортання
-        stepDelay = 0.1,         -- Затримка між сходинками
-        fadeTime = 0.3,          -- Час fade для сходинки
-    },
-    trigger = {
-        highlightColor = Color3.fromRGB(0, 255, 128),  -- Зелена підсвітка
-        highlightTransparency = 0.5,
-        inactiveTransparency = 1,
-    },
-    exitBlockedTransparency = 0.25,
-    exitOpenTransparency = 0.8,
-    totalSteps = 10,
-}
-```
 
 ---
 

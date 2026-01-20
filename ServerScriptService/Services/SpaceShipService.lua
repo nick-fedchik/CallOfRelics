@@ -9,7 +9,7 @@ Clones SpaceShip from ServerStorage/Actors based on player profile.
 Tracks seat occupancy and processes seat-based actions.
 
 Version:
-0.5
+0.7
 
 Features:
 - Clone SpaceShip from ServerStorage/Actors/{modelName}
@@ -24,6 +24,8 @@ Features:
 - GDD: Save profile when player sits in PilotSeat (if changed)
 - Cleanup on game end / player disconnect
 - Ramp system: deploy/retract ramp, RampTrigger detection, RearShipExit control
+- Engine Fire effects: toggle on landing/launch (visual feedback)
+- Ramp stripes pulsating animation when ramp is deployed
 
 API:
 Ship Management:
@@ -52,6 +54,9 @@ Ramp Management:
 - RetractRamp(player) -- Retract ramp with animation
 - IsRampDeployed(player) -- Check if ramp is deployed
 
+Engine Effects:
+- SetEngineFireEnabled(player, enabled) -- Toggle engine fire effects
+
 Calls to:
 - ServerStorage.Actors
 - ProfileService.GetProfile()
@@ -76,6 +81,8 @@ Dependencies:
 - RemoteEvents
 
 ChangeLog:
+- 0.7: Ramp stripes pulsating animation when deployed (2026-01-20)
+- 0.6: Engine Fire effects toggle on landing/launch (2026-01-19)
 - 0.5: Ramp system: SetShipLanded, DeployRamp, RetractRamp, RampTrigger, RearShipExit (2026-01-19)
 - 0.4: Use SpaceShipConfig instead of local SPACESHIP_STRUCTURE (2026-01-16)
 - 0.3: Merge SeatService functionality (seat occupancy, actions) (2026-01-16)
@@ -86,7 +93,7 @@ ChangeLog:
 
 local SpaceShipService = {}
 
-local VERSION = "0.5"
+local VERSION = "0.7"
 local MODULE_NAME = "SpaceShipService"
 
 -- ============================================================================
@@ -129,6 +136,7 @@ local shipLandedState = {} -- [player] = boolean
 local rampDeployedState = {} -- [player] = boolean
 local rampConnections = {} -- [player] = {touchConnection, ...}
 local rampAnimating = {} -- [player] = boolean (prevents double animation)
+local rampStripePulseActive = {} -- [player] = boolean (pulsating stripes animation)
 
 -- Remote Events (set during Initialize)
 local RemoteEvents
@@ -473,6 +481,42 @@ function SpaceShipService.CleanupPlayerSeats(player)
 end
 
 -- ============================================================================
+-- ENGINE EFFECTS - PRIVATE FUNCTIONS
+-- ============================================================================
+
+-- Find all engine Fire effects in ship
+local function GetEngineFires(ship)
+	if not ship then return {} end
+
+	local fires = {}
+	local shipParts = ship:FindFirstChild("ShipParts")
+	if not shipParts then return fires end
+
+	-- Find BottomEngineLeft and BottomEngineRight
+	local engineNames = {"BottomEngineLeft", "BottomEngineRight"}
+	for _, engineName in ipairs(engineNames) do
+		local engine = shipParts:FindFirstChild(engineName)
+		if engine then
+			local fire = engine:FindFirstChildOfClass("Fire")
+			if fire then
+				table.insert(fires, fire)
+			end
+		end
+	end
+
+	return fires
+end
+
+-- Set engine fire enabled state
+local function SetEngineFires(ship, enabled)
+	local fires = GetEngineFires(ship)
+	for _, fire in ipairs(fires) do
+		fire.Enabled = enabled
+	end
+	return #fires > 0
+end
+
+-- ============================================================================
 -- RAMP SYSTEM - PRIVATE FUNCTIONS
 -- ============================================================================
 
@@ -622,6 +666,122 @@ local function AnimateRampRetract(ship)
 	end
 end
 
+-- ============================================================================
+-- RAMP STRIPES PULSATING ANIMATION
+-- ============================================================================
+
+-- Find all stripe parts in ShipRamp
+local function GetRampStripes(ship)
+	if not ship then return {} end
+
+	local ramp = GetShipRamp(ship)
+	if not ramp then return {} end
+
+	local stripes = {}
+	-- Look for stripe parts (LeftStripe_N, RightStripe_N pattern)
+	for _, child in ipairs(ramp:GetDescendants()) do
+		if child:IsA("BasePart") and (child.Name:match("LeftStripe_") or child.Name:match("RightStripe_")) then
+			table.insert(stripes, child)
+		end
+	end
+
+	return stripes
+end
+
+-- Start pulsating animation for ramp stripes
+local function StartRampStripesPulse(player, ship)
+	if rampStripePulseActive[player] then return end
+
+	local stripes = GetRampStripes(ship)
+	if #stripes == 0 then
+		print(string.format("[%s %s] No ramp stripes found for pulsating animation", MODULE_NAME, VERSION))
+		return
+	end
+
+	rampStripePulseActive[player] = true
+	print(string.format("[%s %s] Starting ramp stripes pulse animation (%d stripes)", MODULE_NAME, VERSION, #stripes))
+
+	-- Run pulsating animation in a separate thread
+	task.spawn(function()
+		local cycleTime = 2.0 -- 2 seconds per full cycle
+		local minTransparency = 0.1
+		local maxTransparency = 0.7
+
+		while rampStripePulseActive[player] do
+			-- Pulse in (bright)
+			for _, stripe in ipairs(stripes) do
+				if stripe and stripe.Parent then
+					local tween = TweenService:Create(
+						stripe,
+						TweenInfo.new(cycleTime / 2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
+						{Transparency = minTransparency}
+					)
+					tween:Play()
+
+					-- Also pulse PointLight if exists
+					local light = stripe:FindFirstChildOfClass("PointLight")
+					if light then
+						local lightTween = TweenService:Create(
+							light,
+							TweenInfo.new(cycleTime / 2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
+							{Brightness = 3}
+						)
+						lightTween:Play()
+					end
+				end
+			end
+			task.wait(cycleTime / 2)
+
+			if not rampStripePulseActive[player] then break end
+
+			-- Pulse out (dim)
+			for _, stripe in ipairs(stripes) do
+				if stripe and stripe.Parent then
+					local tween = TweenService:Create(
+						stripe,
+						TweenInfo.new(cycleTime / 2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
+						{Transparency = maxTransparency}
+					)
+					tween:Play()
+
+					-- Also pulse PointLight if exists
+					local light = stripe:FindFirstChildOfClass("PointLight")
+					if light then
+						local lightTween = TweenService:Create(
+							light,
+							TweenInfo.new(cycleTime / 2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
+							{Brightness = 1}
+						)
+						lightTween:Play()
+					end
+				end
+			end
+			task.wait(cycleTime / 2)
+		end
+	end)
+end
+
+-- Stop pulsating animation for ramp stripes
+local function StopRampStripesPulse(player, ship)
+	if not rampStripePulseActive[player] then return end
+
+	rampStripePulseActive[player] = false
+	print(string.format("[%s %s] Stopping ramp stripes pulse animation", MODULE_NAME, VERSION))
+
+	-- Hide stripes (set to full transparency)
+	local stripes = GetRampStripes(ship)
+	for _, stripe in ipairs(stripes) do
+		if stripe and stripe.Parent then
+			stripe.Transparency = 1
+
+			local light = stripe:FindFirstChildOfClass("PointLight")
+			if light then
+				light.Brightness = 0
+			end
+		end
+	end
+end
+
 -- Setup RampTrigger touch detection
 local function SetupRampTrigger(player, ship)
 	local trigger = GetRampTrigger(ship)
@@ -677,15 +837,17 @@ function SpaceShipService.SetShipLanded(player, isLanded)
 	shipLandedState[player] = isLanded
 
 	if isLanded then
-		-- Ship just landed: enable exit, activate trigger, setup detection
+		-- Ship just landed: enable exit, activate trigger, setup detection, disable engines
 		SetRearShipExitCollision(ship, false) -- Allow exit
 		SetRampTriggerActive(ship, true) -- Show trigger highlight
 		SetupRampTrigger(player, ship) -- Enable touch detection
 		HideRampSteps(ship) -- Ramp starts hidden, deploys on trigger
+		SetEngineFires(ship, false) -- Turn off engine fire effects
 
-		print(string.format("[%s %s] Ship landed: exit open, trigger active", MODULE_NAME, VERSION))
+		print(string.format("[%s %s] Ship landed: exit open, trigger active, engines off", MODULE_NAME, VERSION))
 	else
-		-- Ship taking off: block exit, hide trigger, cleanup
+		-- Ship taking off: block exit, hide trigger, cleanup, enable engines
+		SetEngineFires(ship, true) -- Turn on engine fire effects (first, for visual feedback)
 		SetRearShipExitCollision(ship, true) -- Block exit
 		SetRampTriggerActive(ship, false) -- Hide trigger
 		CleanupRampConnections(player) -- Disable touch detection
@@ -693,7 +855,7 @@ function SpaceShipService.SetShipLanded(player, isLanded)
 
 		rampDeployedState[player] = false
 
-		print(string.format("[%s %s] Ship in flight: exit blocked, ramp hidden", MODULE_NAME, VERSION))
+		print(string.format("[%s %s] Ship in flight: exit blocked, ramp hidden, engines on", MODULE_NAME, VERSION))
 	end
 
 	return true
@@ -719,6 +881,9 @@ function SpaceShipService.DeployRamp(player)
 	-- Run animation
 	AnimateRampDeploy(ship)
 
+	-- Start pulsating stripes animation
+	StartRampStripesPulse(player, ship)
+
 	rampDeployedState[player] = true
 	rampAnimating[player] = false
 
@@ -739,6 +904,9 @@ function SpaceShipService.RetractRamp(player)
 
 	print(string.format("[%s %s] Retracting ramp for %s", MODULE_NAME, VERSION, player.Name))
 
+	-- Stop pulsating stripes animation
+	StopRampStripesPulse(player, ship)
+
 	-- Run animation
 	AnimateRampRetract(ship)
 
@@ -758,9 +926,30 @@ end
 -- Cleanup ramp state for player (called on player leaving)
 function SpaceShipService.CleanupRampState(player)
 	CleanupRampConnections(player)
+	rampStripePulseActive[player] = nil -- Stop any active pulse animation
 	shipLandedState[player] = nil
 	rampDeployedState[player] = nil
 	rampAnimating[player] = nil
+end
+
+-- ============================================================================
+-- ENGINE EFFECTS - PUBLIC API
+-- ============================================================================
+
+-- Set engine fire effects enabled state
+-- Called automatically by SetShipLanded, but can be called manually if needed
+function SpaceShipService.SetEngineFireEnabled(player, enabled)
+	local ship = SpaceShipService.GetShip(player)
+	if not ship then
+		warn(string.format("[%s %s] SetEngineFireEnabled: No ship found for %s", MODULE_NAME, VERSION, player.Name))
+		return false
+	end
+
+	local success = SetEngineFires(ship, enabled)
+	if success then
+		print(string.format("[%s %s] Engine fire %s for %s", MODULE_NAME, VERSION, enabled and "enabled" or "disabled", player.Name))
+	end
+	return success
 end
 
 return SpaceShipService

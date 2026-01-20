@@ -4,6 +4,52 @@
 
 ---
 
+## [0.12.0] - 2026-01-20 - Ramp Visual Effects
+
+### Added - Ramp Stripes Pulsating Animation
+
+- **SpaceShipService.lua** (v0.7) — візуальні ефекти трапу
+  - `GetRampStripes(ship)` — знаходить всі stripe частини (LeftStripe_N, RightStripe_N)
+  - `StartRampStripesPulse(player, ship)` — запускає пульсуючу анімацію
+  - `StopRampStripesPulse(player, ship)` — зупиняє анімацію та ховає смужки
+  - Анімація: transparency 0.1↔0.7, brightness 1↔3, цикл 2 секунди
+  - Інтегровано в `DeployRamp()` — запуск пульсації
+  - Інтегровано в `RetractRamp()` — зупинка пульсації
+  - Оновлено `CleanupRampState()` — очищення pulse state
+
+- **SpaceShipConfig.lua** (v0.7) — розширена конфігурація
+  - Додано інформацію про систему освітлення корабля
+  - Додано PilotMonitorLeft, PilotMonitorRight конфігурацію
+  - Додано RampStripes до Structure.Ramp
+
+### Changed - Engine Fire Effects
+
+- **SpaceShipService.lua** (v0.6) — ефекти вогню двигунів
+  - `GetEngineFires()` — знаходить Fire ефекти в BottomEngineLeft/Right
+  - `SetEngineFires(ship, enabled)` — вмикає/вимикає Fire.Enabled
+  - Інтегровано в `SetShipLanded()`:
+    - Приземлення: вогонь вимикається
+    - Зліт: вогонь вмикається
+  - На орбіті двигуни завжди працюють (Fire enabled)
+
+### Visual Behavior
+
+- **Коли трап випущено:**
+  - RampStripes — пульсуюча анімація (привертає увагу)
+  - Transparency: 0.1 (яскраво) ↔ 0.7 (тьмяно)
+  - Цикл: 2 секунди (1 сек яскраво, 1 сек тьмяно)
+
+- **Коли трап згорнуто:**
+  - RampStripes — сховані (Transparency = 1)
+  - Анімація зупинена
+
+- **Двигуни:**
+  - На орбіті/в польоті: Fire enabled
+  - Після приземлення: Fire disabled
+  - При зльоті: Fire enabled
+
+---
+
 ## [0.11.0] - 2026-01-19 - Ramp System
 
 ### Added - Ship Ramp System

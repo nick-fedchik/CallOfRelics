@@ -8,7 +8,7 @@ Centralized configuration for SpaceShip structure and seats.
 Defines ship components, seat types, and UI/camera settings.
 
 Version:
-0.4
+0.7
 
 Features:
 - SpaceShip structure definition (components, seats, reference points)
@@ -18,6 +18,11 @@ Features:
 - Camera settings per seat type
 - Functionality flags for seat capabilities
 - Scanner configuration (battery, wear system, power consumption)
+- Ramp configuration (animation timing, highlight color)
+- Complete lighting system documentation (rear cabin illumination)
+- Lighting parts API for dynamic light management
+- Cargo lighting system documentation and API
+- Direct SpaceShip child parts management
 - Ramp configuration (animation timing, highlight color)
 
 API:
@@ -52,6 +57,9 @@ Ramp:
 - GetRampAnimationTiming() -- Returns animation timing settings
 
 ChangeLog:
+- 0.7: Added pilot monitors configuration (PilotMonitorLeft, PilotMonitorRight) with detailed attributes and special properties (2026-01-19)
+- 0.6: Cargo lighting system documentation and API (CargoLighter part) (2026-01-19)
+- 0.5: Complete lighting system documentation and API (rear cabin illumination, 6 lighting parts) (2026-01-19)
 - 0.4: Ramp configuration (animation timing, trigger highlight) (2026-01-19)
 - 0.3: New scanner model: battery system, wear-based accuracy, power consumption (2026-01-16)
 - 0.2: Added ship stats (speed, energy), scanner config (accuracy, energy cost) (2026-01-16)
@@ -189,8 +197,126 @@ SpaceShipConfig.Structure = {
 		-- Ship structural parts
 		ShipParts = {
 			className = "Model",
-			description = "Ship structural components",
+			description = "Ship structural components including engines, hull, and exit points",
 			subComponents = {
+				-- Bottom engines
+				BottomEngineLeft = {
+					className = "Part",
+					description = "Left bottom engine with fire effect for propulsion",
+					attributes = {
+						position = "449.9994812011719, -455.4991149902344, 38.5",
+						size = "10, 1, 8",
+						shape = "Block",
+						material = "Plastic",
+						color = "0.7686274647712708, 0.1568627506494522, 0.10980392247438431 (Bright Red)",
+						brickColor = "Bright red",
+						anchored = false,
+						canCollide = true,
+						canTouch = true,
+						canQuery = true,
+						transparency = 1,
+						reflectance = 0,
+						massless = false,
+						locked = false,
+						castShadow = true,
+						collisionGroup = "Default",
+						rootPriority = 0,
+						enableFluidForces = true,
+						audioCanCollide = true,
+						rotation = "-90, 0.0020000000949949026, 0",
+						surfaceProperties = {
+							topSurface = "Studs",
+							bottomSurface = "Weld",
+							frontSurface = "Smooth",
+							backSurface = "Smooth",
+							leftSurface = "Smooth",
+							rightSurface = "Smooth"
+						},
+						physicsProperties = {
+							assemblyLinearVelocity = "0, 0, 0",
+							assemblyAngularVelocity = "0, 0, 0",
+							pivotOffset = {
+								position = "0, 0, 0",
+								rotation = "1, 0, 0, 0, 1, 0, 0, 0, 1"
+							}
+						},
+						childComponents = {
+							Fire = {
+								className = "Fire",
+								description = "Engine fire effect for left bottom engine",
+								attributes = {
+									enabled = true,
+									color = "0.9254902005195618, 0.545098066329956, 0.27450981736183167 (Orange)",
+									secondaryColor = "0.545098066329956, 0.3137255012989044, 0.21568629145622253 (Brown)",
+									heat = 20,
+									size = 20,
+									timeScale = 1
+								}
+							},
+							Weld = {
+								className = "Weld",
+								description = "Weld constraint for left bottom engine attachment"
+							}
+						}
+					}
+				},
+				BottomEngineRight = {
+					className = "Part",
+					description = "Right bottom engine with fire effect for propulsion",
+					attributes = {
+						position = "521.9993896484375, -455.5003967285156, 38.5",
+						size = "10, 1, 8",
+						shape = "Block",
+						material = "Plastic",
+						color = "0.7686274647712708, 0.1568627506494522, 0.10980392247438431 (Bright Red)",
+						brickColor = "Bright red",
+						anchored = false,
+						canCollide = true,
+						canTouch = true,
+						canQuery = true,
+						transparency = 1,
+						reflectance = 0,
+						massless = false,
+						locked = false,
+						castShadow = true,
+						collisionGroup = "Default",
+						rootPriority = 0,
+						enableFluidForces = true,
+						audioCanCollide = true,
+						rotation = "-90, 0.0010000000474974513, 0",
+						surfaceProperties = {
+							topSurface = "Studs",
+							bottomSurface = "Weld",
+							frontSurface = "Smooth",
+							backSurface = "Smooth",
+							leftSurface = "Smooth",
+							rightSurface = "Smooth"
+						},
+						physicsProperties = {
+							assemblyLinearVelocity = "0, 0, 0",
+							assemblyAngularVelocity = "0, 0, 0",
+							pivotOffset = {
+								position = "0, 0, 0",
+								rotation = "1, 0, 0, 0, 1, 0, 0, 0, 1"
+							}
+						},
+						childComponents = {
+							Fire = {
+								className = "Fire",
+								description = "Engine fire effect for right bottom engine",
+								attributes = {
+									enabled = true,
+									color = "0.9254902005195618, 0.545098066329956, 0.27450981736183167 (Orange)",
+									secondaryColor = "0.545098066329956, 0.3137255012989044, 0.21568629145622253 (Brown)",
+									heat = 20,
+									size = 20,
+									timeScale = 1
+								}
+							}
+						}
+					}
+				},
+					-- Exit point
 				RearShipExit = {
 					className = "Part",
 					description = "Rear ship exit point for crew disembarkation",
@@ -208,6 +334,691 @@ SpaceShipConfig.Structure = {
 							right = "Weld",
 							front = "Smooth",
 							back = "Smooth"
+						}
+					}
+				},
+
+				-- Rear cabin lighting system
+				RearCeilingLightCenter = {
+					className = "Part",
+					description = "Central ceiling light for rear cabin illumination",
+					attributes = {
+						position = "0.49877893924713135, 9.000385284423828, 31.495079040527344",
+						size = "11, 1, 11",
+						shape = "Block",
+						material = "Neon",
+						color = "0.7686274647712708, 0.1568627506494522, 0.10980392247438431 (Bright red)",
+						brickColor = "Bright red",
+						anchored = false,
+						canCollide = true,
+						canTouch = true,
+						canQuery = true,
+						transparency = 0,
+						reflectance = 0,
+						massless = false,
+						locked = false,
+						castShadow = true,
+						collisionGroup = "Default",
+						rootPriority = 0,
+						enableFluidForces = true,
+						audioCanCollide = true,
+						rotation = "0, 0, 0.0010000000474974513",
+						surfaceProperties = {
+							topSurface = "Weld",
+							bottomSurface = "Weld",
+							frontSurface = "SmoothNoOutlines",
+							backSurface = "SmoothNoOutlines",
+							leftSurface = "SmoothNoOutlines",
+							rightSurface = "SmoothNoOutlines"
+						},
+						physicsProperties = {
+							assemblyLinearVelocity = "0, 0, 0",
+							assemblyAngularVelocity = "0, 0, 0",
+							pivotOffset = {
+								position = "0, 0, 0",
+								rotation = "1, 0, 0, 0, 1, 0, 0, 0, 1"
+							}
+						},
+						childComponents = {
+							PointLight = {
+								className = "PointLight",
+								description = "Central cabin illumination source",
+								attributes = {
+									enabled = true,
+									color = "1, 1, 1 (White)",
+									brightness = 1,
+									range = 20,
+									shadows = false
+								}
+							},
+							Weld = {
+								className = "Weld",
+								description = "Weld constraint for central ceiling light attachment"
+							}
+						}
+					}
+				},
+
+				RearCeilingLightLeftFront = {
+					className = "Part",
+					description = "Left front ceiling light for rear cabin illumination",
+					attributes = {
+						position = "-16.500961303710938, 5.000600814819336, 41.995079040527344",
+						size = "1, 1, 2",
+						shape = "Block",
+						material = "Neon",
+						color = "0.929411768913269, 0.9176470637321472, 0.9176470637321472 (Lily white)",
+						brickColor = "Lily white",
+						anchored = false,
+						canCollide = true,
+						canTouch = true,
+						canQuery = true,
+						transparency = 0,
+						reflectance = 0,
+						massless = false,
+						locked = false,
+						castShadow = true,
+						collisionGroup = "Default",
+						rootPriority = 0,
+						enableFluidForces = true,
+						audioCanCollide = true,
+						rotation = "0, 0, -0.0010000000474974513",
+						surfaceProperties = {
+							topSurface = "SmoothNoOutlines",
+							bottomSurface = "SmoothNoOutlines",
+							frontSurface = "SmoothNoOutlines",
+							backSurface = "SmoothNoOutlines",
+							leftSurface = "SmoothNoOutlines",
+							rightSurface = "SmoothNoOutlines"
+						},
+						physicsProperties = {
+							assemblyLinearVelocity = "0, 0, 0",
+							assemblyAngularVelocity = "0, 0, 0",
+							pivotOffset = {
+								position = "0, 0, 0",
+								rotation = "1, 0, 0, 0, 1, 0, 0, 0, 1"
+							}
+						},
+						childComponents = {
+							PointLight = {
+								className = "PointLight",
+								description = "Left front cabin illumination source",
+								attributes = {
+									enabled = true,
+									color = "1, 1, 1 (White)",
+									brightness = 1,
+									range = 20,
+									shadows = true
+								}
+							},
+							Weld = {
+								className = "Weld",
+								description = "Weld constraint for left front ceiling light attachment"
+							}
+						}
+					}
+				},
+
+				RearCeilingLightLeftRear = {
+					className = "Part",
+					description = "Left rear ceiling light for rear cabin illumination (high intensity)",
+					attributes = {
+						position = "-16.500886917114258, 9.500600814819336, -8.004920959472656",
+						size = "1, 14, 18",
+						shape = "Block",
+						material = "Neon",
+						color = "0, 1, 1 (Toothpaste)",
+						brickColor = "Toothpaste",
+						anchored = false,
+						canCollide = true,
+						canTouch = true,
+						canQuery = true,
+						transparency = 0,
+						reflectance = 0,
+						massless = false,
+						locked = false,
+						castShadow = true,
+						collisionGroup = "Default",
+						rootPriority = 0,
+						enableFluidForces = true,
+						audioCanCollide = true,
+						rotation = "180, 0, -179.99899291992188",
+						surfaceProperties = {
+							topSurface = "SmoothNoOutlines",
+							bottomSurface = "Weld",
+							frontSurface = "Weld",
+							backSurface = "Smooth",
+							leftSurface = "Smooth",
+							rightSurface = "Smooth"
+						},
+						physicsProperties = {
+							assemblyLinearVelocity = "0, 0, 0",
+							assemblyAngularVelocity = "0, 0, 0",
+							pivotOffset = {
+								position = "0, 0, 0",
+								rotation = "1, 0, 0, 0, 1, 0, 0, 0, 1"
+							}
+						},
+						childComponents = {
+							PointLight = {
+								className = "PointLight",
+								description = "Left rear high-intensity cabin illumination source",
+								attributes = {
+									enabled = true,
+									color = "1, 1, 1 (White)",
+									brightness = 10,
+									range = 30,
+									shadows = true
+								}
+							},
+							Weld = {
+								className = "Weld",
+								description = "Weld constraint for left rear ceiling light attachment"
+							}
+						}
+					}
+				},
+
+				SideLightStripRightFront = {
+					className = "Part",
+					description = "Right front side light strip for cabin illumination",
+					attributes = {
+						position = "16.499053955078125, 5.000140190124512, 41.995079040527344",
+						size = "1, 1, 2",
+						shape = "Block",
+						material = "Neon",
+						color = "0.929411768913269, 0.9176470637321472, 0.9176470637321472 (Lily white)",
+						brickColor = "Lily white",
+						anchored = false,
+						canCollide = true,
+						canTouch = true,
+						canQuery = true,
+						transparency = 0,
+						reflectance = 0,
+						massless = false,
+						locked = false,
+						castShadow = true,
+						collisionGroup = "Default",
+						rootPriority = 0,
+						enableFluidForces = true,
+						audioCanCollide = true,
+						rotation = "0, 0, 0",
+						surfaceProperties = {
+							topSurface = "SmoothNoOutlines",
+							bottomSurface = "SmoothNoOutlines",
+							frontSurface = "SmoothNoOutlines",
+							backSurface = "SmoothNoOutlines",
+							leftSurface = "SmoothNoOutlines",
+							rightSurface = "SmoothNoOutlines"
+						},
+						physicsProperties = {
+							assemblyLinearVelocity = "0, 0, 0",
+							assemblyAngularVelocity = "0, 0, 0",
+							pivotOffset = {
+								position = "0, 0, 0",
+								rotation = "1, 0, 0, 0, 1, 0, 0, 0, 1"
+							}
+						},
+						childComponents = {
+							PointLight = {
+								className = "PointLight",
+								description = "Right front side illumination source",
+								attributes = {
+									enabled = true,
+									color = "1, 1, 1 (White)",
+									brightness = 1,
+									range = 20,
+									shadows = false
+								}
+							},
+							Weld = {
+								className = "Weld",
+								description = "Weld constraint for right front side light strip attachment"
+							}
+						}
+					}
+				},
+
+				SideLightStripRightRear = {
+					className = "Part",
+					description = "Right rear side light strip for cabin illumination (high intensity)",
+					attributes = {
+						position = "16.499114990234375, 9.500131607055664, -8.004920959472656",
+						size = "1, 14, 18",
+						shape = "Block",
+						material = "Neon",
+						color = "0, 1, 1 (Toothpaste)",
+						brickColor = "Toothpaste",
+						anchored = false,
+						canCollide = true,
+						canTouch = true,
+						canQuery = true,
+						transparency = 0,
+						reflectance = 0,
+						massless = false,
+						locked = false,
+						castShadow = true,
+						collisionGroup = "Default",
+						rootPriority = 0,
+						enableFluidForces = true,
+						audioCanCollide = true,
+						rotation = "180, 0, -179.99899291992188",
+						surfaceProperties = {
+							topSurface = "SmoothNoOutlines",
+							bottomSurface = "Weld",
+							frontSurface = "Weld",
+							backSurface = "Smooth",
+							leftSurface = "Weld",
+							rightSurface = "Smooth"
+						},
+						physicsProperties = {
+							assemblyLinearVelocity = "0, 0, 0",
+							assemblyAngularVelocity = "0, 0, 0",
+							pivotOffset = {
+								position = "0, 0, 0",
+								rotation = "1, 0, 0, 0, 1, 0, 0, 0, 1"
+							}
+						},
+						childComponents = {
+							PointLight = {
+								className = "PointLight",
+								description = "Right rear high-intensity side illumination source",
+								attributes = {
+									enabled = true,
+									color = "1, 1, 1 (White)",
+									brightness = 10,
+									range = 30,
+									shadows = true
+								}
+							},
+							Weld = {
+								className = "Weld",
+								description = "Weld constraint for right rear side light strip attachment"
+							}
+						}
+					}
+				},
+
+				RearIndicatorLight = {
+					className = "Part",
+					description = "Rear indicator light for ship status and visibility",
+					attributes = {
+						position = "-0.001049626269377768, 3.500255584716797, -37.504920959472656",
+						size = "6, 2, 17",
+						shape = "Block",
+						material = "Neon",
+						color = "0, 1, 1 (Toothpaste)",
+						brickColor = "Toothpaste",
+						anchored = false,
+						canCollide = true,
+						canTouch = true,
+						canQuery = true,
+						transparency = 0,
+						reflectance = 0,
+						massless = false,
+						locked = false,
+						castShadow = true,
+						collisionGroup = "Default",
+						rootPriority = 0,
+						enableFluidForces = true,
+						audioCanCollide = true,
+						rotation = "180, 0, 180",
+						surfaceProperties = {
+							topSurface = "SmoothNoOutlines",
+							bottomSurface = "Weld",
+							frontSurface = "Weld",
+							backSurface = "Smooth",
+							leftSurface = "Smooth",
+							rightSurface = "Smooth"
+						},
+						physicsProperties = {
+							assemblyLinearVelocity = "0, 0, 0",
+							assemblyAngularVelocity = "0, 0, 0",
+							pivotOffset = {
+								position = "0, 0, 0",
+								rotation = "1, 0, 0, 0, 1, 0, 0, 0, 1"
+							}
+						},
+						childComponents = {
+							PointLight = {
+								className = "PointLight",
+								description = "Rear indicator illumination source",
+								attributes = {
+									enabled = true,
+									color = "1, 1, 1 (White)",
+									brightness = 10,
+									range = 30,
+									shadows = true
+								}
+							},
+							Weld = {
+								className = "Weld",
+								description = "Weld constraint for rear indicator light attachment"
+							}
+						}
+					}
+				},
+
+				-- Pilot monitors for cockpit interface
+				PilotMonitorLeft = {
+					className = "Part",
+					description = "Left pilot monitor for cockpit interface display",
+					attributes = {
+						position = "9.499028205871582, 9.000290870666504, 90.99506378173828",
+						size = "1, 5, 8",
+						shape = "Block",
+						material = "Plastic",
+						color = "0.10588235408067703, 0.16470588743686676, 0.2078431397676468 (Black)",
+						brickColor = "Black",
+						anchored = false,
+						canCollide = true,
+						canTouch = true,
+						canQuery = true,
+						transparency = 0,
+						reflectance = 0,
+						massless = false,
+						locked = false,
+						castShadow = true,
+						collisionGroup = "Default",
+						rootPriority = 0,
+						enableFluidForces = true,
+						audioCanCollide = true,
+						rotation = "0, 0, 0",
+						surfaceProperties = {
+							topSurface = "SmoothNoOutlines",
+							bottomSurface = "SmoothNoOutlines",
+							frontSurface = "SmoothNoOutlines",
+							backSurface = "SmoothNoOutlines",
+							leftSurface = "SmoothNoOutlines",
+							rightSurface = "Smooth"
+						},
+						physicsProperties = {
+							assemblyLinearVelocity = "0, 0, 0",
+							assemblyAngularVelocity = "0, 0, 0",
+							pivotOffset = {
+								position = "0, 0, 0",
+								rotation = "1, 0, 0, 0, 1, 0, 0, 0, 1"
+							}
+						},
+						childComponents = {
+							Weld = {
+								className = "Weld",
+								description = "Weld constraint for left pilot monitor attachment"
+							}
+						},
+						specialProperties = {
+							purpose = "PilotInterface",
+							location = "CockpitLeft",
+							installationType = "Fixed",
+							maintenanceAccess = "Moderate",
+							powerConsumption = "Low",
+							displayType = "InterfaceMonitor",
+							functionality = "FlightDataDisplay"
+						}
+					}
+				},
+
+				PilotMonitorRight = {
+					className = "Part",
+					description = "Right pilot monitor for cockpit interface display",
+					attributes = {
+						position = "-9.50090217590332, 9.000511169433594, 90.99506378173828",
+						size = "1, 5, 8",
+						shape = "Block",
+						material = "Plastic",
+						color = "0.10588235408067703, 0.16470588743686676, 0.2078431397676468 (Black)",
+						brickColor = "Black",
+						anchored = false,
+						canCollide = true,
+						canTouch = true,
+						canQuery = true,
+						transparency = 0,
+						reflectance = 0,
+						massless = false,
+						locked = false,
+						castShadow = true,
+						collisionGroup = "Default",
+						rootPriority = 0,
+						enableFluidForces = true,
+						audioCanCollide = true,
+						rotation = "180, 0, -179.99899291992188",
+						surfaceProperties = {
+							topSurface = "SmoothNoOutlines",
+							bottomSurface = "SmoothNoOutlines",
+							frontSurface = "SmoothNoOutlines",
+							backSurface = "SmoothNoOutlines",
+							leftSurface = "SmoothNoOutlines",
+							rightSurface = "Smooth"
+						},
+						physicsProperties = {
+							assemblyLinearVelocity = "0, 0, 0",
+							assemblyAngularVelocity = "0, 0, 0",
+							pivotOffset = {
+								position = "0, 0, 0",
+								rotation = "1, 0, 0, 0, 1, 0, 0, 0, 1"
+							}
+						},
+						childComponents = {
+							Weld = {
+								className = "Weld",
+								description = "Weld constraint for right pilot monitor attachment"
+							}
+						},
+						specialProperties = {
+							purpose = "PilotInterface",
+							location = "CockpitRight",
+							installationType = "Fixed",
+							maintenanceAccess = "Moderate",
+							powerConsumption = "Low",
+							displayType = "InterfaceMonitor",
+							functionality = "FlightDataDisplay"
+						}
+					}
+				},
+
+				-- Cargo lighting system
+				CargoLighter = {
+					className = "Part",
+					description = "Cargo area illumination light for rear cabin visibility",
+					attributes = {
+						position = "Direct child of SpaceShip model",
+						size = "Varies based on cargo area requirements",
+						shape = "Block",
+						material = "Neon",
+						color = "1, 0, 0 (Bright red)",
+						brickColor = "Bright red",
+						anchored = false,
+						canCollide = true,
+						canTouch = true,
+						canQuery = true,
+						transparency = 0,
+						reflectance = 0,
+						massless = false,
+						locked = false,
+						castShadow = true,
+						collisionGroup = "Default",
+						rootPriority = 0,
+						enableFluidForces = true,
+						audioCanCollide = true,
+						rotation = "Varies based on installation",
+						surfaceProperties = {
+							topSurface = "Smooth",
+							bottomSurface = "Smooth",
+							frontSurface = "Smooth",
+							backSurface = "Smooth",
+							leftSurface = "Smooth",
+							rightSurface = "Smooth"
+						},
+						physicsProperties = {
+							assemblyLinearVelocity = "0, 0, 0",
+							assemblyAngularVelocity = "0, 0, 0",
+							pivotOffset = {
+								position = "0, 0, 0",
+								rotation = "1, 0, 0, 0, 1, 0, 0, 0, 1"
+							}
+						},
+						childComponents = {
+							PointLight = {
+								className = "PointLight",
+								description = "Cargo area illumination source",
+								attributes = {
+									enabled = true,
+									color = "1, 1, 1 (White)",
+									brightness = "Varies based on cargo requirements",
+									range = "Varies based on cargo area size",
+									shadows = false
+								}
+							}
+						},
+						specialProperties = {
+							purpose = "CargoAreaIllumination",
+							location = "DirectSpaceShipChild",
+							installationType = "Modular",
+							maintenanceAccess = "Easy",
+							powerConsumption = "Low"
+						}
+					}
+				},
+
+				-- Ship ramp visual enhancement system
+				RampStripes = {
+					className = "Model",
+					description = "Visual enhancement system for ship ramp with pulsating blue stripes",
+					attributes = {
+						parent = "ShipRamp",
+						location = "Sides of each ramp step",
+						totalSteps = 10,
+						stripesPerStep = 2,
+						totalStripes = 20,
+						stripeWidthRatio = 0.1, -- 10% of step width
+						material = "Neon",
+						color = "0, 0.5, 1 (Bright blue)",
+						brickColor = "Bright blue",
+						anchored = true,
+						canCollide = false,
+						canTouch = true,
+						canQuery = true,
+						transparency = "Variable (pulsating 0.1-0.7)",
+						reflectance = 0,
+						massless = false,
+						locked = false,
+						castShadow = false,
+						collisionGroup = "Default",
+						rootPriority = 0,
+						enableFluidForces = true,
+						audioCanCollide = true,
+						surfaceProperties = {
+							topSurface = "Smooth",
+							bottomSurface = "Smooth",
+							frontSurface = "Smooth",
+							backSurface = "Smooth",
+							leftSurface = "Smooth",
+							rightSurface = "Smooth"
+						},
+						physicsProperties = {
+							assemblyLinearVelocity = "0, 0, 0",
+							assemblyAngularVelocity = "0, 0, 0",
+							pivotOffset = {
+								position = "0, 0, 0",
+								rotation = "1, 0, 0, 0, 1, 0, 0, 0, 1"
+							}
+						},
+						childComponents = {
+							PointLight = {
+								className = "PointLight",
+								description = "Pulsating illumination source for ramp stripes",
+								attributes = {
+									enabled = true,
+									color = "0, 0.5, 1 (Blue)",
+									brightness = "Variable (pulsating 1-3)",
+									range = 5,
+									shadows = false
+								}
+							}
+						},
+						stepStripes = {
+							Step1 = {
+								leftStripe = "LeftStripe_1",
+								rightStripe = "RightStripe_1",
+								stripeWidth = 1.0178728103637696,
+								stepWidth = 10.178728103637696,
+								position = "Left and right sides of Step1"
+							},
+							Step2 = {
+								leftStripe = "LeftStripe_2",
+								rightStripe = "RightStripe_2",
+								stripeWidth = 1.0178728103637696,
+								stepWidth = 10.178728103637696,
+								position = "Left and right sides of Step2"
+							},
+							Step3 = {
+								leftStripe = "LeftStripe_3",
+								rightStripe = "RightStripe_3",
+								stripeWidth = 1.0178728103637696,
+								stepWidth = 10.178728103637696,
+								position = "Left and right sides of Step3"
+							},
+							Step4 = {
+								leftStripe = "LeftStripe_4",
+								rightStripe = "RightStripe_4",
+								stripeWidth = 1.0178728103637696,
+								stepWidth = 10.178728103637696,
+								position = "Left and right sides of Step4"
+							},
+							Step5 = {
+								leftStripe = "LeftStripe_5",
+								rightStripe = "RightStripe_5",
+								stripeWidth = 1.0178728103637696,
+								stepWidth = 10.178728103637696,
+								position = "Left and right sides of Step5"
+							},
+							Step6 = {
+								leftStripe = "LeftStripe_6",
+								rightStripe = "RightStripe_6",
+								stripeWidth = 1.0178728103637696,
+								stepWidth = 10.178728103637696,
+								position = "Left and right sides of Step6"
+							},
+							Step7 = {
+								leftStripe = "LeftStripe_7",
+								rightStripe = "RightStripe_7",
+								stripeWidth = 1.0178728103637696,
+								stepWidth = 10.178728103637696,
+								position = "Left and right sides of Step7"
+							},
+							Step8 = {
+								leftStripe = "LeftStripe_8",
+								rightStripe = "RightStripe_8",
+								stripeWidth = 1.0178728103637696,
+								stepWidth = 10.178728103637696,
+								position = "Left and right sides of Step8"
+							},
+							Step9 = {
+								leftStripe = "LeftStripe_9",
+								rightStripe = "RightStripe_9",
+								stripeWidth = 1.0178728103637696,
+								stepWidth = 10.178728103637696,
+								position = "Left and right sides of Step9"
+							},
+							Step10 = {
+								leftStripe = "LeftStripe_10",
+								rightStripe = "RightStripe_10",
+								stripeWidth = 1.0178728103637696,
+								stepWidth = 10.178728103637696,
+								position = "Left and right sides of Step10"
+							}
+						},
+						specialProperties = {
+							purpose = "VisualEnhancement",
+							location = "ShipRampSides",
+							installationType = "Decorative",
+							maintenanceAccess = "Easy",
+							powerConsumption = "Low",
+							pulsatingEffect = true,
+							synchronization = "AllStripes",
+							animationSpeed = "2 seconds per cycle",
+							transparencyRange = "0.1-0.7",
+							brightnessRange = "1-3"
 						}
 					}
 				}
@@ -782,6 +1593,295 @@ end
 
 function SpaceShipConfig.GetRampTotalSteps()
 	return SpaceShipConfig.Ramp.totalSteps
+end
+
+-- ============================================================================
+-- LIGHTING SYSTEM API
+-- ============================================================================
+
+function SpaceShipConfig.GetLightingConfig()
+	return {
+		-- Rear cabin lighting system
+		rearCabin = {
+			-- Central ceiling light (main illumination)
+			centerLight = {
+				partName = "RearCeilingLightCenter",
+				description = "Central ceiling light for rear cabin illumination",
+				type = "MainLight",
+				intensity = "Normal",
+				color = "Bright Red",
+				material = "Neon",
+				lightProperties = {
+					enabled = true,
+					color = "White",
+					brightness = 1,
+					range = 20,
+					shadows = false
+				}
+			},
+
+			-- Left side lights
+			leftLights = {
+				front = {
+					partName = "RearCeilingLightLeftFront",
+					description = "Left front ceiling light",
+					type = "AccentLight",
+					intensity = "Normal",
+					color = "Lily White",
+					material = "Neon",
+					lightProperties = {
+						enabled = true,
+						color = "White",
+						brightness = 1,
+						range = 20,
+						shadows = true
+					}
+				},
+				rear = {
+					partName = "RearCeilingLightLeftRear",
+					description = "Left rear high-intensity ceiling light",
+					type = "HighIntensityLight",
+					intensity = "High",
+					color = "Toothpaste (Cyan)",
+					material = "Neon",
+					lightProperties = {
+						enabled = true,
+						color = "White",
+						brightness = 10,
+						range = 30,
+						shadows = true
+					}
+				}
+			},
+
+			-- Right side lights
+			rightLights = {
+				front = {
+					partName = "SideLightStripRightFront",
+					description = "Right front side light strip",
+					type = "AccentLight",
+					intensity = "Normal",
+					color = "Lily White",
+					material = "Neon",
+					lightProperties = {
+						enabled = true,
+						color = "White",
+						brightness = 1,
+						range = 20,
+						shadows = false
+					}
+				},
+				rear = {
+					partName = "SideLightStripRightRear",
+					description = "Right rear high-intensity side light strip",
+					type = "HighIntensityLight",
+					intensity = "High",
+					color = "Toothpaste (Cyan)",
+					material = "Neon",
+					lightProperties = {
+						enabled = true,
+						color = "White",
+						brightness = 10,
+						range = 30,
+						shadows = true
+					}
+				}
+			},
+
+			-- Rear indicator light
+			indicator = {
+				partName = "RearIndicatorLight",
+				description = "Rear indicator light for ship status and visibility",
+				type = "IndicatorLight",
+				intensity = "High",
+				color = "Toothpaste (Cyan)",
+				material = "Neon",
+				lightProperties = {
+					enabled = true,
+					color = "White",
+					brightness = 10,
+					range = 30,
+					shadows = true
+				}
+			}
+		},
+
+		-- Cargo lighting system
+		cargoArea = {
+			mainLight = {
+				partName = "CargoLighter",
+				description = "Cargo area illumination light for rear cabin visibility",
+				type = "CargoLight",
+				intensity = "Variable",
+				color = "Bright Red",
+				material = "Neon",
+				location = "DirectSpaceShipChild",
+				lightProperties = {
+					enabled = true,
+					color = "White",
+					brightness = "Variable based on cargo requirements",
+					range = "Variable based on cargo area size",
+					shadows = false
+				},
+				specialProperties = {
+					purpose = "CargoAreaIllumination",
+					installationType = "Modular",
+					maintenanceAccess = "Easy",
+					powerConsumption = "Low"
+				}
+			}
+		},
+
+		-- Lighting system metadata
+		metadata = {
+			totalLights = 7,
+			highIntensityLights = 3,
+			normalIntensityLights = 3,
+			cargoLights = 1,
+			materials = {"Neon"},
+			colors = {"Bright Red", "Lily White", "Toothpaste (Cyan)"},
+			functions = {
+				"CabinIllumination",
+				"StatusIndication",
+				"AmbientLighting",
+				"NavigationAid",
+				"CargoAreaLighting"
+			}
+		}
+	}
+end
+
+function SpaceShipConfig.GetLightingPart(partName)
+	local lightingConfig = SpaceShipConfig.GetLightingConfig()
+	local rearCabin = lightingConfig.rearCabin
+	local cargoArea = lightingConfig.cargoArea
+	
+	-- Check center light
+	if rearCabin.centerLight.partName == partName then
+		return rearCabin.centerLight
+	end
+	
+	-- Check indicator light
+	if rearCabin.indicator.partName == partName then
+		return rearCabin.indicator
+	end
+	
+	-- Check left lights
+	if rearCabin.leftLights.front.partName == partName then
+		return rearCabin.leftLights.front
+	end
+	if rearCabin.leftLights.rear.partName == partName then
+		return rearCabin.leftLights.rear
+	end
+	
+	-- Check right lights
+	if rearCabin.rightLights.front.partName == partName then
+		return rearCabin.rightLights.front
+	end
+	if rearCabin.rightLights.rear.partName == partName then
+		return rearCabin.rightLights.rear
+	end
+	
+	-- Check cargo area light
+	if cargoArea.mainLight.partName == partName then
+		return cargoArea.mainLight
+	end
+	
+	return nil
+end
+
+function SpaceShipConfig.GetAllLightingParts()
+	local lightingConfig = SpaceShipConfig.GetLightingConfig()
+	local parts = {}
+	
+	-- Add all lighting parts
+	table.insert(parts, lightingConfig.rearCabin.centerLight.partName)
+	table.insert(parts, lightingConfig.rearCabin.indicator.partName)
+	table.insert(parts, lightingConfig.rearCabin.leftLights.front.partName)
+	table.insert(parts, lightingConfig.rearCabin.leftLights.rear.partName)
+	table.insert(parts, lightingConfig.rearCabin.rightLights.front.partName)
+	table.insert(parts, lightingConfig.rearCabin.rightLights.rear.partName)
+	table.insert(parts, lightingConfig.cargoArea.mainLight.partName)
+	
+	return parts
+end
+
+function SpaceShipConfig.GetHighIntensityLights()
+	local lightingConfig = SpaceShipConfig.GetLightingConfig()
+	local highIntensityParts = {}
+	
+	-- Add high intensity lights
+	table.insert(highIntensityParts, lightingConfig.rearCabin.leftLights.rear.partName)
+	table.insert(highIntensityParts, lightingConfig.rearCabin.rightLights.rear.partName)
+	table.insert(highIntensityParts, lightingConfig.rearCabin.indicator.partName)
+	
+	return highIntensityParts
+end
+
+function SpaceShipConfig.GetCargoLights()
+	local lightingConfig = SpaceShipConfig.GetLightingConfig()
+	local cargoParts = {}
+	
+	-- Add cargo area lights
+	table.insert(cargoParts, lightingConfig.cargoArea.mainLight.partName)
+	
+	return cargoParts
+end
+
+-- ============================================================================
+-- RAMP STRIPES CONFIGURATION (Visual enhancement system)
+-- ============================================================================
+
+function SpaceShipConfig.GetRampStripesConfig()
+	return SpaceShipConfig.Structure.ShipParts.RampStripes
+end
+
+function SpaceShipConfig.GetAllRampStripes()
+	local rampStripesConfig = SpaceShipConfig.GetRampStripesConfig()
+	local allStripes = {}
+	
+	-- Add all stripes from each step
+	for i = 1, 10 do
+		local stepKey = "Step" .. i
+		if rampStripesConfig.attributes.stepStripes[stepKey] then
+			table.insert(allStripes, rampStripesConfig.attributes.stepStripes[stepKey].leftStripe)
+			table.insert(allStripes, rampStripesConfig.attributes.stepStripes[stepKey].rightStripe)
+		end
+	end
+	
+	return allStripes
+end
+
+function SpaceShipConfig.GetStepStripes(stepNumber)
+	local rampStripesConfig = SpaceShipConfig.GetRampStripesConfig()
+	local stepKey = "Step" .. stepNumber
+	
+	if rampStripesConfig.attributes.stepStripes[stepKey] then
+		return {
+			leftStripe = rampStripesConfig.attributes.stepStripes[stepKey].leftStripe,
+			rightStripe = rampStripesConfig.attributes.stepStripes[stepKey].rightStripe,
+			stripeWidth = rampStripesConfig.attributes.stepStripes[stepKey].stripeWidth,
+			stepWidth = rampStripesConfig.attributes.stepStripes[stepKey].stepWidth,
+			position = rampStripesConfig.attributes.stepStripes[stepKey].position
+		}
+	end
+	
+	return nil
+end
+
+function SpaceShipConfig.GetRampStripeCount()
+	local rampStripesConfig = SpaceShipConfig.GetRampStripesConfig()
+	return rampStripesConfig.attributes.totalStripes
+end
+
+function SpaceShipConfig.IsLightingPart(partName)
+	local allParts = SpaceShipConfig.GetAllLightingParts()
+	for _, name in ipairs(allParts) do
+		if name == partName then
+			return true
+		end
+	end
+	return false
 end
 
 -- ============================================================================
