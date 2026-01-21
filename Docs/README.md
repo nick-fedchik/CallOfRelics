@@ -8,17 +8,18 @@
 
 ```
 Docs/
-├── README.md              ← Цей файл (головна навігація)
-├── GameDesign/            ← Ігровий дизайн
-│   ├── README.md          ← Навігація по GameDesign
-│   ├── GDD.md             ← Game Design Document
-│   ├── SPACESHIP.md       ← Космічний корабель
-│   ├── PLAYER.md          ← Персонаж гравця
-│   └── Planets/           ← Планети та локації
-└── TechDesign/            ← Технічна документація
-    ├── README.md          ← Навігація по TechDesign
-    ├── TDD.md             ← Technical Design Document
-    ├── KB.md              ← Knowledge Base
+├── README.md                ← Цей файл (головна навігація)
+├── GameDesign/              ← Ігровий дизайн
+│   ├── README.md            ← Навігація по GameDesign
+│   ├── GDD.md               ← Game Design Document (13 розділів)
+│   ├── SPACESHIP.md         ← Космічний корабель
+│   ├── PLAYER.md            ← Персонаж гравця
+│   ├── PLANET_LOCATIONS.md  ← Система планетних локацій (NEW)
+│   └── Planets/             ← Планети та локації
+└── TechDesign/              ← Технічна документація
+    ├── README.md            ← Навігація по TechDesign
+    ├── TDD.md               ← Technical Design Document
+    ├── KB.md                ← Knowledge Base
     ├── FOLDER_STRUCTURE.md
     └── README_GUI_DEV.md
 ```
@@ -35,9 +36,10 @@ Docs/
 
 | Документ | Опис |
 |----------|------|
-| [GDD.md](GameDesign/GDD.md) | **Game Design Document** — головний документ ігрового дизайну, концепція, механіки, світ |
-| [SPACESHIP.md](GameDesign/SPACESHIP.md) | **Космічний корабель** — "Самотній Колумб", робочі місця, системи |
-| [PLAYER.md](GameDesign/PLAYER.md) | **Персонаж гравця** — походження, профіль, інвентар |
+| [GDD.md](GameDesign/GDD.md) | **Game Design Document** — головний документ (13 розділів), концепція, механіки, світ |
+| [SPACESHIP.md](GameDesign/SPACESHIP.md) | **Космічний корабель** — "Самотній Колумб", модулі, робочі місця, сканування |
+| [PLAYER.md](GameDesign/PLAYER.md) | **Персонаж гравця** — глобальні стани, профіль, інвентар, UseCase |
+| [PLANET_LOCATIONS.md](GameDesign/PLANET_LOCATIONS.md) | **Система локацій** — класифікація, стани, прогресія, невдачі |
 | [Planets/](GameDesign/Planets/) | **Планети та локації** — опис кожної планети та її локацій |
 
 ### Що тут шукати?
@@ -124,6 +126,7 @@ TechDesign/KB.md           ← ЩО ПРАЦЮЄ (досвід)
 | Концепція гри | [GameDesign/GDD.md](GameDesign/GDD.md) |
 | Космічний корабель | [GameDesign/SPACESHIP.md](GameDesign/SPACESHIP.md) |
 | Персонаж гравця | [GameDesign/PLAYER.md](GameDesign/PLAYER.md) |
+| Система локацій | [GameDesign/PLANET_LOCATIONS.md](GameDesign/PLANET_LOCATIONS.md) |
 | Планети | [GameDesign/Planets/](GameDesign/Planets/) |
 | Архітектура | [TechDesign/TDD.md](TechDesign/TDD.md) |
 | Перевірені рішення | [TechDesign/KB.md](TechDesign/KB.md) |
@@ -132,5 +135,5 @@ TechDesign/KB.md           ← ЩО ПРАЦЮЄ (досвід)
 
 ---
 
-**Версія:** 1.0
+**Версія:** 1.1
 **Дата:** 2026-01-21
