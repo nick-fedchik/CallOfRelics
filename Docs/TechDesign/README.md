@@ -117,9 +117,10 @@ Docs/TechDesign/
 
 | Документ | Призначення |
 |----------|-------------|
-| [GDD.md](../GameDesign/GDD.md) | Game Design Document |
-| [SPACESHIP.md](../GameDesign/SPACESHIP.md) | Дизайн космічного корабля |
-| [PLAYER.md](../GameDesign/PLAYER.md) | Персонаж гравця |
+| [GDD.md](../GameDesign/GDD.md) | Game Design Document (13 розділів) |
+| [SPACESHIP.md](../GameDesign/SPACESHIP.md) | Космічний корабель, модулі, сканування |
+| [PLAYER.md](../GameDesign/PLAYER.md) | Персонаж гравця, глобальні стани |
+| [PLANET_LOCATIONS.md](../GameDesign/PLANET_LOCATIONS.md) | Система планетних локацій |
 | [Planets/](../GameDesign/Planets/) | Планети та локації |
 
 ### Зовнішні ресурси
@@ -163,10 +164,11 @@ TechDesign/KB.md (що працює)
 
 ---
 
-**Версія:** 2.1
+**Версія:** 2.2
 **Дата:** 2026-01-21
 
 **Changelog:**
+- 2.2: Оновлено посилання на GameDesign; додано PLANET_LOCATIONS.md
 - 2.1: Додано ARCHITECTURE.md з Mermaid діаграмами
 - 2.0: Реструктуризація — Backlog перенесено на GitHub Issues
 - 1.0: Початкова версія
