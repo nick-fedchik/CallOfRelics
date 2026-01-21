@@ -8,7 +8,7 @@ UI for location transitions. Handles departure animation, loading screen,
 and landing sequence visualization.
 
 Version:
-0.6
+0.10
 
 Features:
 - Departure animation (ship scale down, planet scale up, fade to black)
@@ -46,6 +46,8 @@ Dependencies:
 - RemoteEvents (TransitionUpdate, TransitionLandingCamera)
 
 ChangeLog:
+- 0.11: Wait for planet streaming before Arrival animation fade-out (2026-01-21)
+- 0.10: Add Arrival state handler, raise cockpit PoV upward (2026-01-21)
 - 0.9: Rename Liftoff → Launch (ShowLaunchPhase1/2, States.Launch/Ascent) (2026-01-15)
 - 0.8: Fix Launch Phase 1 camera tracking, add delay before GameStart cockpit setup (2026-01-15)
 - 0.7: Two-phase landing (external view + cockpit view for final approach) (2026-01-15)
@@ -60,7 +62,7 @@ ChangeLog:
 
 local TransitionUI = {}
 
-local VERSION = "0.9"
+local VERSION = "0.11"
 local MODULE_NAME = "TransitionUI"
 
 -- ============================================================================
@@ -305,12 +307,12 @@ local function SetCockpitView(finalTransition)
 	local shipUpVector = shipPart.CFrame.UpVector
 
 	-- Position camera behind player (opposite of ship's forward direction)
-	-- Offset: 3 studs behind, 1.5 studs up from head level
-	local cameraOffset = -shipLookVector * 3 + shipUpVector * 2.5
+	-- Offset: 3 studs behind, 3.5 studs up from head level (raised for better PoV)
+	local cameraOffset = -shipLookVector * 3 + shipUpVector * 3.5
 	local cameraPos = playerPos + cameraOffset
 
-	-- Look at a point in front of the player (through the cockpit window)
-	local lookAtPos = playerPos + shipLookVector * 50
+	-- Look at a point in front and slightly up (through the cockpit window at planet)
+	local lookAtPos = playerPos + shipLookVector * 50 + shipUpVector * 2
 
 	-- Set camera to Scriptable first, then immediately to Custom
 	-- This gives a brief cockpit view before player takes control
@@ -418,6 +420,11 @@ local function HandleTransitionUpdate(state, data)
 		local padPosition = data and data.padPosition
 		local shipPosition = data and data.shipPosition
 		TransitionUI.ShowLaunchPhase2(duration, padPosition, shipPosition)
+
+	elseif state == TransitionConfig.States.Arrival then
+		-- Ship arrival on orbit - hide loading, setup cockpit view tracking
+		local duration = data and data.duration or 4.0
+		TransitionUI.ShowArrivalAnimation(duration)
 
 	elseif state == "error" then
 		TransitionUI.Hide()
@@ -557,9 +564,11 @@ function TransitionUI.ShowLandingPhase2(duration)
 					local playerPos = humanoidRootPart.Position
 					local shipLookVector = shipPart.CFrame.LookVector
 					local shipUpVector = shipPart.CFrame.UpVector
-					local cameraOffset = -shipLookVector * 3 + shipUpVector * 2.5
+					-- Raised PoV: 3.5 studs up (was 2.5)
+					local cameraOffset = -shipLookVector * 3 + shipUpVector * 3.5
 					local cameraPos = playerPos + cameraOffset
-					local lookAtPos = playerPos + shipLookVector * 50
+					-- Look slightly up toward planet
+					local lookAtPos = playerPos + shipLookVector * 50 + shipUpVector * 2
 
 					camera.CameraType = Enum.CameraType.Scriptable
 					camera.CFrame = CFrame.lookAt(cameraPos, lookAtPos)
@@ -610,9 +619,11 @@ function TransitionUI.ShowLaunchPhase1(duration)
 					local playerPos = humanoidRootPart.Position
 					local shipLookVector = shipPart.CFrame.LookVector
 					local shipUpVector = shipPart.CFrame.UpVector
-					local cameraOffset = -shipLookVector * 3 + shipUpVector * 2.5
+					-- Raised PoV: 3.5 studs up (was 2.5)
+					local cameraOffset = -shipLookVector * 3 + shipUpVector * 3.5
 					local cameraPos = playerPos + cameraOffset
-					local lookAtPos = playerPos + shipLookVector * 50
+					-- Look slightly up toward sky
+					local lookAtPos = playerPos + shipLookVector * 50 + shipUpVector * 2
 
 					camera.CFrame = CFrame.lookAt(cameraPos, lookAtPos)
 					task.wait()
@@ -677,6 +688,71 @@ end
 function TransitionUI.ShowLaunchAnimation()
 	-- Redirect to Phase 1 with default duration
 	TransitionUI.ShowLaunchPhase1(TransitionConfig.LaunchPhase1Duration or 3.0)
+end
+
+function TransitionUI.ShowArrivalAnimation(duration)
+	-- Ship arrival on orbit - player is seated in cockpit, watching planet approach
+	-- Hide loading screen and setup camera tracking
+	isActive = true
+	cockpitViewActive = true
+
+	-- Hide loading text
+	loadingContainer.Visible = false
+
+	-- Wait for planet to be fully streamed before revealing the view
+	-- This prevents the "planet disappears mid-animation" visual glitch
+	local planet = nil
+	local waitStart = os.clock()
+	local maxWait = 2.0 -- Max 2 seconds to wait for planet
+	while os.clock() - waitStart < maxWait do
+		planet = Workspace:FindFirstChild("Planet")
+		if planet then
+			-- Found planet, wait a bit more for full streaming
+			task.wait(0.3)
+			break
+		end
+		task.wait(0.1)
+	end
+
+	-- Fade out overlay to reveal cockpit view
+	FadeOut(0.5)
+
+	-- Setup cockpit view camera tracking
+	local camera = Workspace.CurrentCamera
+	local character = LocalPlayer.Character
+	local ship = Workspace:FindFirstChild("SpaceShip")
+
+	if character and ship then
+		local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+		local shipPart = ship.PrimaryPart or ship:FindFirstChildWhichIsA("BasePart")
+
+		if humanoidRootPart and shipPart then
+			camera.CameraType = Enum.CameraType.Scriptable
+			camera.FieldOfView = 70
+
+			-- Track the player throughout arrival (camera follows as ship moves)
+			local startTime = os.clock()
+			task.spawn(function()
+				while os.clock() - startTime < duration do
+					-- Re-get positions each frame (ship is moving)
+					local playerPos = humanoidRootPart.Position
+					local shipLookVector = shipPart.CFrame.LookVector
+					local shipUpVector = shipPart.CFrame.UpVector
+
+					-- Position camera behind player, slightly raised
+					-- Offset: 3 studs behind, 3.5 studs up (raised from 2.5)
+					local cameraOffset = -shipLookVector * 3 + shipUpVector * 3.5
+					local cameraPos = playerPos + cameraOffset
+
+					-- Look at a point in front and slightly up (planet in distance)
+					local lookAtPos = playerPos + shipLookVector * 50 + shipUpVector * 2
+
+					camera.CFrame = CFrame.lookAt(cameraPos, lookAtPos)
+					task.wait()
+				end
+			end)
+		end
+	end
 end
 
 function TransitionUI.Hide(forceRestoreCamera)

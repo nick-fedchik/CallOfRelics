@@ -4,6 +4,52 @@
 
 ---
 
+## [0.13.0] - 2026-01-21 - Ship Arrival Animation & GitHub Backlog
+
+### Added - Ship Arrival Animation on Orbit
+
+- **TransitionService.lua** (v0.10) — анімація прибуття корабля на орбіту
+  - `AnimateShipArrival()` — корабель летить здалеку до точки паркування
+  - Двофазна анімація: прискорення → гальмування
+  - Інтегровано в `StartGameSequence()` та `StartLaunchSequence()`
+  - Затримка 1.5 сек для стрімінгу планети перед анімацією
+
+- **TransitionUI.lua** (v0.11) — клієнтська підтримка Arrival
+  - `ShowArrivalAnimation()` — cockpit view під час прибуття
+  - Очікування планети перед fade-out (запобігає зникненню)
+  - Піднято PoV камери на 3.5 studs
+
+- **TransitionConfig.lua** (v0.3) — нові налаштування
+  - `ShipArrivalDuration = 4.0` — тривалість анімації
+  - `States.Arrival` — новий стан переходу
+
+- **OrbitConfig.luau** — шлях прибуття
+  - `arrivalPath.startOffset = Vector3.new(0, 0, -400)`
+  - `arrivalPath.midOffset = Vector3.new(0, 0, -100)`
+
+### Added - GitHub Backlog Integration
+
+- Product Backlog перенесено на GitHub Issues
+- Створено 7 milestones (EPICs 3, 7, 9, 11, 12, 13, 14)
+- Створено 24 issues для всіх stories
+- Labels: priority (high/medium/low), type (feature/bug/tech-debt), phase (1/2/3)
+
+### Changed - Documentation Restructure
+
+- Реорганізовано `Docs/` структуру:
+  - `Docs/GameDesign/` — ігровий дизайн (GDD, SPACESHIP, PLAYER, Planets)
+  - `Docs/TechDesign/` — технічна документація (TDD, KB, FOLDER_STRUCTURE)
+- Створено `Docs/README.md` — центральна навігація
+- Оновлено `Docs/TechDesign/README.md` — посилання на GitHub Issues/Milestones
+- Видалено `Docs/Backlog.md` — замінено GitHub Issues
+
+### Fixed
+
+- Планета більше не зникає під час анімації прибуття на першому завантаженні
+- Корабель тепер летить ДО планети (не від неї)
+
+---
+
 ## [0.12.0] - 2026-01-20 - Ramp Visual Effects
 
 ### Added - Ramp Stripes Pulsating Animation

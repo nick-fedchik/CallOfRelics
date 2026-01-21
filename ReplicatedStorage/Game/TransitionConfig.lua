@@ -32,6 +32,7 @@ Dependencies:
 - None
 
 ChangeLog:
+- 0.3: Ship arrival animation on orbit (cockpit view) (2026-01-21)
 - 0.2: Rename Liftoff → Launch, Ascending → Ascent (2026-01-15)
 - 0.1: Initial transition configuration (2026-01-14)
 ================================================================================
@@ -65,6 +66,9 @@ local TransitionConfig = {
 	LaunchPhase2Duration = 4.0,        -- Phase 2: External view (ascent - watching ship rise)
 	LaunchDuration = 4.0,              -- Legacy: kept for compatibility
 
+	-- Ship arrival on orbit (cockpit view) - ship flies towards planet
+	ShipArrivalDuration = 4.0,         -- Total arrival animation time
+
 	-- ============================================================================
 	-- SHIP ANIMATION PARAMETERS
 	-- ============================================================================
@@ -95,6 +99,7 @@ local TransitionConfig = {
 	States = {
 		Idle = "idle",
 		GameStart = "gamestart",      -- Initial game start (from ScreenSaver)
+		Arrival = "arrival",          -- Ship arriving on orbit (cockpit view, flying towards planet)
 		Departure = "departure",      -- Landing: Phase 0 - planet approach animation on orbit
 		Loading = "loading",          -- Loading screen between locations
 		Approach = "approach",        -- Landing: Phase 1 - external view watching ship descend

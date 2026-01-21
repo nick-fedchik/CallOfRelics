@@ -4,91 +4,133 @@
 
 ---
 
-## Core Documents
+## Структура документації
 
-| Document | Description |
-|----------|-------------|
-| [GDD.md](GDD.md) | **Game Design Document** — ігрова концепція, сценарій, світ, ролі гравця, базові правила та ключові системи |
-| [TDD.md](TDD.md) | **Technical Design Document** — архітектурна модель, ієрархія станів, розмежування відповідальностей |
-| [Backlog.md](Backlog.md) | **Product Backlog** — roadmap, active EPICs, stories, sprint planning |
-| [KB.md](KB.md) | **Knowledge Base** — успішні рішення, ефективні алгоритми, перевірені практики |
+```
+Docs/
+├── README.md              ← Цей файл (головна навігація)
+├── GameDesign/            ← Ігровий дизайн
+│   ├── README.md          ← Навігація по GameDesign
+│   ├── GDD.md             ← Game Design Document
+│   ├── SPACESHIP.md       ← Космічний корабель
+│   ├── PLAYER.md          ← Персонаж гравця
+│   └── Planets/           ← Планети та локації
+└── TechDesign/            ← Технічна документація
+    ├── README.md          ← Навігація по TechDesign
+    ├── TDD.md             ← Technical Design Document
+    ├── KB.md              ← Knowledge Base
+    ├── FOLDER_STRUCTURE.md
+    └── README_GUI_DEV.md
+```
 
 ---
 
-## Structure Documents
+## GameDesign — Ігровий дизайн
 
-| Document | Description |
-|----------|-------------|
-| [FOLDER_STRUCTURE.md](FOLDER_STRUCTURE.md) | Рекомендована структура папок для Script Sync, ServerScriptService, ReplicatedStorage |
-| [README_GUI_DEV.md](README_GUI_DEV.md) | StarterPlayerScripts структура — UI модулі, Core bootstrap, клієнтські системи |
+**Папка:** [GameDesign/](GameDesign/)
 
----
+Містить документацію з ігрового дизайну — концепція гри, механіки, ігровий світ, планети та локації.
 
-## Planets Documentation
+### Документи
 
-Локальна документація для кожної планети та локації.
+| Документ | Опис |
+|----------|------|
+| [GDD.md](GameDesign/GDD.md) | **Game Design Document** — головний документ ігрового дизайну, концепція, механіки, світ |
+| [SPACESHIP.md](GameDesign/SPACESHIP.md) | **Космічний корабель** — "Самотній Колумб", робочі місця, системи |
+| [PLAYER.md](GameDesign/PLAYER.md) | **Персонаж гравця** — походження, профіль, інвентар |
+| [Planets/](GameDesign/Planets/) | **Планети та локації** — опис кожної планети та її локацій |
 
-### Planets Overview
+### Що тут шукати?
 
-| Document | Description |
-|----------|-------------|
-| [Planets/README.md](Planets/README.md) | Огляд планетарної системи, Planet Registry, структура планет |
+- Концепція та ідея гри
+- Опис ігрових механік
+- Характеристики персонажа та корабля
+- Опис планет і локацій
+- Наративна складова
 
-### Planet_1 — Біллі Рубін
-
-```
-Planets/Planet_1/
-├── README.md                      # Planet overview
-├── Orbit/
-│   └── README.md                  # Orbital view documentation
-└── Surface/
-    ├── Location_1/
-    │   └── README.md              # Landing Site Alpha
-    └── Location_2/
-        └── README.md              # Ancient Ruins
-```
-
-| Document | Description |
-|----------|-------------|
-| [Planets/Planet_1/README.md](Planets/Planet_1/README.md) | **Біллі Рубін** — перша планета, опис та конфігурація |
-| [Planets/Planet_1/Orbit/README.md](Planets/Planet_1/Orbit/README.md) | Орбітальний вигляд — навігація, сканування, PilotUI |
-| [Planets/Planet_1/Surface/Location_1/README.md](Planets/Planet_1/Surface/Location_1/README.md) | **Landing Site Alpha** — перша локація, tutorial zone |
-| [Planets/Planet_1/Surface/Location_2/README.md](Planets/Planet_1/Surface/Location_2/README.md) | **Ancient Ruins** — руїни давньої цивілізації |
-
-### Planet_Earth — Earth (Planned)
-
-```
-Planets/Planet_Earth/
-└── README.md                      # Planet overview (planned)
-```
-
-| Document | Description |
-|----------|-------------|
-| [Planets/Planet_Earth/README.md](Planets/Planet_Earth/README.md) | **Earth** — планета-походження (planned) |
+**Детальніше:** [GameDesign/README.md](GameDesign/README.md)
 
 ---
 
-## Utility Documents
+## TechDesign — Технічна документація
 
-| Document | Description |
-|----------|-------------|
-| [copilot-instructions.md](copilot-instructions.md) | Інструкції для GitHub Copilot |
+**Папка:** [TechDesign/](TechDesign/)
+
+Містить технічну документацію — архітектура, структура коду, перевірені рішення та стандарти.
+
+### Документи
+
+| Документ | Опис |
+|----------|------|
+| [TDD.md](TechDesign/TDD.md) | **Technical Design Document** — архітектура, ієрархія станів, сервіси |
+| [KB.md](TechDesign/KB.md) | **Knowledge Base** — перевірені рішення, ефективні алгоритми |
+| [FOLDER_STRUCTURE.md](TechDesign/FOLDER_STRUCTURE.md) | **Структура папок** — організація коду проєкту |
+| [README_GUI_DEV.md](TechDesign/README_GUI_DEV.md) | **UI Development** — клієнтські системи, StarterPlayerScripts |
+
+### Що тут шукати?
+
+- Архітектурні рішення
+- Структура сервісів (Server/Client)
+- Конвенції коду
+- Рішення типових проблем
+- Технічні специфікації
+
+**Детальніше:** [TechDesign/README.md](TechDesign/README.md)
 
 ---
 
-## Related Files (Root)
+## Product Backlog
 
-| File | Description |
-|------|-------------|
+Беклог проєкту ведеться на GitHub:
+
+| Ресурс | Посилання |
+|--------|-----------|
+| **Issues** (Stories) | [github.com/nick-fedchik/CallOfRelics/issues](https://github.com/nick-fedchik/CallOfRelics/issues) |
+| **Milestones** (EPICs) | [github.com/nick-fedchik/CallOfRelics/milestones](https://github.com/nick-fedchik/CallOfRelics/milestones) |
+
+---
+
+## Інші файли
+
+| Файл | Опис |
+|------|------|
 | [../CHANGELOG.md](../CHANGELOG.md) | Історія змін проєкту |
-| [../README.md](../README.md) | Головний README проєкту |
+| [../README.md](../README.md) | Головний README репозиторію |
+| [../README-UKR.md](../README-UKR.md) | README українською |
 
 ---
 
-## Document Conventions
+## Ієрархія документації
 
-- **GDD** — Game Design Document (що робимо)
-- **TDD** — Technical Design Document (як робимо)
-- **LOCAL_GDD** — локальна документація планет/локацій (тепер README.md)
-- **KB** — Knowledge Base (що працює)
-- **Backlog** — Product Backlog (що далі)
+```
+GameDesign/GDD.md          ← ЩО робимо (концепція)
+    ↓ деталізується
+GameDesign/SPACESHIP.md    ← Деталі систем
+GameDesign/Planets/        ← Деталі контенту
+    ↓ реалізується
+TechDesign/TDD.md          ← ЯК робимо (архітектура)
+    ↓ відстежується
+GitHub Issues              ← Tasks & Stories
+    ↓ документується
+TechDesign/KB.md           ← ЩО ПРАЦЮЄ (досвід)
+```
+
+---
+
+## Швидкі посилання
+
+| Що шукаєте? | Де знайти? |
+|-------------|------------|
+| Концепція гри | [GameDesign/GDD.md](GameDesign/GDD.md) |
+| Космічний корабель | [GameDesign/SPACESHIP.md](GameDesign/SPACESHIP.md) |
+| Персонаж гравця | [GameDesign/PLAYER.md](GameDesign/PLAYER.md) |
+| Планети | [GameDesign/Planets/](GameDesign/Planets/) |
+| Архітектура | [TechDesign/TDD.md](TechDesign/TDD.md) |
+| Перевірені рішення | [TechDesign/KB.md](TechDesign/KB.md) |
+| Структура папок | [TechDesign/FOLDER_STRUCTURE.md](TechDesign/FOLDER_STRUCTURE.md) |
+| Backlog | [GitHub Issues](https://github.com/nick-fedchik/CallOfRelics/issues) |
+
+---
+
+**Версія:** 1.0
+**Дата:** 2026-01-21

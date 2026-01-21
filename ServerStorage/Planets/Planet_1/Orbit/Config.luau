@@ -293,11 +293,12 @@ local OrbitConfig = {
 
         -- Animation waypoints for ship arrival (liftoff → orbit)
         arrivalPath = {
-            -- Ship appears from direction of planet (+Z)
-            startOffset = Vector3.new(0, 0, 400),
-            -- Intermediate point
-            midOffset = Vector3.new(0, 0, 100),
-            -- Final position (see spaceShip.finalPosition)
+            -- Ship starts BEHIND parking spot (negative Z) and flies TOWARD planet
+            -- Final position is (0, 100, 0), planet is at (0, 100, 600)
+            -- Player in cockpit sees planet APPROACHING as ship moves from -Z to 0
+            startOffset = Vector3.new(0, 0, -400),  -- Start at Z=-400 (behind parking spot)
+            midOffset = Vector3.new(0, 0, -100),    -- Mid at Z=-100
+            -- Final position is (0, 100, 0) - see spaceShip.finalPosition
         },
 
         -- Animation waypoints for ship departure (orbit → landing)

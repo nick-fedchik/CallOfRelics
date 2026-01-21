@@ -300,7 +300,7 @@ function SpaceShipService.SpawnShip(player, position, rotation)
 	rampDeployedState[player] = false
 	rampAnimating[player] = false
 
-	-- Hide ramp steps immediately after spawn
+	-- Hide ramp steps and stripes immediately after spawn
 	local ramp = ship:FindFirstChild("ShipRamp")
 	if ramp then
 		for i = 1, 10 do
@@ -308,6 +308,16 @@ function SpaceShipService.SpawnShip(player, position, rotation)
 			if step then
 				step.Transparency = 1
 				step.CanCollide = false
+			end
+		end
+		-- Hide ramp stripes (LeftStripe_N, RightStripe_N)
+		for _, child in ipairs(ramp:GetDescendants()) do
+			if child:IsA("BasePart") and (child.Name:match("LeftStripe_") or child.Name:match("RightStripe_")) then
+				child.Transparency = 1
+				local light = child:FindFirstChildOfClass("PointLight")
+				if light then
+					light.Brightness = 0
+				end
 			end
 		end
 	end
@@ -604,6 +614,38 @@ local function HideRampSteps(ship)
 	end
 end
 
+-- Find all stripe parts in ShipRamp (moved here for dependency order)
+local function GetRampStripes(ship)
+	if not ship then return {} end
+
+	local ramp = GetShipRamp(ship)
+	if not ramp then return {} end
+
+	local stripes = {}
+	-- Look for stripe parts (LeftStripe_N, RightStripe_N pattern)
+	for _, child in ipairs(ramp:GetDescendants()) do
+		if child:IsA("BasePart") and (child.Name:match("LeftStripe_") or child.Name:match("RightStripe_")) then
+			table.insert(stripes, child)
+		end
+	end
+
+	return stripes
+end
+
+-- Hide all ramp stripes (called on landing/init before ramp is deployed)
+local function HideRampStripes(ship)
+	local stripes = GetRampStripes(ship)
+	for _, stripe in ipairs(stripes) do
+		if stripe and stripe.Parent then
+			stripe.Transparency = 1
+			local light = stripe:FindFirstChildOfClass("PointLight")
+			if light then
+				light.Brightness = 0
+			end
+		end
+	end
+end
+
 -- Show all ramp steps (for instant show if needed)
 local function ShowRampSteps(ship)
 	local ramp = GetShipRamp(ship)
@@ -669,24 +711,6 @@ end
 -- ============================================================================
 -- RAMP STRIPES PULSATING ANIMATION
 -- ============================================================================
-
--- Find all stripe parts in ShipRamp
-local function GetRampStripes(ship)
-	if not ship then return {} end
-
-	local ramp = GetShipRamp(ship)
-	if not ramp then return {} end
-
-	local stripes = {}
-	-- Look for stripe parts (LeftStripe_N, RightStripe_N pattern)
-	for _, child in ipairs(ramp:GetDescendants()) do
-		if child:IsA("BasePart") and (child.Name:match("LeftStripe_") or child.Name:match("RightStripe_")) then
-			table.insert(stripes, child)
-		end
-	end
-
-	return stripes
-end
 
 -- Start pulsating animation for ramp stripes
 local function StartRampStripesPulse(player, ship)
@@ -842,6 +866,7 @@ function SpaceShipService.SetShipLanded(player, isLanded)
 		SetRampTriggerActive(ship, true) -- Show trigger highlight
 		SetupRampTrigger(player, ship) -- Enable touch detection
 		HideRampSteps(ship) -- Ramp starts hidden, deploys on trigger
+		HideRampStripes(ship) -- Stripes hidden until ramp deploys
 		SetEngineFires(ship, false) -- Turn off engine fire effects
 
 		print(string.format("[%s %s] Ship landed: exit open, trigger active, engines off", MODULE_NAME, VERSION))
