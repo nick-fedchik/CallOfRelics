@@ -66,23 +66,6 @@
 
 ---
 
-## Technical Notes
-
-**Storage Path:** `ServerStorage/Planets/Planet_1/`
-
-**Config.luau:**
-```lua
-return {
-    id = "Planet_1",
-    displayName = "Біллі Рубін",
-    type = "Habitable",
-    gravity = 1.2,
-    hasAtmosphere = true
-}
-```
-
----
-
 ## Related Documents
 
 - [Orbit/README.md](Orbit/README.md) — Orbital view

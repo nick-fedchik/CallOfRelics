@@ -21,55 +21,33 @@
 
 ## Planet Structure
 
-Кожна планета зберігається в `ServerStorage/Planets/Planet_Id/`:
+Кожна планета має таку ігрову структуру:
 
 ```mermaid
 flowchart TB
-    subgraph SS["📁 ServerStorage/Planets"]
-        subgraph Planet["Planet_Id/"]
-            Config[Config.luau]
+    subgraph Planet["🌍 Планета"]
+        Orbit[🛸 Орбіта<br/>Navigation Hub]
 
-            subgraph Orbit["Orbit/"]
-                OC[Config.luau]
-                OW[Workspace/<br/>Planet Model]
-                OL[Lighting/]
-                OS[Scripts/]
-            end
-
-            subgraph Surface["Surface/"]
-                subgraph Loc1["Location_1/"]
-                    L1C[Config.luau]
-                    L1W[Workspace/]
-                    L1L[Lighting/]
-                end
-                subgraph Loc2["Location_2/"]
-                    L2C[Config.luau]
-                    L2W[Workspace/]
-                end
-            end
+        subgraph Surface["Поверхня"]
+            L1[📍 Локація 1]
+            L2[📍 Локація 2]
+            L3[📍 ...]
         end
     end
+
+    Orbit -->|Landing| L1
+    Orbit -->|Landing| L2
+    L1 -->|Launch| Orbit
+    L2 -->|Launch| Orbit
 ```
 
-```
-Planet_Id/
-├── Config.luau                    # Planet configuration
-├── ReplicatedStorage/             # Planet-level scripts
-├── ServerScriptService/           # Planet-level scripts
-├── StarterPlayer/                 # Planet-level scripts
-├── Orbit/                         # Orbital view
-│   ├── Config.luau
-│   ├── Workspace/
-│   │   ├── Planet (Model)
-│   │   └── Lighting/
-│   └── Scripts folders...
-└── Surface/
-    └── Location_Id/
-        ├── Config.luau
-        ├── Workspace/
-        │   └── Lighting/
-        └── Scripts folders...
-```
+### Компоненти планети
+
+| Компонент | Призначення |
+|-----------|-------------|
+| **Орбіта** | Точка прибуття, сканування, навігація |
+| **Локації поверхні** | Ігрові зони для дослідження |
+| **Конфігурація** | Параметри планети (атмосфера, гравітація, тип) |
 
 ---
 
@@ -120,6 +98,52 @@ flowchart LR
 | Hostile | Environmental hazards, time limits | TBD |
 | Barren | No atmosphere, suit required | TBD |
 | Gas Giant | Orbit only, no surface landing | TBD |
+
+---
+
+## Концептуальна карта подорожі (Journey Map)
+
+```mermaid
+flowchart TD
+    subgraph Origin["🌍 EARTH (Origin)"]
+        E_Start[🚀 Старт експедиції]
+    end
+
+    subgraph Sector1["📍 Сектор Alpha"]
+        P1[🟢 Біллі Рубін<br/>Habitable<br/>2 локації]
+        P2[🟡 Planet 2<br/>Planned]
+    end
+
+    subgraph Sector2["📍 Сектор Beta"]
+        P3[🟠 Planet 3<br/>Hostile?]
+        P4[🔴 Planet 4<br/>Barren?]
+    end
+
+    subgraph Final["🌍 EARTH (Return)"]
+        E_End[🏠 Повернення]
+    end
+
+    E_Start ==>|Міжзоряний стрибок| P1
+    P1 -.->|Warp| P2
+    P2 -.->|Warp| P3
+    P3 -.->|Warp| P4
+    P4 ==>|Фінальний стрибок| E_End
+
+    style P1 fill:#90EE90
+    style E_Start fill:#87CEEB
+    style E_End fill:#FFD700
+```
+
+### Вимоги енергії для перельотів
+
+```mermaid
+xychart-beta
+    title "Енергія для міжпланетних перельотів"
+    x-axis [P1→P2, P2→P3, P3→P4, P4→Earth]
+    y-axis "Енергія" 0 --> 1000
+    bar [100, 200, 350, 800]
+    line [100, 200, 350, 800]
+```
 
 ---
 

@@ -1,9 +1,10 @@
-# TECHNICAL DESIGN DOCUMENT  
+# TECHNICAL DESIGN DOCUMENT
 ## Call of Relics: Orbital Silence
 
-**Тип документа:** Архітектурний / технічний дизайн  
-**Версія:** Draft 0.1 (Architecture First)  
-**Статус:** In Progress  
+**Тип документа:** Архітектурний / технічний дизайн
+**Версія:** Draft 0.2
+**Статус:** In Progress
+**Дата оновлення:** 2026-01-21
 **Призначення:** Визначення технічних принципів, структур і станів гри  
 
 ---
@@ -11,8 +12,8 @@
 ## ВСТУП
 
 Цей Technical Design Document (TDD) описує **архітектурну модель гри**
-**Call of Relics: Orbital Silence** без прив’язки до конкретних реалізацій,
-API, назв класів або файлової структури.
+**Call of Relics: Orbital Silence** з фокусом на принципах та структурах,
+які забезпечують стабільність та масштабованість системи.
 
 Документ зосереджений на:
 - архітектурних принципах
@@ -20,12 +21,38 @@ API, назв класів або файлової структури.
 - розмежуванні відповідальностей
 - узагальнених структурах систем
 - правилах взаємодії між підсистемами
+- протоколах Client-Server комунікації
+
+```mermaid
+flowchart TB
+    subgraph TDD["📋 TDD Structure"]
+        direction TB
+        A1[1. Архітектурна філософія]
+        A2[2. Ієрархія станів]
+        A3[3. Розмежування систем]
+        A4[4. Життєвий цикл]
+        A5[5. Модель світу]
+        A6[6. Подієва модель]
+        A7[7-8. UI/UX та Взаємодія]
+        A9[9-10. Persistence та Errors]
+        A11[11-13. Logging та Масштабування]
+    end
+
+    A1 --> A2
+    A2 --> A3
+    A3 --> A4
+    A4 --> A5
+    A5 --> A6
+    A6 --> A7
+    A7 --> A9
+    A9 --> A11
+```
 
 Цей TDD:
-- є **першою версією**
-- навмисно абстрактний
-- буде деталізований у наступних ітераціях
-- є основою для подальших **Implementation TDD** та **Service Contracts**
+- є основою для архітектурних рішень
+- містить UML-діаграми (Mermaid) для візуалізації
+- є живим документом, що оновлюється з розвитком проєкту
+- є основою для **Implementation TDD** та **Service Contracts**
 
 ---
 
@@ -122,6 +149,42 @@ API, назв класів або файлової структури.
 
 ## 2. ІЄРАРХІЯ ІГРОВИХ СТАНІВ
 
+```mermaid
+stateDiagram-v2
+    [*] --> LoggedOff: Запуск гри
+
+    state "Глобальні стани" as Global {
+        LoggedOff --> Initializing: LogOn
+        Initializing --> InGame: Boot Complete
+        Initializing --> LoggedOff: Boot Failed
+        InGame --> LoggedOff: LogOff / Disconnect
+    }
+
+    state "Контекстні стани (InGame)" as Context {
+        state InGame {
+            Orbit --> Landing: RequestLanding
+            Landing --> Surface: Load Complete
+            Surface --> Launching: RequestLaunch
+            Launching --> Orbit: Load Complete
+        }
+    }
+
+    note right of LoggedOff
+        ScreenSaver UI
+        Системи неактивні
+    end note
+
+    note right of Initializing
+        4-Stage Boot
+        Profile Loading
+    end note
+
+    note right of InGame
+        Активна сесія
+        Контекстні переходи
+    end note
+```
+
 ### 2.1. Поділ станів
 
 Ігрові стани поділяються на **два рівні**:
@@ -214,13 +277,54 @@ API, назв класів або файлової структури.
 ---
 ## 3. РОЗМЕЖУВАННЯ ВІДПОВІДАЛЬНОСТЕЙ СИСТЕМ
 
+```mermaid
+flowchart TB
+    subgraph Core["🔵 Core (Архітектурне ядро)"]
+        GSM[GameStateManager]
+        BS[BootSequence]
+        SB[ServerBootstrap]
+    end
+
+    subgraph Services["🟢 Services (Сервіси)"]
+        PS[PlayerService]
+        PRS[ProfileService]
+        TS[TransitionService]
+        LS[LocationService]
+        SSS[SpaceShipService]
+    end
+
+    subgraph Systems["🟡 Systems (Системи)"]
+        ScanSys[ScannerSystem]
+        CombatSys[CombatSystem]
+        ResourceSys[ResourceSystem]
+    end
+
+    subgraph Content["🟠 Content (Контент)"]
+        Planets[Planets/Locations]
+        Ships[SpaceShip Models]
+        UI[UI Modules]
+    end
+
+    SB --> GSM
+    SB --> BS
+    GSM --> Services
+    BS --> TS
+    Services --> Systems
+    Systems -.->|read only| Content
+
+    style Core fill:#e3f2fd
+    style Services fill:#e8f5e9
+    style Systems fill:#fffde7
+    style Content fill:#fff3e0
+```
+
 Цей розділ визначає, **які типи логіки існують у грі**
 та **як вони мають бути відокремлені між собою**.
 
 Мета — уникнути:
 - монолітних скриптів
 - прихованих залежностей
-- логіки “випадково тут”
+- логіки "випадково тут"
 
 ---
 
@@ -339,6 +443,49 @@ API, назв класів або файлової структури.
 Цей розділ описує **повний життєвий цикл гри**
 від моменту запуску до завершення сесії.
 
+### 4.0. Boot Sequence Protocol
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant P as Player
+    participant CB as ClientBootstrap
+    participant SSU as ScreenSaverUI
+    participant RE as RemoteEvents
+    participant BS as BootSequence
+    participant PS as ProfileService
+
+    Note over P,PS: 🚀 4-Stage Boot Sequence
+
+    P->>CB: Player joins
+    CB->>SSU: Initialize()
+
+    BS->>RE: BootStageUpdate(1, GameConfig)
+    RE->>SSU: Stage 1 (25%) - Game info
+    SSU->>SSU: Show game name, version
+
+    BS->>RE: BootStageUpdate(2, PlayerInfo)
+    RE->>SSU: Stage 2 (50%) - Player info
+    SSU->>SSU: Show avatar, display name
+
+    BS->>PS: LoadProfile(player)
+    PS-->>BS: Profile data
+
+    BS->>RE: BootStageUpdate(3, ProfileData)
+    RE->>SSU: Stage 3 (75%) - Profile loaded
+
+    BS->>RE: BootStageUpdate(4, Ready)
+    RE->>SSU: Stage 4 (100%) - Ready
+    SSU->>SSU: Show "Почати гру" button
+
+    P->>SSU: Click "Почати гру"
+    SSU->>RE: ConfirmGameStart
+    RE->>BS: Player confirmed
+
+    BS->>RE: StateChanged(InGame)
+    RE->>SSU: Hide ScreenSaver
+```
+
 ---
 
 ### 4.1. Фази життєвого циклу
@@ -346,7 +493,7 @@ API, назв класів або файлової структури.
 Життєвий цикл гри складається з таких фаз:
 
 1. Поза грою (ScreenSaver)
-2. Ініціалізація (Boot)
+2. Ініціалізація (Boot) — **4-stage server-driven sequence**
 3. Відновлення контексту
 4. Активна гра
 5. Призупинення або завершення
@@ -462,8 +609,49 @@ Boot є:
 ---
 ## 5. МОДЕЛЬ СВІТУ ТА КОНТЕНТНИХ КОНТЕЙНЕРІВ
 
+```mermaid
+flowchart TB
+    subgraph Space["🌌 Космічний простір"]
+        subgraph P1["Планета 1 (Біллі Рубін)"]
+            P1O[🛸 Орбіта]
+            P1L1[📍 Location_1 Візитка]
+            P1L2[📍 Location_2 Садочок]
+            P1O -->|Landing| P1L1
+            P1O -->|Landing| P1L2
+            P1L1 -->|Launch| P1O
+            P1L2 -->|Launch| P1O
+        end
+
+        subgraph P2["Планета 2 (TBD)"]
+            P2O[🛸 Орбіта]
+            P2L1[📍 Location_1]
+            P2O --> P2L1
+        end
+
+        subgraph Earth["🌍 Земля (Фінал)"]
+            EO[🛸 Орбіта]
+            EL[📍 Фінальна локація]
+            EO --> EL
+        end
+    end
+
+    Ship[🚀 SpaceShip]
+    Ship -.->|Warp TBD| P1O
+    Ship -.->|Warp TBD| P2O
+    Ship -.->|Фінал| EO
+
+    subgraph Storage["📦 ServerStorage"]
+        Actors[Actors/SpaceShip]
+        Planets[Planets/Planet_1/...]
+    end
+
+    Actors -.->|Clone| Ship
+    Planets -.->|Load| P1O
+    Planets -.->|Load| P1L1
+```
+
 Цей розділ описує **узагальнену модель ігрового світу** та правила
-організації контенту без прив’язки до конкретних рушійних об’єктів.
+організації контенту без прив'язки до конкретних рушійних об'єктів.
 
 Мета — створити світ, який:
 - легко масштабується
@@ -584,6 +772,50 @@ Boot є:
 ---
 
 ## 6. ПОДІЄВА МОДЕЛЬ ТА МОДЕЛЬ СТАНІВ
+
+```mermaid
+flowchart LR
+    subgraph Client["🖥️ Client"]
+        UI[UI Modules]
+        Controllers[Controllers]
+    end
+
+    subgraph Events["📡 RemoteEvents"]
+        direction TB
+        C2S["Client → Server"]
+        S2C["Server → Client"]
+    end
+
+    subgraph Server["🖧 Server"]
+        Services[Services]
+        GSM[GameStateManager]
+    end
+
+    UI -->|Request| C2S
+    Controllers -->|Notify| C2S
+    C2S --> Services
+    Services --> GSM
+
+    GSM -->|State| S2C
+    Services -->|Response| S2C
+    S2C --> UI
+
+    style C2S fill:#e8f5e9
+    style S2C fill:#ffebee
+```
+
+### RemoteEvents Protocol
+
+| Direction | Event | Purpose |
+|-----------|-------|---------|
+| C→S | ConfirmGameStart | Player ready to start |
+| C→S | RequestLanding | Request landing on location |
+| C→S | RequestLaunch | Request launch to orbit |
+| C→S | RequestScan | Start scanning |
+| S→C | StateChanged | Global state transition |
+| S→C | BootStageUpdate | Boot progress |
+| S→C | TransitionUpdate | Landing/Launch progress |
+| S→C | ScanProgress | Scan percentage |
 
 Цей розділ пояснює співвідношення
 між **подіями** та **станами** у грі.
@@ -1469,32 +1701,85 @@ Roblox Studio Script Sync синхронізує код **виключно вс�
 
 ---
 
-#### 13.3.2. Рекомендована структура ServerScriptService
+#### 13.3.2. Поточна структура проєкту (v0.14)
 
-**АРХІТЕКТУРНА РЕКОМЕНДАЦІЯ:**
+```mermaid
+flowchart TB
+    subgraph SSS["📁 ServerScriptService"]
+        subgraph Core["Core/"]
+            GSM[GameStateManager v0.2]
+            BS[BootSequence v0.4]
+            SB[ServerBootstrap v0.3]
+        end
+        subgraph Services["Services/"]
+            PS[PlayerService v0.2]
+            PRS[ProfileService v0.2]
+            LS[LocationService v0.4]
+            TS[TransitionService v0.8]
+            SSS2[SpaceShipService v0.8]
+            PSS[PlanetScannerService v0.3]
+        end
+        subgraph Setup["Setup/"]
+            RES[RemoteEventsSetup v0.5]
+        end
+    end
 
-Базуючись на TDD розділах 3.1-3.3 (Системи, Сервіси, Контент),
-рекомендується така організація ServerScriptService:
+    subgraph SPS["📁 StarterPlayerScripts"]
+        subgraph CoreC["Core/"]
+            CB[ClientBootstrap v0.3]
+            SC[SeatController v0.2]
+            CC[CameraController v0.2]
+        end
+        subgraph UIM["UI/"]
+            SSU[ScreenSaverUI v0.5]
+            SBU[StatusBarUI v0.2]
+            SUIM[SeatUIManager v0.2]
+            TUI[TransitionUI v0.15]
+            subgraph SeatUI["SeatUI/"]
+                PUI[PilotUI v0.4]
+                PSSUI[PlanetScannerUI v0.2]
+            end
+        end
+    end
+
+    subgraph RS["📁 ReplicatedStorage"]
+        subgraph Game["Game/"]
+            GC[GameConfig v0.9]
+            SSC[SpaceShipConfig v0.1]
+            TC[TransitionConfig v0.4]
+        end
+        RE[RemoteEvents/]
+    end
+
+    subgraph SS["📁 ServerStorage"]
+        Actors[Actors/SpaceShip]
+        subgraph Planets["Planets/"]
+            P1[Planet_1/]
+            P1O[Orbit/Config.luau]
+            P1S[Surface/Location_1/Config.luau]
+        end
+    end
+```
+
+**Поточна файлова структура:**
 
 ```
 ServerScriptService/
-├── Core/                    -- Архітектурне ядро (TDD 2.5, 12.1)
-│   ├── GameStateManager.lua      -- Єдиний координатор станів
-│   └── ServerBootstrap.server.lua -- Точка входу, boot sequence
+├── Core/
+│   ├── GameStateManager.lua      -- Єдиний координатор станів (v0.2)
+│   ├── BootSequence.lua          -- 4-stage boot sequence (v0.4)
+│   └── ServerBootstrap.server.lua -- Точка входу (v0.3)
 │
-├── Services/                -- Довготривалі сервіси (TDD 3.2)
-│   ├── PlayerService.lua         -- Керування гравцями
-│   ├── SaveService.lua           -- Збереження прогресу (майбутнє)
-│   ├── TeleportService.lua       -- Телепортація (майбутнє)
-│   └── LocationService.lua       -- Керування локаціями (майбутнє)
+├── Services/
+│   ├── PlayerService.lua         -- Керування гравцями (v0.2)
+│   ├── ProfileService.lua        -- DataStore integration (v0.2)
+│   ├── LocationService.lua       -- Завантаження локацій (v0.4)
+│   ├── TransitionService.lua     -- Landing/Launch sequences (v0.8)
+│   ├── SpaceShipService.lua      -- Ship + Seat management (v0.8)
+│   └── PlanetScannerService.lua  -- Scanning system (v0.3)
 │
-├── Systems/                 -- Функціональні системи (TDD 3.1)
-│   ├── ScanSystem.lua            -- Система сканування (майбутнє)
-│   ├── CombatSystem.lua          -- Бойова система (майбутнє)
-│   └── ResourceSystem.lua        -- Система ресурсів (майбутнє)
-│
-└── Setup/                   -- Ініціалізаційні скрипти
-    └── RemoteEventsSetup.server.lua -- Створення RemoteEvents
+└── Setup/
+    └── RemoteEventsSetup.server.lua -- RemoteEvents infrastructure (v0.5)
 ```
 
 **Принципи організації:**
@@ -1593,4 +1878,155 @@ TDD v0 є:
 
 ---
 
-**КІНЕЦЬ TECHNICAL DESIGN DOCUMENT v0**
+## 14. TRANSITION SYSTEM (Реалізація v0.8)
+
+Система переходів забезпечує плавну зміну контекстів між орбітою та поверхнею.
+
+### 14.1. Landing Sequence Protocol
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant PUI as PilotUI
+    participant TUI as TransitionUI
+    participant RE as RemoteEvents
+    participant TS as TransitionService
+    participant LS as LocationService
+
+    Note over PUI,LS: ⬇️ Landing Sequence
+
+    PUI->>RE: RequestLanding(locationId)
+    RE->>TS: Validate & Start
+
+    TS->>RE: TransitionUpdate(departure)
+    RE->>TUI: Show external camera (4s)
+
+    TS->>LS: UnloadLocation(Orbit)
+    TS->>LS: LoadLocation(Surface)
+
+    TS->>RE: TransitionUpdate(approach)
+    RE->>TUI: Landing camera view
+
+    TS->>RE: TransitionUpdate(landing)
+    RE->>TUI: Cockpit view (3s)
+
+    TS->>RE: TransitionUpdate(complete)
+    RE->>TUI: Restore controls
+```
+
+### 14.2. Launch Sequence Protocol
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant PUI as PilotUI
+    participant TUI as TransitionUI
+    participant RE as RemoteEvents
+    participant TS as TransitionService
+    participant LS as LocationService
+
+    Note over PUI,LS: ⬆️ Launch Sequence
+
+    PUI->>RE: RequestLaunch
+    RE->>TS: Validate & Start
+
+    TS->>RE: TransitionUpdate(launch, phase1)
+    RE->>TUI: Cockpit liftoff view (3s)
+
+    TS->>RE: TransitionUpdate(launch, phase2)
+    RE->>TUI: External ascent view (4s)
+
+    TS->>LS: UnloadLocation(Surface)
+    TS->>LS: LoadLocation(Orbit)
+
+    TS->>RE: TransitionUpdate(arrival)
+    RE->>TUI: Ship arrival animation (4s)
+
+    TS->>RE: TransitionUpdate(complete)
+    RE->>TUI: Restore camera
+```
+
+### 14.3. Transition States
+
+| State | Duration | Camera | Description |
+|-------|----------|--------|-------------|
+| departure | 4s | External | Ship leaving current context |
+| approach | 2s | Landing cam | Approaching destination |
+| landing | 3s | Cockpit | Final touchdown |
+| launch | 3s | Cockpit | Liftoff |
+| ascent | 4s | External | Rising to orbit |
+| arrival | 4s | Cockpit | Arriving at destination |
+| complete | 0s | Player | Controls restored |
+
+---
+
+## 15. SEAT CONTROL SYSTEM (Реалізація v0.2)
+
+Система керування сидіннями корабля для доступу до різних функцій.
+
+### 15.1. SpaceShip Seats Architecture
+
+```mermaid
+flowchart LR
+    subgraph Ship["🚀 SpaceShip"]
+        Pilot[PilotSeat<br/>VehicleSeat]
+        Scanner[Scanner Seat]
+        Engines[Engines Seat]
+        Weapons[Weapons Seat]
+        PC[PC Seat]
+    end
+
+    subgraph UI["🖥️ UI Modules"]
+        PUI[PilotUI]
+        PSSUI[PlanetScannerUI]
+        EUI[EnginesUI]
+        WUI[WeaponsUI]
+        PCUI[PersonalComputerUI]
+    end
+
+    Pilot --> PUI
+    Scanner --> PSSUI
+    Engines --> EUI
+    Weapons --> WUI
+    PC --> PCUI
+```
+
+### 15.2. Seat Detection Flow
+
+```mermaid
+flowchart TD
+    Start([Player sits]) --> Detect[SeatController detects]
+    Detect --> Config[Read SeatConfig]
+    Config --> Fire[Fire SeatOccupied event]
+    Fire --> Server[Server validates]
+    Server --> UIManager[SeatUIManager]
+    UIManager --> ShowUI[Show seat-specific UI]
+    ShowUI --> FOV[Apply seat FOV]
+
+    Leave([Player stands]) --> Hide[Hide UI]
+    Hide --> Reset[Reset FOV]
+    Reset --> Vacated[Fire SeatVacated]
+```
+
+### 15.3. Seat Configuration
+
+| Seat | Display Name | UI Module | FOV | Functionality |
+|------|--------------|-----------|-----|---------------|
+| PilotSeat | Пілотське крісло | PilotUI | 70 | Navigation, Landing/Launch |
+| Seat Engines | Двигуни | EnginesUI | 60 | Engine control |
+| Seat Planet Surface Scanner | Сканер поверхні | PlanetScannerUI | 60 | Surface scanning |
+| Seat Weapons | Озброєння | WeaponsUI | 70 | Weapons control |
+| Seat Personal Computer | Персональний комп'ютер | PersonalComputerUI | 60 | Inventory, Knowledge |
+
+---
+
+## CHANGELOG
+
+| Версія | Дата | Зміни |
+|--------|------|-------|
+| Draft 0.2 | 2026-01-21 | Додано Mermaid діаграми для всіх основних розділів; оновлено структуру проєкту до v0.14; додано секції Transition System та Seat Control System; оновлено RemoteEvents Protocol |
+| Draft 0.1 | 2026-01-11 | Початкова версія архітектурного документа |
+
+---
+
+**КІНЕЦЬ TECHNICAL DESIGN DOCUMENT v0.2**

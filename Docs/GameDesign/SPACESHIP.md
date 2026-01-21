@@ -93,30 +93,7 @@ flowchart TB
 | shieldRegenRate | 2/sec | Регенерація щита |
 | shieldRegenDelay | 5.0 sec | Затримка регенерації щита |
 
-### 2.4. Компоненти корабля
-
-```
-SpaceShip Model
-├── Configuration/         -- Технічні параметри
-├── ShipParts/            -- Структурні частини корабля
-│   └── RearShipExit      -- Задній вихід (блокується в космосі)
-├── ShipRamp/             -- Посадочний трап (10 сходинок)
-│   ├── Step1             -- Верхня сходинка (біля виходу)
-│   ├── Step2...Step9
-│   └── Step10            -- Нижня сходинка (рівень землі)
-├── RampTrigger           -- Тригер для активації трапу
-├── Torpedoes/            -- Система торпед (майбутнє)
-├── DockPoint             -- Точка стиковки
-├── CenterPoint           -- Центр корабля (для анімацій)
-└── Seats/                -- Робочі місця
-    ├── PilotSeat
-    ├── Seat Engines
-    ├── Seat Planet Surface Scanner
-    ├── Seat Planet Locator
-    └── Seat Personal Computer
-```
-
-### 2.3. Обмеження на початку гри
+### 2.4. Обмеження на початку гри
 
 На старті гри корабель має значні обмеження:
 - Недостатньо енергії для повернення на Землю
@@ -235,31 +212,6 @@ SpaceShip Model
 
 ---
 
-### Формула ймовірності виявлення локації
-
-```
-discoveryChance = effectiveAccuracy × (locationVisibility / 100)
-```
-
-**Де:**
-
-1. **effectiveAccuracy** = wearAccuracy × chargeRatio
-
-2. **wearAccuracy** (точність з урахуванням зношення):
-   ```
-   wearAccuracy = baseAccuracy - (scanCount × wearPerScan)
-   wearAccuracy = clamp(wearAccuracy, minAccuracy, baseAccuracy)
-   ```
-
-3. **chargeRatio** (коефіцієнт заряду батареї):
-   ```
-   chargeRatio = min(currentCharge / powerConsumption, 1.0)
-   ```
-
-4. **locationVisibility** (видимість локації): 0-100%
-
----
-
 ### Таблиця ймовірності виявлення
 
 | Стан сканера | Заряд | Visibility | Формула | Шанс |
@@ -290,6 +242,41 @@ discoveryChance = effectiveAccuracy × (locationVisibility / 100)
 ---
 
 ### Механіка сканування
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant P as 🧑‍🚀 Гравець
+    participant UI as 📱 Scanner UI
+    participant S as 🔍 Сканер
+    participant B as 🔋 Батарея
+    participant L as 📍 Локації
+
+    P->>UI: Натискає "Scan"
+    UI->>B: Перевірка заряду
+    alt Заряду недостатньо
+        B-->>UI: ❌ Низький заряд
+        UI-->>P: "Підзарядіть сканер"
+    else Заряд OK
+        B-->>S: ✅ Енергія доступна
+        S->>S: Розрахунок точності (wear + charge)
+        S->>L: Запит невідкритих локацій
+
+        loop Для кожної локації
+            L-->>S: visibility параметр
+            S->>S: discoveryChance = accuracy × visibility
+            alt Успіх (random < chance)
+                S-->>UI: 🎯 Локацію знайдено!
+            else Невдача
+                S-->>S: Перевірити наступну
+            end
+        end
+
+        S->>B: Списати енергію (-100)
+        S->>S: Збільшити wear (+5%)
+        UI-->>P: Результат сканування
+    end
+```
 
 **Перший скан:**
 - Завжди успішний (`guaranteedFirstScan = true`)
@@ -602,50 +589,130 @@ flowchart LR
 
 ---
 
-## 8. ТЕХНІЧНА РЕАЛІЗАЦІЯ
+## 8. ОРБІТАЛЬНИЙ ІГРОВИЙ СТАН
 
-### 8.1. Конфігурація
+Орбіта планети є окремим ігровим станом, який принципово відрізняється від перебування на поверхні локації.
 
-**Файл:** `ReplicatedStorage/Game/SpaceShipConfig.lua`
+### 8.1. Перебування на орбіті планети
 
-Містить:
-- Структуру компонентів корабля
-- Конфігурацію всіх сидінь
-- API для доступу до налаштувань
+Коли космічний корабель перебуває на орбіті планети:
+- Гравець знаходиться всередині корабля
+- Активні деякі корабельні системи
+- Доступні сканери і локатори
+- Можливе управління маршрутами і перельотами
 
-### 8.2. Сервіс
+Орбіта є:
+- Безпечною зоною
+- Місцем відновлення
+- Точкою між експедиціями
 
-**Файл:** `ServerScriptService/Services/SpaceShipService.lua`
+### 8.2. Відмінності між орбітою та поверхнею
 
-API:
-- `SpawnShip(player)` — спавн корабля
-- `GetShip(player)` — отримання корабля гравця
-- `DestroyShip(player)` — знищення корабля
-- `RepositionShip(player, position)` — переміщення
-- `OnSeatOccupied(player, seatName)` — подія сідання
-- `OnSeatVacated(player, seatName)` — подія вставання
+```mermaid
+flowchart LR
+    subgraph Orbit["🛸 Орбіта (Стратегія)"]
+        O1[📊 Аналіз даних]
+        O2[🗺️ Планування дій]
+        O3[🔍 Сканування]
+        O4[🌌 Міжпланетні системи]
+    end
 
-### 8.3. UI Модулі
+    subgraph Surface["🌍 Поверхня (Тактика)"]
+        S1[⚠️ Локальні правила]
+        S2[🔒 Обмежений доступ]
+        S3[💀 Активний ризик]
+        S4[⏱️ Часовий тиск]
+    end
 
-| Сидіння | UI Module | Шлях |
-|---------|-----------|------|
-| PilotSeat | PilotUI | `UI/SeatUI/PilotUI.lua` |
-| Seat Engines | EnginesUI | `UI/SeatUI/EnginesUI.lua` |
-| Seat Planet Surface Scanner | PlanetSurfaceScannerUI | `UI/SeatUI/PlanetSurfaceScannerUI.lua` |
-| Seat Planet Locator | PlanetLocatorUI | `UI/SeatUI/PlanetLocatorUI.lua` |
-| Seat Personal Computer | PersonalComputerUI | `UI/SeatUI/PersonalComputerUI.lua` |
+    Orbit -->|Посадка| Surface
+    Surface -->|Зліт| Orbit
+```
+
+| Орбіта | Поверхня |
+|--------|----------|
+| Стратегічний режим | Тактичний режим |
+| Аналіз даних | Активна дія |
+| Доступ до всіх систем | Обмежений доступ |
+| Безпека | Ризик |
+
+### 8.3. Візуальний контекст орбіти
+
+Перебування на орбіті візуально відображає:
+- Поточну планету
+- Її розмір, колір і структуру
+- Зоряне небо конкретного регіону
+
+Орбіта підкреслює:
+- Самотність гравця
+- Масштаб простору
+- Дистанцію між локаціями
 
 ---
 
-## 9. ЗВ'ЯЗОК З GDD
+## 9. СИСТЕМИ СКАНУВАННЯ
 
-Цей документ деталізує **Розділи 6-7 GDD**:
+Сканери є ключовими інструментами прогресу гри. Без сканування неможливе подальше дослідження.
+
+### 9.1. Activity Diagram: Процес сканування
+
+```mermaid
+flowchart TD
+    Start([🛸 Корабель на орбіті]) --> CheckEnergy{Достатньо енергії?}
+
+    CheckEnergy -->|Ні| NoEnergy[⚠️ Недостатньо енергії]
+    NoEnergy --> EndFail([Сканування неможливе])
+
+    CheckEnergy -->|Так| InitScan[Ініціалізація сканера]
+    InitScan --> SelectArea{Вибір області сканування}
+
+    SelectArea --> ScanProcess[🔍 Процес сканування]
+    ScanProcess --> ConsumeEnergy[Витрата енергії]
+
+    ConsumeEnergy --> AnalyzeData[Аналіз даних]
+    AnalyzeData --> CheckResults{Знайдено локації?}
+
+    CheckResults -->|Ні| NoLocations[Локації не виявлено]
+    NoLocations --> Continue{Продовжити сканування?}
+    Continue -->|Так| SelectArea
+    Continue -->|Ні| EndEmpty([Завершення без результатів])
+
+    CheckResults -->|Так| NewLocations[📍 Нові локації виявлено]
+    NewLocations --> UpdateMap[Оновлення карти планети]
+    UpdateMap --> MarkDiscovered[Статус: isDiscovered = true]
+
+    MarkDiscovered --> ShowInfo[Відображення базової інформації]
+    ShowInfo --> UnlockLanding[Розблокування посадки]
+
+    UnlockLanding --> Decision{Здійснити посадку?}
+    Decision -->|Так| Landing([🛬 Перехід до посадки])
+    Decision -->|Ні| EndSuccess([✅ Сканування завершено])
+```
+
+### 9.2. Невизначеність як елемент дизайну
+
+Сканери навмисно не дають повної картини:
+- Гравець не знає наперед тип локації
+- Гравець не знає точний рівень ризику
+- Рішення приймаються на основі обмежених даних
+
+Це підтримує:
+- Атмосферу дослідження
+- Відчуття невідомого
+- Відповідальність вибору
+
+---
+
+## 10. ЗВ'ЯЗОК З GDD
+
+Цей документ деталізує **Розділи 6, 7, 8, 9 GDD**:
 - Розділ 6: Космічний Корабель
 - Розділ 7: Модулі Космічного Корабля
+- Розділ 8: Орбітальний ігровий стан
+- Розділ 9: Системи сканування
 
 ---
 
-## 10. МАЙБУТНІЙ РОЗВИТОК
+## 11. МАЙБУТНІЙ РОЗВИТОК
 
 ### Запланований функціонал
 
@@ -658,13 +725,18 @@ API:
 
 ---
 
-**Версія документа:** 1.5
+**Версія документа:** 1.8
 **Дата:** 2026-01-21
 
 **Changelog:**
+- 1.8: Додано секції 8-9 (Орбітальний стан, Системи сканування) з GDD; Activity diagram для сканування; перенумеровано розділи
+- 1.7: Додано Sequence діаграму для процесу сканування
+- 1.6: Видалено технічну реалізацію (перенесено до TDD) — фокус на Game Design
 - 1.5: Додано Mermaid діаграми (структура корабля, система трапу, життєвий цикл)
 - 1.4: Додано секцію Ramp System (посадочний трап, RampTrigger, RearShipExit)
 - 1.3: Додано формулу ймовірності виявлення локації (visibility, chargeRatio, wearAccuracy)
 - 1.2: Нова модель сканера: власна батарея, система зношення (wear), ремонт
 - 1.1: Додано характеристики швидкості, енергетики, захисту; деталізовано сканер (точність, енергоспоживання)
 - 1.0: Початкова версія документа
+
+> **Примітка:** Технічна реалізація (API, структура файлів, код) описана в `Docs/TechDesign/TDD.md`

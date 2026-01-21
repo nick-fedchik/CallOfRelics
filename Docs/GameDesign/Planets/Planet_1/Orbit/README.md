@@ -73,45 +73,6 @@
 
 ---
 
-## Technical Notes
-
-**Storage Path:** `ServerStorage/Planets/Planet_1/Orbit/`
-
-**Required Elements:**
-- `Workspace/Planet` (Model) — 3D модель планети
-- `Config.luau` — конфігурація орбіти
-
-**Workspace Structure:**
-```
-Orbit/Workspace/
-├── Planet (Model)           # REQUIRED
-├── Lighting/
-│   ├── Sky                  # Skybox
-│   └── Atmosphere           # Optional effects
-└── Effects/                 # Optional
-```
-
----
-
-## Config.luau Example
-
-```lua
-return {
-    id = "Orbit",
-    displayName = "Біллі Рубін Orbit",
-    context = "Orbit",
-
-    -- Scanner settings
-    scannerEnabled = true,
-    scanDuration = 5.0,
-
-    -- Lighting preset
-    lightingPreset = "Space"
-}
-```
-
----
-
 ## Related Documents
 
 - [../README.md](../README.md) — Planet_1 overview

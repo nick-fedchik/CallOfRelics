@@ -71,14 +71,6 @@ Earth — планета походження гравця. Точка стар�
 
 ---
 
-## Technical Notes
-
-**Storage Path:** `ServerStorage/Planets/Planet_Earth/` (TBD)
-
-**Implementation Priority:** Low — narrative element, not core gameplay
-
----
-
 ## Questions to Resolve
 
 1. Чи буде Earth відвідуваним місцем?

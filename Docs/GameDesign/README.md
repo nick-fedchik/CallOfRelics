@@ -181,45 +181,24 @@ Docs/GameDesign/
 
 ## Зв'язок з іншими документами
 
-### Docs/ (кореневий рівень)
-
-| Документ | Призначення |
-|----------|-------------|
-| [TDD.md](../TDD.md) | Technical Design Document |
-| [KB.md](../KB.md) | Knowledge Base (технічні рішення) |
-| [Backlog.md](../Backlog.md) | Product Backlog |
-| [FOLDER_STRUCTURE.md](../FOLDER_STRUCTURE.md) | Структура проєкту |
-| [README_GUI_DEV.md](../README_GUI_DEV.md) | Документація UI |
-
-### Ієрархія документації
+### Ієрархія Game Design документації
 
 ```mermaid
 flowchart TB
-    GDD[📖 GDD.md<br/>Game Design]
-    GDD -->|деталізується| SHIP[🚀 SPACESHIP.md]
-    GDD -->|деталізується| PLAYER[👤 PLAYER.md]
-    GDD -->|деталізується| PLANETS[🌍 Planets/]
+    GDD[📖 GDD.md<br/>Головний документ]
+    GDD -->|деталізується| SHIP[🚀 SPACESHIP.md<br/>Космічний корабель]
+    GDD -->|деталізується| PLAYER[👤 PLAYER.md<br/>Персонаж гравця]
+    GDD -->|деталізується| PLANETS[🌍 Planets/<br/>Планети та локації]
 
-    SHIP -->|реалізується| TDD[📐 TDD.md<br/>Technical Design]
-    PLAYER -->|реалізується| TDD
-    PLANETS -->|реалізується| TDD
+    PLANETS --> P1[Planet_1<br/>Біллі Рубін]
+    PLANETS --> PE[Planet_Earth<br/>Земля]
 
-    TDD -->|відстежується| ISSUES[📋 GitHub Issues]
-    ISSUES -->|документується| KB[📚 KB.md<br/>Knowledge Base]
+    P1 --> ORBIT[Orbit]
+    P1 --> LOC1[Location_1]
+    P1 --> LOC2[Location_2]
 ```
 
-```
-GDD.md (Game Design)
-    ↓ деталізується в
-SPACESHIP.md (корабель)
-Planets/README.md (планети)
-    ↓ реалізується в
-TDD.md (Technical Design)
-    ↓ відстежується в
-Backlog.md (Tasks)
-    ↓ документується в
-KB.md (Knowledge Base)
-```
+> Технічна реалізація описана в документах `Docs/TechDesign/`
 
 ---
 
@@ -261,14 +240,15 @@ KB.md (Knowledge Base)
 | Локації планети | [Planet_1/Surface/](Planets/Planet_1/Surface/) |
 | Типи локацій | [GDD.md#13-класифікація-планетних-локацій](GDD.md) |
 | Прогресія | [GDD.md#14-прогресія-локацій](GDD.md) |
-| Технічна реалізація | [../TDD.md](../TDD.md) |
+| Технічна реалізація | Docs/TechDesign/TDD.md |
 
 ---
 
-**Версія:** 1.2
+**Версія:** 1.3
 **Дата:** 2026-01-21
 
 **Changelog:**
+- 1.3: Видалено технічні посилання (TDD, KB, etc.) — фокус на Game Design
 - 1.2: Додано Mermaid діаграми до всіх документів GameDesign
 - 1.1: Додано PLAYER.md (персонаж гравця та профіль)
 - 1.0: Початкова версія

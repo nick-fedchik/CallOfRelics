@@ -23,9 +23,93 @@
 | Збирач знань | Накопичує knowledge (ніколи не втрачається) |
 | Ресурсодобувач | Збирає ресурси (можуть бути втрачені) |
 
+### Шлях гравця (Player Journey)
+
+```mermaid
+journey
+    title Досвід гравця в Call of Relics
+    section Початок
+      Запуск гри: 3: Гравець
+      Завантаження профілю: 3: Система
+      Прибуття на орбіту: 5: Гравець
+    section Дослідження
+      Сканування планети: 4: Гравець
+      Виявлення локації: 5: Гравець
+      Посадка на поверхню: 5: Гравець
+      Дослідження руїн: 5: Гравець
+    section Прогрес
+      Збір знань: 5: Гравець
+      Повернення на корабель: 4: Гравець
+      Відкриття нової планети: 5: Гравець
+    section Фінал
+      Накопичення енергії: 3: Гравець
+      Повернення на Землю: 5: Гравець
+```
+
 ---
 
-## 2. ПОХОДЖЕННЯ ТА ПЕРЕДІСТОРІЯ
+## 2. ГЛОБАЛЬНІ СТАНИ ГРАВЦЯ
+
+Гравець може перебувати у двох глобальних станах, які визначають, чи активний ігровий світ.
+
+```mermaid
+stateDiagram-v2
+    [*] --> LoggedOff: Запуск гри
+
+    LoggedOff --> LoggedIn: Увійти в гру
+    LoggedIn --> LoggedOff: Вийти з гри
+    LoggedIn --> LoggedOff: Втрата з'єднання
+
+    note right of LoggedOff
+        Заставка гри
+        Ігрові системи неактивні
+    end note
+
+    note right of LoggedIn
+        Керування персонажем
+        Всі системи активні
+    end note
+```
+
+### 2.1. Поза грою (Logged Off)
+
+У стані **Logged Off** гравець:
+- Бачить заставку гри
+- Бачить свій аватар Roblox
+- Бачить ім'я гравця
+- Має можливість увійти у гру
+
+Цей стан:
+- Не впливає на ігровий світ
+- Не запускає ігрові системи
+- Є безпечним і нейтральним
+
+Стан **Logged Off** використовується:
+- Перед початком гри
+- Після виходу з гри
+- Після втрати з'єднання
+
+### 2.2. У грі (Logged In)
+
+У стані **Logged In**:
+- Гравець керує персонажем
+- Активні всі ігрові системи
+- Відбувається збереження прогресу
+
+Гравець може:
+- Добровільно вийти з гри та перейти в Logged Off
+- Автоматично перейти в Logged Off у разі втрати з'єднання
+
+### 2.3. Втрата з'єднання
+
+Якщо гравець втрачає підключення:
+- Після таймауту він переводиться у стан Logged Off
+- Ігровий прогрес зберігається
+- При повторному вході гра відновлюється з корабля
+
+---
+
+## 3. ПОХОДЖЕННЯ ТА ПЕРЕДІСТОРІЯ
 
 ### 2.1. Експедиція
 
@@ -52,7 +136,7 @@
 
 ---
 
-## 3. ПРОФІЛЬ ГРАВЦЯ (PLAYER PROFILE)
+## 4. ПРОФІЛЬ ГРАВЦЯ (PLAYER PROFILE)
 
 Профіль зберігається в DataStore і містить всю прогресію гравця.
 
@@ -103,7 +187,55 @@ classDiagram
     Profile --> Statistics
 ```
 
-### 3.1. Ідентифікація
+### Зв'язки між ігровими сутностями (ER Diagram)
+
+```mermaid
+erDiagram
+    PLAYER ||--o{ PROFILE : has
+    PROFILE ||--|| SHIP : owns
+    PROFILE ||--o{ DISCOVERY : tracks
+    PROFILE ||--o{ INVENTORY : contains
+
+    SHIP ||--o{ MODULE : equipped
+    SHIP }o--|| PLANET : orbits
+
+    PLANET ||--o{ LOCATION : contains
+    LOCATION ||--o{ RESOURCE : spawns
+    LOCATION ||--o{ KNOWLEDGE : holds
+
+    DISCOVERY }o--|| PLANET : discovered
+    DISCOVERY }o--|| LOCATION : explored
+
+    INVENTORY ||--o{ RESOURCE : stores
+    INVENTORY ||--o{ KNOWLEDGE : records
+
+    PLAYER {
+        number userId PK
+        string displayName
+    }
+    PROFILE {
+        number version
+        timestamp lastLogin
+    }
+    SHIP {
+        string model
+        number energy
+        number hull
+    }
+    PLANET {
+        string id PK
+        string name
+        string type
+    }
+    LOCATION {
+        string id PK
+        string name
+        string type
+        number visibility
+    }
+```
+
+### 4.1. Ідентифікація
 
 | Поле | Тип | Опис |
 |------|-----|------|
@@ -112,7 +244,7 @@ classDiagram
 | lastLogin | timestamp | Останній вхід |
 | profileVersion | number | Версія схеми (поточна: 2) |
 
-### 3.2. Поточний стан (Location State)
+### 4.2. Поточний стан (Location State)
 
 | Поле | Тип | Початкове значення | Опис |
 |------|-----|-------------------|------|
@@ -122,7 +254,7 @@ classDiagram
 
 **lastSafeState** оновлюється коли гравець на орбіті (safe zone).
 
-### 3.3. Відкриття (Discovery Tracking)
+### 4.3. Відкриття (Discovery Tracking)
 
 | Поле | Тип | Опис |
 |------|-----|------|
@@ -131,14 +263,10 @@ classDiagram
 | visitHistory | array | Історія відвідувань (макс. 100) |
 
 **exploredLocations[planetId][locationId]:**
-```lua
-{
-    discoveredAt = timestamp,  -- Коли відкрито
-    visitCount = number,       -- Кількість відвідувань
-}
-```
+- `discoveredAt` — час відкриття
+- `visitCount` — кількість відвідувань
 
-### 3.4. Корабель (Ship State)
+### 4.4. Корабель (Ship State)
 
 | Поле | Тип | Початкове значення | Опис |
 |------|-----|-------------------|------|
@@ -155,49 +283,39 @@ classDiagram
 
 ---
 
-## 4. ІНВЕНТАР (INVENTORY)
+## 5. ІНВЕНТАР (INVENTORY)
 
-### 4.1. Ресурси (Resources)
+### 5.1. Ресурси (Resources)
 
 | Властивість | Опис |
 |-------------|------|
-| Тип | Масив об'єктів |
-| Початкове значення | [] (порожній) |
+| Тип | Колекція предметів |
+| Початкове значення | Порожній інвентар |
 | При невдачі | **Можуть бути втрачені** |
 
-**Структура ресурсу:**
-```lua
-{
-    id = "resource_id",
-    quantity = number,
-    acquiredAt = timestamp
-}
-```
+Кожен ресурс має:
+- ID (унікальний ідентифікатор)
+- Кількість
+- Час отримання
 
-### 4.2. Знання (Knowledge)
+### 5.2. Знання (Knowledge)
 
 | Властивість | Опис |
 |-------------|------|
-| Тип | Масив об'єктів |
-| Початкове значення | [] (порожній) |
+| Тип | Колекція записів |
+| Початкове значення | Порожня база |
 | При невдачі | **Ніколи не втрачаються** |
 
-**Структура знання:**
-```lua
-{
-    id = "knowledge_id",
-    title = "Назва запису",
-    discoveredAt = timestamp,
-    planetId = "Planet_1",
-    locationId = "Location_1"
-}
-```
+Кожен запис знань має:
+- ID та назва
+- Час відкриття
+- Місце знаходження (планета/локація)
 
-> **GDD Вимога:** Знання зберігаються негайно і ніколи не втрачаються (навіть при смерті персонажа або виході з гри).
+> **Ключова механіка:** Знання зберігаються негайно і ніколи не втрачаються (навіть при смерті персонажа або виході з гри).
 
 ---
 
-## 5. СТАТИСТИКА (STATISTICS)
+## 6. СТАТИСТИКА (STATISTICS)
 
 | Поле | Тип | Початкове значення | Опис |
 |------|-----|-------------------|------|
@@ -208,9 +326,9 @@ classDiagram
 
 ---
 
-## 6. ЗБЕРЕЖЕННЯ ПРОГРЕСУ
+## 7. ЗБЕРЕЖЕННЯ ПРОГРЕСУ
 
-### 6.1. Автоматичне збереження
+### 7.1. Автоматичне збереження
 
 | Подія | Опис |
 |-------|------|
@@ -218,38 +336,34 @@ classDiagram
 | PilotSeat sit | Коли гравець сідає в пілотське крісло (якщо профіль змінився) |
 | Knowledge added | Негайно при отриманні нових знань |
 
-### 6.2. Безпечний стан (Safe State)
+### 7.2. Безпечний стан (Safe State)
 
 При переході на орбіту оновлюється `lastSafeState`:
-```lua
-lastSafeState = {
-    planetId = "Planet_1",
-    locationName = "Orbit",
-    timestamp = os.time()
-}
-```
+- Планета, на якій перебував гравець
+- Локація (зазвичай "Orbit")
+- Час збереження
 
-При критичній невдачі гравець повертається до `lastSafeState`.
+При критичній невдачі гравець повертається до останнього безпечного стану.
 
 ---
 
-## 7. РОЗВИТОК ПЕРСОНАЖА
+## 8. РОЗВИТОК ПЕРСОНАЖА
 
-### 7.1. RPG-аспект
+### 8.1. RPG-аспект
 
 У процесі гри персонаж:
 - Накопичує нові знання
 - Розширює свою компетенцію
 - Відкриває нові наукові та технічні можливості
 
-### 7.2. Зв'язок з кораблем
+### 8.2. Зв'язок з кораблем
 
 Розвиток персонажа:
 - Зберігається між ігровими сесіями
 - Напряму пов'язаний із дослідженням локацій
 - Впливає на розвиток корабля
 
-### 7.3. Прогресія знань
+### 8.3. Прогресія знань
 
 ```mermaid
 flowchart LR
@@ -283,74 +397,87 @@ flowchart LR
 
 ---
 
-## 8. ГЛОБАЛЬНІ СТАНИ ГРАВЦЯ
+## 9. ВЗАЄМОДІЯ ГРАВЦЯ З СИСТЕМАМИ
 
-### 8.1. Logged Off (Поза грою)
+### UseCase Diagram
 
-- Заставка гри
-- Аватар Roblox гравця
-- Можливість увійти у гру
-- Ігрові системи неактивні
+Наступна діаграма показує основні варіанти використання (Use Cases) доступні гравцю:
 
-### 8.2. Logged In (У грі)
+```mermaid
+flowchart TB
+    subgraph Actors["👤 Актори"]
+        Player["🧑‍🚀 Гравець"]
+    end
 
-- Керування персонажем
-- Активні всі ігрові системи
-- Автоматичне збереження прогресу
+    subgraph ShipSystems["🚀 Системи корабля"]
+        UC_Pilot["Керувати кораблем"]
+        UC_Scan["Сканувати поверхню"]
+        UC_Locate["Використовувати локатор"]
+        UC_Travel["Здійснювати перельоти"]
+        UC_ManageShip["Керувати модулями"]
+    end
 
-### 8.3. Втрата з'єднання
+    subgraph ExplorationSystems["🌍 Системи дослідження"]
+        UC_Land["Здійснити посадку"]
+        UC_Explore["Досліджувати локацію"]
+        UC_Collect["Збирати ресурси"]
+        UC_Complete["Виконати головну ціль"]
+        UC_Escape["Втекти з локації"]
+        UC_Return["Повернутись на корабель"]
+    end
 
-При disconnect:
-- Таймаут → перехід у Logged Off
-- Прогрес зберігається
-- При reconnect — відновлення з корабля
+    subgraph ProgressSystems["📊 Системи прогресу"]
+        UC_Save["Зберегти прогрес"]
+        UC_Develop["Розвивати персонажа"]
+        UC_Upgrade["Покращувати корабель"]
+    end
 
----
+    Player --> UC_Pilot
+    Player --> UC_Scan
+    Player --> UC_Locate
+    Player --> UC_Travel
+    Player --> UC_ManageShip
 
-## 9. ТЕХНІЧНА РЕАЛІЗАЦІЯ
+    Player --> UC_Land
+    Player --> UC_Explore
+    Player --> UC_Collect
+    Player --> UC_Complete
+    Player --> UC_Escape
+    Player --> UC_Return
 
-### 9.1. ProfileService
+    Player --> UC_Save
+    Player --> UC_Develop
+    Player --> UC_Upgrade
 
-**Файл:** `ServerScriptService/Services/ProfileService.lua`
+    UC_Scan -.->|extends| UC_Land
+    UC_Land -.->|extends| UC_Explore
+    UC_Explore -.->|includes| UC_Collect
+    UC_Explore -.->|extends| UC_Complete
+    UC_Explore -.->|extends| UC_Escape
+    UC_Complete -.->|extends| UC_Return
+    UC_Escape -.->|extends| UC_Return
+    UC_Return -.->|extends| UC_Travel
+    UC_Complete -.->|includes| UC_Develop
+```
 
-**API:**
-- `LoadProfile(player)` — Завантаження/створення профілю
-- `SaveProfile(player, data)` — Збереження в DataStore
-- `GetProfile(player)` — Отримання кешованого профілю
-- `UpdateProfile(player, updates)` — Оновлення полів
-- `MarkLocationDiscovered(player, planetId, locationName)` — Відкриття локації
-- `UpdateCurrentState(player, planetId, locationName)` — Оновлення позиції
-- `AddResources(player, resourceId, quantity)` — Додавання ресурсів
-- `RemoveResources(player, resourceId, quantity)` — Видалення ресурсів
-- `AddKnowledge(player, knowledgeEntry)` — Додавання знань (immediate save)
-- `GetScannerState(player)` — Стан сканера
-- `UpdateScannerBattery(player, newCharge)` — Оновлення батареї
-- `IncrementScannerWear(player)` — Збільшення зношення
-- `RepairScanner(player)` — Ремонт сканера
-- `RechargeScannerBattery(player, amount, maxCapacity)` — Підзарядка
+### Опис ключових Use Cases
 
-### 9.2. DataStore
-
-| Параметр | Значення |
-|----------|----------|
-| Store Name | "PlayerProfiles" |
-| Key Format | "Player_{UserId}" |
-| Max Retries | 3 |
-| Retry Strategy | Exponential backoff |
-
-### 9.3. Міграція профілів
-
-При завантаженні старого профілю:
-- Автоматична міграція до версії 2
-- Збереження існуючих даних
-- Заповнення відсутніх полів defaults
+| Use Case | Опис | Передумова |
+|----------|------|------------|
+| Сканувати поверхню | Виявлення нових локацій на планеті | Корабель на орбіті |
+| Використовувати локатор | Пошук нових планет | Корабель на орбіті |
+| Здійснити посадку | Приземлення на виявлену локацію | Локація виявлена |
+| Досліджувати локацію | Пересування та взаємодія на поверхні | Корабель приземлився |
+| Виконати головну ціль | Завершення основного завдання локації | Фізична присутність |
+| Втекти з локації | Екстрене повернення без завершення | Небезпека або вибір |
 
 ---
 
 ## 10. ЗВ'ЯЗОК З GDD
 
-Цей документ деталізує **Розділ 5 GDD**:
-- Персонаж гравця
+Цей документ деталізує **Розділи 2 та 5 GDD**:
+- Розділ 2: Глобальні стани гравця
+- Розділ 5: Персонаж гравця
 - Походження і роль
 - Початкові знання
 - Розвиток персонажа
@@ -364,13 +491,18 @@ flowchart LR
 | [GDD.md](GDD.md) | Головний Game Design Document |
 | [SPACESHIP.md](SPACESHIP.md) | Космічний корабель |
 | [Planets/README.md](Planets/README.md) | Планетарна система |
-| [../TDD.md](../TDD.md) | Technical Design Document |
+| [PLANET_LOCATIONS.md](PLANET_LOCATIONS.md) | Система планетних локацій |
+
+> Технічна реалізація (ProfileService, DataStore) описана в `Docs/TechDesign/TDD.md`
 
 ---
 
-**Версія документа:** 1.1
+**Версія документа:** 1.4
 **Дата:** 2026-01-21
 
 **Changelog:**
+- 1.4: Додано секцію 2 (Глобальні стани), секцію 9 (UseCase), journey діаграму; перенумеровано розділи
+- 1.3: Додано ER діаграму для зв'язків між ігровими сутностями
+- 1.2: Видалено технічну реалізацію (ProfileService API, DataStore) — фокус на Game Design
 - 1.1: Додано Mermaid діаграми (Profile schema, Knowledge progression)
 - 1.0: Початкова версія документа
