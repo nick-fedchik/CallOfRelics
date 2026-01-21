@@ -1,7 +1,7 @@
 # Структура Проєкту — Call of Relics: Orbital Silence
 
-**Версія:** 1.2
-**Дата:** 2026-01-16
+**Версія:** 1.3
+**Дата:** 2026-01-21
 **Статус:** Рекомендовано
 
 ---
@@ -10,6 +10,32 @@
 
 Цей документ описує рекомендовану структуру папок для проєкту,
 яка узгоджена з TDD (розділ 13.3) та вимогами Roblox Studio Script Sync.
+
+```mermaid
+flowchart TB
+    subgraph DataModel["📦 Roblox DataModel"]
+        subgraph Server["🖧 Server"]
+            SSS[ServerScriptService/]
+            SS[ServerStorage/]
+        end
+
+        subgraph Shared["📡 Shared"]
+            RS[ReplicatedStorage/]
+        end
+
+        subgraph Client["🖥️ Client"]
+            SP[StarterPlayer/]
+        end
+    end
+
+    SSS -->|require| RS
+    SP -->|require| RS
+    SSS -->|read| SS
+
+    style Server fill:#f9d5d5
+    style Shared fill:#d5f9d5
+    style Client fill:#d5d5f9
+```
 
 ---
 
@@ -25,6 +51,35 @@
 ---
 
 ## Структура ServerScriptService
+
+```mermaid
+flowchart TB
+    subgraph SSS["📁 ServerScriptService"]
+        subgraph Core["Core/"]
+            GSM[GameStateManager]
+            BS[BootSequence]
+            SB[ServerBootstrap]
+        end
+
+        subgraph Services["Services/"]
+            PS[PlayerService]
+            PRS[ProfileService]
+            LS[LocationService]
+            TS[TransitionService]
+            SSS2[SpaceShipService]
+            PSS[PlanetScannerService]
+        end
+
+        subgraph Setup["Setup/"]
+            RES[RemoteEventsSetup]
+        end
+    end
+
+    SB --> GSM
+    SB --> BS
+    GSM --> Services
+    BS --> TS
+```
 
 ### Поточна структура (v0.9)
 
@@ -64,6 +119,36 @@ ServerScriptService/
 
 ### ReplicatedStorage
 
+```mermaid
+flowchart TB
+    subgraph RS["📁 ReplicatedStorage"]
+        subgraph Game["Game/"]
+            GC[GameConfig]
+            SSC[SpaceShipConfig]
+            TC[TransitionConfig]
+        end
+
+        subgraph RE["RemoteEvents/"]
+            subgraph C2S["Client → Server"]
+                CGS[ConfirmGameStart]
+                RL[RequestLanding]
+                RLaunch[RequestLaunch]
+                RScan[RequestScan]
+            end
+
+            subgraph S2C["Server → Client"]
+                SC[StateChanged]
+                BSU[BootStageUpdate]
+                TU[TransitionUpdate]
+                SP[ScanProgress]
+            end
+        end
+    end
+
+    style C2S fill:#d5f9d5
+    style S2C fill:#f9d5d5
+```
+
 ```
 ReplicatedStorage/
 ├── Game/                         -- Конфігурація гри
@@ -95,6 +180,37 @@ ReplicatedStorage/
 
 ### StarterPlayer/StarterPlayerScripts
 
+```mermaid
+flowchart TB
+    subgraph SPS["📁 StarterPlayerScripts"]
+        subgraph Core["Core/"]
+            CB[ClientBootstrap]
+            SC[SeatController]
+            CC[CameraController]
+        end
+
+        subgraph UI["UI/"]
+            SSU[ScreenSaverUI]
+            SBU[StatusBarUI]
+            UIM[UIManager]
+            SUIM[SeatUIManager]
+            TUI[TransitionUI]
+
+            subgraph SeatUI["SeatUI/"]
+                PUI[PilotUI]
+                PSSUI[PlanetScannerUI]
+                EUI[EnginesUI]
+            end
+        end
+    end
+
+    CB --> SSU
+    CB --> UIM
+    CB --> SUIM
+    SC --> SUIM
+    SUIM --> SeatUI
+```
+
 ```
 StarterPlayer/StarterPlayerScripts/
 ├── Core/
@@ -121,6 +237,40 @@ StarterPlayer/StarterPlayerScripts/
 ```
 
 ### ServerStorage
+
+```mermaid
+flowchart TB
+    subgraph SS["📁 ServerStorage"]
+        subgraph Actors["Actors/"]
+            Ship[SpaceShip Model]
+        end
+
+        subgraph Planets["Planets/"]
+            subgraph P1["Planet_1/"]
+                PC[Config.luau]
+
+                subgraph Orbit["Orbit/"]
+                    OC[Config.luau]
+                    OW[Workspace/]
+                end
+
+                subgraph Surface["Surface/"]
+                    subgraph L1["Location_1/"]
+                        L1C[Config.luau]
+                        L1W[Workspace/]
+                    end
+                    subgraph L2["Location_2/"]
+                        L2C[Config.luau]
+                    end
+                end
+            end
+        end
+    end
+
+    Actors -.->|clone to| Workspace
+    Orbit -.->|load| Workspace
+    Surface -.->|load| Workspace
+```
 
 ```
 ServerStorage/
@@ -160,6 +310,31 @@ ServerStorage/
 
 ## SpaceShip Seats (SpaceShipConfig)
 
+```mermaid
+flowchart LR
+    subgraph Ship["🚀 SpaceShip"]
+        Pilot[PilotSeat]
+        Scanner[Scanner Seat]
+        Locator[Locator Seat]
+        Engines[Engines Seat]
+        PC[PC Seat]
+    end
+
+    subgraph UI["🖥️ UI Modules"]
+        PUI[PilotUI]
+        PSSUI[PlanetScannerUI]
+        PLUI[PlanetLocatorUI]
+        EUI[EnginesUI]
+        PCUI[PersonalComputerUI]
+    end
+
+    Pilot --> PUI
+    Scanner --> PSSUI
+    Locator --> PLUI
+    Engines --> EUI
+    PC --> PCUI
+```
+
 | Seat | UI Module | Functionality |
 |------|-----------|---------------|
 | PilotSeat | PilotUI | Navigation, Weapons control |
@@ -167,6 +342,174 @@ ServerStorage/
 | Seat Planet Surface Scanner | PlanetSurfaceScannerUI | Planet scanning |
 | Seat Planet Locator | PlanetLocatorUI | Planet discovery |
 | Seat Personal Computer | PersonalComputerUI | Inventory, Knowledge |
+
+---
+
+## Протоколи Взаємодії (Client-Server)
+
+### Events Flow Overview
+
+```mermaid
+flowchart LR
+    subgraph Client["🖥️ Client"]
+        UI[UI Modules]
+        Controllers[Controllers]
+    end
+
+    subgraph Events["📡 RemoteEvents"]
+        direction TB
+        C2S[Client → Server]
+        S2C[Server → Client]
+    end
+
+    subgraph Server["🖧 Server"]
+        Services[Services]
+        Core[Core]
+    end
+
+    UI -->|Request| C2S
+    Controllers -->|Notify| C2S
+    C2S --> Services
+
+    Services -->|Response| S2C
+    Core -->|State| S2C
+    S2C --> UI
+```
+
+### Boot Sequence Protocol
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant CB as ClientBootstrap
+    participant SSU as ScreenSaverUI
+    participant RE as RemoteEvents
+    participant BS as BootSequence
+
+    Note over CB,BS: 🚀 Boot Sequence
+
+    BS->>RE: BootStageUpdate(1, GameConfig)
+    RE->>SSU: Stage 1 - Game info
+
+    BS->>RE: BootStageUpdate(2, PlayerInfo)
+    RE->>SSU: Stage 2 - Player info
+
+    BS->>RE: BootStageUpdate(3, ProfileData)
+    RE->>SSU: Stage 3 - Profile loaded
+
+    BS->>RE: BootStageUpdate(4, Ready)
+    RE->>SSU: Stage 4 - Ready
+
+    SSU->>RE: ConfirmGameStart
+    RE->>BS: Player confirmed
+
+    BS->>RE: StateChanged(InGame)
+    RE->>SSU: Hide ScreenSaver
+```
+
+### Landing Sequence Protocol
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant PUI as PilotUI
+    participant TUI as TransitionUI
+    participant RE as RemoteEvents
+    participant TS as TransitionService
+    participant LS as LocationService
+
+    Note over PUI,LS: ⬇️ Landing Sequence
+
+    PUI->>RE: RequestLanding(locationId)
+    RE->>TS: Start landing
+
+    TS->>RE: TransitionUpdate(departure)
+    RE->>TUI: Show departure animation
+
+    TS->>LS: UnloadLocation(Orbit)
+    TS->>LS: LoadLocation(Surface)
+
+    TS->>RE: TransitionUpdate(approach)
+    RE->>TUI: External camera view
+
+    TS->>RE: TransitionUpdate(landing)
+    RE->>TUI: Cockpit view
+
+    TS->>RE: TransitionUpdate(complete)
+    RE->>TUI: Restore camera
+```
+
+### Launch Sequence Protocol
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant PUI as PilotUI
+    participant TUI as TransitionUI
+    participant RE as RemoteEvents
+    participant TS as TransitionService
+    participant LS as LocationService
+
+    Note over PUI,LS: ⬆️ Launch Sequence
+
+    PUI->>RE: RequestLaunch
+    RE->>TS: Start launch
+
+    TS->>RE: TransitionUpdate(launch)
+    RE->>TUI: Cockpit view (liftoff)
+
+    TS->>RE: TransitionUpdate(ascent)
+    RE->>TUI: External view
+
+    TS->>LS: UnloadLocation(Surface)
+    TS->>LS: LoadLocation(Orbit)
+
+    TS->>RE: TransitionUpdate(arrival)
+    RE->>TUI: Ship arrival animation
+
+    TS->>RE: TransitionUpdate(complete)
+    RE->>TUI: Restore camera
+```
+
+### Scan Sequence Protocol
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant UI as ScannerUI
+    participant RE as RemoteEvents
+    participant PSS as PlanetScannerService
+    participant PS as ProfileService
+
+    Note over UI,PS: 🔍 Scan Sequence
+
+    UI->>RE: RequestScan(locationId)
+    RE->>PSS: Start scan
+
+    PSS->>PSS: Check battery, cooldown
+
+    loop Every 0.5s
+        PSS->>RE: ScanProgress(percentage)
+        RE->>UI: Update progress bar
+    end
+
+    PSS->>PS: MarkLocationDiscovered
+    PSS->>PS: UpdateScannerState
+
+    PSS->>RE: ScanComplete(results)
+    RE->>UI: Show discovery
+```
+
+### Event Handlers Summary
+
+| Module | Listens To | Sends |
+|--------|------------|-------|
+| **ScreenSaverUI** | BootStageUpdate | ConfirmGameStart, RetryBootStage |
+| **UIManager** | StateChanged | — |
+| **SeatUIManager** | — | SeatOccupied, SeatVacated |
+| **TransitionUI** | TransitionUpdate | — |
+| **PilotUI** | AvailableLocationsResponse | RequestLanding, RequestLaunch |
+| **ScannerUI** | ScanProgress, ScanComplete | RequestScan |
 
 ---
 
@@ -390,6 +733,20 @@ ServerStorage/
 ---
 
 ## ChangeLog
+
+- **1.3** — Додано Mermaid діаграми (2026-01-21)
+  - Додано діаграму DataModel Overview
+  - Додано діаграму ServerScriptService структури
+  - Додано діаграму ReplicatedStorage з RemoteEvents
+  - Додано діаграму StarterPlayerScripts структури
+  - Додано діаграму ServerStorage/Planets структури
+  - Додано діаграму SpaceShip Seats → UI modules
+  - Додано секцію "Протоколи Взаємодії (Client-Server)"
+  - Додано sequenceDiagram для Boot Sequence Protocol
+  - Додано sequenceDiagram для Landing Sequence Protocol
+  - Додано sequenceDiagram для Launch Sequence Protocol
+  - Додано sequenceDiagram для Scan Sequence Protocol
+  - Додано таблицю Event Handlers Summary
 
 - **1.2** — Оновлення структури v0.9 (2026-01-16)
   - Видалено SeatService.lua (merged into SpaceShipService)

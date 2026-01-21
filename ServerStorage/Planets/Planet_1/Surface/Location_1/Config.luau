@@ -35,11 +35,15 @@ local Location1Config = {
                     name = "Baseplate",
                     className = "Part",
                     path = "ServerStorage.Planets.Planet_1.Surface.Location1.Workspace.Baseplate",
-                    description = "Main ground surface (2048x16x2048) with texture and zone divisions",
+                    description = "Main ground surface (1024x16x1024) with texture and zone divisions",
                     properties = {
                         texture = "Texture instance attached",
-                        size = "2048 x 16 x 2048 studs",
-                        material = "Grass"
+                        size = "1024 x 1 x 1024 studs",
+                        material = "Rubber",
+                        color = "Dark grey metallic",
+                        position = "512, 0, 512",
+                        anchored = true,
+                        canCollide = true
                     },
                     children = {
                         {
@@ -55,28 +59,68 @@ local Location1Config = {
                             description = "Transparent walls with labels marking zone boundaries",
                             children = {
                                 {
-                                    name = "LeftWall",
+                                    name = "ZoneWall_Left",
                                     className = "Part",
-                                    path = "ServerStorage.Planets.Planet_1.Surface.Location1.Workspace.Baseplate.ZoneWalls.LeftWall",
-                                    description = "Left boundary wall with SurfaceGui label"
+                                    path = "ServerStorage.Planets.Planet_1.Surface.Location1.Workspace.Baseplate.ZoneWalls.ZoneWall_Left",
+                                    description = "Left boundary wall (transparent, ForceField material)",
+                                    properties = {
+                                        size = "1 x 40 x 1024 studs",
+                                        position = "0, 20, 512",
+                                        material = "ForceField",
+                                        color = "Cyan",
+                                        transparency = 0.7,
+                                        reflectance = 0.3,
+                                        anchored = true,
+                                        canCollide = true
+                                    }
                                 },
                                 {
-                                    name = "RightWall",
+                                    name = "ZoneWall_Right",
                                     className = "Part",
-                                    path = "ServerStorage.Planets.Planet_1.Surface.Location1.Workspace.Baseplate.ZoneWalls.RightWall",
-                                    description = "Right boundary wall with SurfaceGui label"
+                                    path = "ServerStorage.Planets.Planet_1.Surface.Location1.Workspace.Baseplate.ZoneWalls.ZoneWall_Right",
+                                    description = "Right boundary wall (transparent, ForceField material)",
+                                    properties = {
+                                        size = "1 x 40 x 1024 studs",
+                                        position = "1024, 20, 512",
+                                        material = "ForceField",
+                                        color = "Cyan",
+                                        transparency = 0.7,
+                                        reflectance = 0.3,
+                                        anchored = true,
+                                        canCollide = true
+                                    }
                                 },
                                 {
-                                    name = "NearWall",
+                                    name = "ZoneWall_Front",
                                     className = "Part",
-                                    path = "ServerStorage.Planets.Planet_1.Surface.Location1.Workspace.Baseplate.ZoneWalls.NearWall",
-                                    description = "Near boundary wall with SurfaceGui label (adjacent to Landing Zone)"
+                                    path = "ServerStorage.Planets.Planet_1.Surface.Location1.Workspace.Baseplate.ZoneWalls.ZoneWall_Front",
+                                    description = "Front boundary wall (transparent, ForceField material)",
+                                    properties = {
+                                        size = "1026 x 40 x 1 studs",
+                                        position = "512, 20, 1024",
+                                        material = "ForceField",
+                                        color = "Cyan",
+                                        transparency = 0.7,
+                                        reflectance = 0.3,
+                                        anchored = true,
+                                        canCollide = true
+                                    }
                                 },
                                 {
-                                    name = "FarWall",
+                                    name = "ZoneWall_Back",
                                     className = "Part",
-                                    path = "ServerStorage.Planets.Planet_1.Surface.Location1.Workspace.Baseplate.ZoneWalls.FarWall",
-                                    description = "Far boundary wall with SurfaceGui label"
+                                    path = "ServerStorage.Planets.Planet_1.Surface.Location1.Workspace.Baseplate.ZoneWalls.ZoneWall_Back",
+                                    description = "Back boundary wall (transparent, ForceField material)",
+                                    properties = {
+                                        size = "1026 x 40 x 1 studs",
+                                        position = "512, 20, 0",
+                                        material = "ForceField",
+                                        color = "Cyan",
+                                        transparency = 0.7,
+                                        reflectance = 0.3,
+                                        anchored = true,
+                                        canCollide = true
+                                    }
                                 }
                             }
                         },
@@ -84,25 +128,30 @@ local Location1Config = {
                             name = "ExplorationZone",
                             className = "Part",
                             path = "ServerStorage.Planets.Planet_1.Surface.Location1.Workspace.Baseplate.ExplorationZone",
-                            description = "Green exploration zone covering 80% of baseplate length (2048x16x1638.4)",
+                            description = "Green exploration zone covering 80% of baseplate length (1024x16x819.2)",
                             properties = {
-                                size = "2048 x 16 x 1638.4 studs",
+                                size = "1024 x 1 x 1024 studs",
+                                position = "512, 1, 512",
                                 material = "Grass",
                                 color = "Bright green",
-                                coverage = "80% of baseplate length"
+                                anchored = true,
+                                canCollide = true,
+                                coverage = "100% of baseplate area"
                             }
                         },
                         {
                             name = "LandingZone",
                             className = "Part",
                             path = "ServerStorage.Planets.Planet_1.Surface.Location1.Workspace.Baseplate.LandingZone",
-                            description = "Blue landing zone covering 20% of baseplate length near Near wall (2048x16x409.6)",
+                            description = "Blue landing zone covering 20% of baseplate length near Near wall (1024x16x204.8)",
                             properties = {
-                                size = "2048 x 16 x 409.6 studs",
+                                size = "256 x 1 x 256 studs",
+                                position = "128, 1.5, 896",
                                 material = "Concrete",
                                 color = "Bright blue",
-                                coverage = "20% of baseplate length",
-                                position = "Adjacent to Near wall (Z: -1024 to -614.4)"
+                                anchored = true,
+                                canCollide = true,
+                                coverage = "Specific landing area"
                             },
                             children = {
                                 {
@@ -117,46 +166,22 @@ local Location1Config = {
                             name = "SpaceShipLandingPad",
                             className = "Part",
                             path = "ServerStorage.Planets.Planet_1.Surface.Location1.Workspace.Baseplate.SpaceShipLandingPad",
-                            description = "Dedicated landing pad for spaceship (120x2x177.6) with visual enhancements and lighting",
+                            description = "Dedicated landing pad for spaceship (60x2x88.8) with visual enhancements and lighting",
                             properties = {
-                                size = "120 x 2 x 177.6 studs",
+                                size = "88 x 1 x 144 studs",
+                                position = "130, 2, 902",
                                 material = "Metal",
                                 color = "Dark stone grey",
                                 purpose = "Spaceship landing area",
-                                sizeRatio = "20% larger than spaceship dimensions"
+                                anchored = true,
+                                canCollide = true
                             },
                             children = {
                                 {
-                                    name = "LandingLights",
-                                    className = "Folder",
-                                    path = "ServerStorage.Planets.Planet_1.Surface.Location1.Workspace.Baseplate.SpaceShipLandingPad.LandingLights",
-                                    description = "Four corner signal lights with blinking animation",
-                                    children = {
-                                        {
-                                            name = "FrontLeftLight",
-                                            className = "Part",
-                                            path = "ServerStorage.Planets.Planet_1.Surface.Location1.Workspace.Baseplate.SpaceShipLandingPad.LandingLights.FrontLeftLight",
-                                            description = "Front-left corner signal light (orange, blinking)"
-                                        },
-                                        {
-                                            name = "FrontRightLight",
-                                            className = "Part",
-                                            path = "ServerStorage.Planets.Planet_1.Surface.Location1.Workspace.Baseplate.SpaceShipLandingPad.LandingLights.FrontRightLight",
-                                            description = "Front-right corner signal light (orange, blinking)"
-                                        },
-                                        {
-                                            name = "BackLeftLight",
-                                            className = "Part",
-                                            path = "ServerStorage.Planets.Planet_1.Surface.Location1.Workspace.Baseplate.SpaceShipLandingPad.LandingLights.BackLeftLight",
-                                            description = "Back-left corner signal light (orange, blinking)"
-                                        },
-                                        {
-                                            name = "BackRightLight",
-                                            className = "Part",
-                                            path = "ServerStorage.Planets.Planet_1.Surface.Location1.Workspace.Baseplate.SpaceShipLandingPad.LandingLights.BackRightLight",
-                                            description = "Back-right corner signal light (orange, blinking)"
-                                        }
-                                    }
+                                    name = "Light",
+                                    className = "PointLight",
+                                    path = "ServerStorage.Planets.Planet_1.Surface.Location1.Workspace.Baseplate.SpaceShipLandingPad.Light",
+                                    description = "Main illumination light for landing pad"
                                 },
                                 {
                                     name = "LandingPadFrame",
@@ -168,67 +193,142 @@ local Location1Config = {
                                             name = "LeftFrame",
                                             className = "Part",
                                             path = "ServerStorage.Planets.Planet_1.Surface.Location1.Workspace.Baseplate.SpaceShipLandingPad.LandingPadFrame.LeftFrame",
-                                            description = "Left side frame border (cyan, with PointLight)"
+                                            description = "Left side frame border (cyan, with PointLight)",
+                                            properties = {
+                                                size = "2 x 2 x 136 studs",
+                                                position = "87, 3.5, 902",
+                                                material = "Neon",
+                                                color = "0.356863, 0.603922, 0.298039",
+                                                anchored = true,
+                                                canCollide = false
+                                            }
                                         },
                                         {
                                             name = "RightFrame",
                                             className = "Part",
                                             path = "ServerStorage.Planets.Planet_1.Surface.Location1.Workspace.Baseplate.SpaceShipLandingPad.LandingPadFrame.RightFrame",
-                                            description = "Right side frame border (cyan, with PointLight)"
+                                            description = "Right side frame border (cyan, with PointLight)",
+                                            properties = {
+                                                size = "2 x 2 x 136 studs",
+                                                material = "Neon",
+                                                color = "0.356863, 0.603922, 0.298039",
+                                                anchored = true,
+                                                canCollide = false
+                                            }
                                         },
                                         {
                                             name = "FrontFrame",
                                             className = "Part",
                                             path = "ServerStorage.Planets.Planet_1.Surface.Location1.Workspace.Baseplate.SpaceShipLandingPad.LandingPadFrame.FrontFrame",
-                                            description = "Front side frame border (cyan, with PointLight)"
+                                            description = "Front side frame border (cyan, with PointLight)",
+                                            properties = {
+                                                size = "80 x 2 x 2 studs",
+                                                material = "Neon",
+                                                color = "0.356863, 0.603922, 0.298039",
+                                                anchored = true,
+                                                canCollide = false
+                                            }
                                         },
                                         {
                                             name = "BackFrame",
                                             className = "Part",
                                             path = "ServerStorage.Planets.Planet_1.Surface.Location1.Workspace.Baseplate.SpaceShipLandingPad.LandingPadFrame.BackFrame",
-                                            description = "Back side frame border (cyan, with PointLight)"
+                                            description = "Back side frame border (cyan, with PointLight)",
+                                            properties = {
+                                                size = "80 x 2 x 2 studs",
+                                                material = "Neon",
+                                                color = "0.356863, 0.603922, 0.298039",
+                                                anchored = true,
+                                                canCollide = false
+                                            }
                                         },
                                         {
                                             name = "FrontLeftCorner",
                                             className = "Part",
                                             path = "ServerStorage.Planets.Planet_1.Surface.Location1.Workspace.Baseplate.SpaceShipLandingPad.LandingPadFrame.FrontLeftCorner",
-                                            description = "Front-left corner marker (bright yellow, with PointLight)"
+                                            description = "Front-left corner marker (bright yellow, with PointLight)",
+                                            properties = {
+                                                size = "4 x 4 x 4 studs",
+                                                material = "Neon",
+                                                color = "0.960784, 0.803922, 0.188235",
+                                                anchored = true,
+                                                canCollide = false
+                                            }
                                         },
                                         {
                                             name = "FrontRightCorner",
                                             className = "Part",
                                             path = "ServerStorage.Planets.Planet_1.Surface.Location1.Workspace.Baseplate.SpaceShipLandingPad.LandingPadFrame.FrontRightCorner",
-                                            description = "Front-right corner marker (bright yellow, with PointLight)"
+                                            description = "Front-right corner marker (bright yellow, with PointLight)",
+                                            properties = {
+                                                size = "4 x 4 x 4 studs",
+                                                material = "Neon",
+                                                color = "0.960784, 0.803922, 0.188235",
+                                                anchored = true,
+                                                canCollide = false
+                                            }
                                         },
                                         {
                                             name = "BackLeftCorner",
                                             className = "Part",
                                             path = "ServerStorage.Planets.Planet_1.Surface.Location1.Workspace.Baseplate.SpaceShipLandingPad.LandingPadFrame.BackLeftCorner",
-                                            description = "Back-left corner marker (bright yellow, with PointLight)"
+                                            description = "Back-left corner marker (bright yellow, with PointLight)",
+                                            properties = {
+                                                size = "4 x 4 x 4 studs",
+                                                material = "Neon",
+                                                color = "0.960784, 0.803922, 0.188235",
+                                                anchored = true,
+                                                canCollide = false
+                                            }
                                         },
                                         {
                                             name = "BackRightCorner",
                                             className = "Part",
                                             path = "ServerStorage.Planets.Planet_1.Surface.Location1.Workspace.Baseplate.SpaceShipLandingPad.LandingPadFrame.BackRightCorner",
-                                            description = "Back-right corner marker (bright yellow, with PointLight)"
+                                            description = "Back-right corner marker (bright yellow, with PointLight)",
+                                            properties = {
+                                                size = "3 x 3 x 3 studs",
+                                                material = "Neon",
+                                                color = "Bright yellow",
+                                                anchored = true,
+                                                canCollide = false
+                                            }
                                         },
                                         {
                                             name = "Stripe1",
                                             className = "Part",
                                             path = "ServerStorage.Planets.Planet_1.Surface.Location1.Workspace.Baseplate.SpaceShipLandingPad.LandingPadFrame.Stripe1",
-                                            description = "First decorative stripe (white, across the pad)"
+                                            description = "First decorative stripe (white, across the pad)",
+                                            properties = {
+                                                material = "Neon",
+                                                color = "White",
+                                                anchored = true,
+                                                canCollide = false
+                                            }
                                         },
                                         {
                                             name = "Stripe2",
                                             className = "Part",
                                             path = "ServerStorage.Planets.Planet_1.Surface.Location1.Workspace.Baseplate.SpaceShipLandingPad.LandingPadFrame.Stripe2",
-                                            description = "Second decorative stripe (white, across the pad)"
+                                            description = "Second decorative stripe (white, across the pad)",
+                                            properties = {
+                                                material = "Neon",
+                                                color = "White",
+                                                anchored = true,
+                                                canCollide = false
+                                            }
                                         },
                                         {
                                             name = "Stripe3",
                                             className = "Part",
                                             path = "ServerStorage.Planets.Planet_1.Surface.Location1.Workspace.Baseplate.SpaceShipLandingPad.LandingPadFrame.Stripe3",
-                                            description = "Third decorative stripe (white, across the pad)"
+                                            description = "Third decorative stripe (white, across the pad)",
+                                            properties = {
+                                                material = "Neon",
+                                                color = "White",
+                                                anchored = true,
+                                                canCollide = false
+                                            }
                                         }
                                     }
                                 }
@@ -304,16 +404,16 @@ local Location1Config = {
         locationId = "planet1_surface_location1",
         description = "Primary surface location on Planet 1 with divided zones for exploration and spaceship landing",
         biome = "Grassland",
-        size = Vector3.new(2048, 16, 2048),
+        size = Vector3.new(1024, 1, 1024),
         zoneConfiguration = {
             landingZone = {
-                coverage = "20% of total length",
-                position = "Near wall (Z: -1024 to -614.4)",
+                coverage = "Specific landing area",
+                position = "128, 1.5, 896",
                 purpose = "Spaceship landing and operations"
             },
             explorationZone = {
-                coverage = "80% of total length",
-                position = "Central area (Z: -614.4 to 1024)",
+                coverage = "100% of baseplate area",
+                position = "512, 1, 512",
                 purpose = "Player exploration and activities"
             }
         },
@@ -325,7 +425,7 @@ local Location1Config = {
         },
         spaceshipCompatibility = {
             supported = true,
-            landingPadSize = "120 x 177.6 studs",
+            landingPadSize = "88 x 144 studs",
             clearance = "20% larger than spaceship dimensions",
             visualGuidance = "Blinking lights and illuminated frame"
         }

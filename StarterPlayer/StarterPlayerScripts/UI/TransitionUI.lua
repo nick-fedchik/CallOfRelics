@@ -46,6 +46,10 @@ Dependencies:
 - RemoteEvents (TransitionUpdate, TransitionLandingCamera)
 
 ChangeLog:
+- 0.15: Fix orbit camera jump - skip animation when seated, let Roblox handle (2026-01-21)
+- 0.14: Fix camera jump after Arrival - smooth transition to Roblox default (12 studs, 1.5s) (2026-01-21)
+- 0.13: Smooth camera transition after landing (1s ease-out to behind-player view) (2026-01-21)
+- 0.12: Fix Landing Phase 2 camera tracking (follows ship descent), adjust PoV (2026-01-21)
 - 0.11: Wait for planet streaming before Arrival animation fade-out (2026-01-21)
 - 0.10: Add Arrival state handler, raise cockpit PoV upward (2026-01-21)
 - 0.9: Rename Liftoff → Launch (ShowLaunchPhase1/2, States.Launch/Ascent) (2026-01-15)
@@ -62,7 +66,7 @@ ChangeLog:
 
 local TransitionUI = {}
 
-local VERSION = "0.11"
+local VERSION = "0.15"
 local MODULE_NAME = "TransitionUI"
 
 -- ============================================================================
@@ -550,44 +554,50 @@ function TransitionUI.ShowLandingPhase2(duration)
 
 	-- Wait for fade, then switch camera and fade out
 	task.delay(0.25, function()
-		-- Set cockpit view directly (without the delayed Custom switch)
 		local camera = Workspace.CurrentCamera
 		local character = LocalPlayer.Character
-		if character then
-			local humanoid = character:FindFirstChildOfClass("Humanoid")
+		local ship = Workspace:FindFirstChild("SpaceShip")
+
+		if character and ship then
 			local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-			local ship = Workspace:FindFirstChild("SpaceShip")
+			local shipPart = ship.PrimaryPart or ship:FindFirstChildWhichIsA("BasePart")
 
-			if humanoid and humanoidRootPart and ship then
-				local shipPart = ship.PrimaryPart or ship:FindFirstChildWhichIsA("BasePart")
-				if shipPart then
-					local playerPos = humanoidRootPart.Position
-					local shipLookVector = shipPart.CFrame.LookVector
-					local shipUpVector = shipPart.CFrame.UpVector
-					-- Raised PoV: 3.5 studs up (was 2.5)
-					local cameraOffset = -shipLookVector * 3 + shipUpVector * 3.5
-					local cameraPos = playerPos + cameraOffset
-					-- Look slightly up toward planet
-					local lookAtPos = playerPos + shipLookVector * 50 + shipUpVector * 2
+			if humanoidRootPart and shipPart then
+				camera.CameraType = Enum.CameraType.Scriptable
+				camera.FieldOfView = 70
 
-					camera.CameraType = Enum.CameraType.Scriptable
-					camera.CFrame = CFrame.lookAt(cameraPos, lookAtPos)
-					camera.FieldOfView = 70
+				-- Mark cockpit view as active for Hide() to know
+				cockpitViewActive = true
 
-					-- Mark cockpit view as active for Hide() to know
-					cockpitViewActive = true
-				end
+				-- Fade back out to reveal cockpit view
+				task.delay(0.1, function()
+					FadeOut(0.25)
+				end)
+
+				-- Track the player throughout phase 2 (camera follows as ship descends)
+				local startTime = os.clock()
+				local trackDuration = duration - 0.5 -- Account for fade time
+				task.spawn(function()
+					while os.clock() - startTime < trackDuration do
+						local playerPos = humanoidRootPart.Position
+						local shipLookVector = shipPart.CFrame.LookVector
+						local shipUpVector = shipPart.CFrame.UpVector
+						-- Cockpit PoV: 2 studs back, 4 studs up (closer and higher)
+						local cameraOffset = -shipLookVector * 2 + shipUpVector * 4
+						local cameraPos = playerPos + cameraOffset
+						-- Look forward and slightly down toward ground
+						local lookAtPos = playerPos + shipLookVector * 50
+
+						camera.CFrame = CFrame.lookAt(cameraPos, lookAtPos)
+						task.wait()
+					end
+				end)
 			end
 		end
-
-		-- Fade back out to reveal cockpit view
-		task.delay(0.1, function()
-			FadeOut(0.25)
-		end)
 	end)
 
 	-- Player now watches final descent from inside the cockpit
-	-- Camera is behind player, looking through the cockpit window
+	-- Camera tracks player position as ship descends
 end
 
 function TransitionUI.ShowLaunchPhase1(duration)
@@ -760,17 +770,64 @@ function TransitionUI.Hide(forceRestoreCamera)
 	local character = LocalPlayer.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 
-	-- If cockpit view was set during phase 2, just switch to Custom camera smoothly
-	-- Don't reset the camera position - it's already correct
+	-- If cockpit view was set during phase 2/arrival, smoothly transition to player control
 	if cockpitViewActive then
-		-- Cockpit view already set in phase 2, just transition to player control
-		task.delay(0.3, function()
+		cockpitViewActive = false
+
+		-- Check if player is sitting (in a seat on orbit)
+		local isSitting = humanoid and humanoid.Sit
+
+		if isSitting then
+			-- Player is seated (orbit arrival) - just hand control to Roblox
+			-- Don't animate camera movement, Roblox will handle seated camera
+			camera.CameraType = Enum.CameraType.Custom
+			camera.CameraSubject = humanoid
+		elseif character and humanoid then
+			-- Player is standing (landing) - smooth transition to behind-player view
+			local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+			if humanoidRootPart then
+				local startCFrame = camera.CFrame
+				local transitionDuration = 1.5 -- 1.5 seconds for smoother transition
+				local startTime = os.clock()
+
+				task.spawn(function()
+					while os.clock() - startTime < transitionDuration do
+						local alpha = (os.clock() - startTime) / transitionDuration
+						-- Ease out for smooth deceleration
+						alpha = 1 - (1 - alpha) ^ 2
+
+						-- Calculate target: match Roblox default camera position
+						-- Roblox default is roughly 12 studs behind, at head height
+						local playerPos = humanoidRootPart.Position
+						local playerLookVector = humanoidRootPart.CFrame.LookVector
+						-- Gradually move to default third-person distance
+						local targetOffset = -playerLookVector * 12 + Vector3.new(0, 2, 0)
+						local targetPos = playerPos + targetOffset
+						local targetLookAt = playerPos + Vector3.new(0, 1.5, 0)
+						local targetCFrame = CFrame.lookAt(targetPos, targetLookAt)
+
+						-- Interpolate from cockpit view to default camera position
+						camera.CFrame = startCFrame:Lerp(targetCFrame, alpha)
+						task.wait()
+					end
+
+					-- Hand control to Roblox camera system
+					-- Camera is already at ~default position, so switch is seamless
+					camera.CameraType = Enum.CameraType.Custom
+					camera.CameraSubject = humanoid
+				end)
+			else
+				-- Fallback: immediate switch
+				camera.CameraType = Enum.CameraType.Custom
+				camera.CameraSubject = humanoid
+			end
+		else
+			-- No character, just switch
 			if humanoid then
 				camera.CameraType = Enum.CameraType.Custom
 				camera.CameraSubject = humanoid
 			end
-		end)
-		cockpitViewActive = false
+		end
 	else
 		-- No cockpit view was set (e.g., GameStart or orbit return after launch)
 		-- Wait briefly for character/ship to be fully positioned before setting camera

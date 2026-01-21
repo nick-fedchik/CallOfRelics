@@ -21,6 +21,7 @@
 Docs/TechDesign/
 ├── README.md              ← Цей файл (навігація)
 ├── TDD.md                 ← Technical Design Document
+├── ARCHITECTURE.md        ← Architecture Documentation (з Mermaid діаграмами)
 ├── KB.md                  ← Knowledge Base (перевірені рішення)
 ├── FOLDER_STRUCTURE.md    ← Структура папок проєкту
 └── README_GUI_DEV.md      ← Документація клієнтських UI систем
@@ -46,6 +47,26 @@ Docs/TechDesign/
 | 7 | Profile Service |
 
 **Посилання:** [TDD.md](TDD.md)
+
+---
+
+### ARCHITECTURE.md — Architecture Documentation
+
+**Архітектурна документація з Mermaid діаграмами.** Візуальне представлення всіх компонентів системи.
+
+**Зміст:**
+| Розділ | Тема |
+|--------|------|
+| 1 | Architecture Overview |
+| 2 | Components Diagram (Server, UI, Replicated) |
+| 3 | ServerStorage та Planets Structure |
+| 4 | Game Boot Sequence |
+| 5 | Loading/Unloading Level Sequence |
+| 6 | Game Statuses and State Machine |
+| 7 | Events (діаграма) |
+| 8 | Player Profile |
+
+**Посилання:** [ARCHITECTURE.md](ARCHITECTURE.md)
 
 ---
 
@@ -142,9 +163,10 @@ TechDesign/KB.md (що працює)
 
 ---
 
-**Версія:** 2.0
+**Версія:** 2.1
 **Дата:** 2026-01-21
 
 **Changelog:**
+- 2.1: Додано ARCHITECTURE.md з Mermaid діаграмами
 - 2.0: Реструктуризація — Backlog перенесено на GitHub Issues
 - 1.0: Початкова версія

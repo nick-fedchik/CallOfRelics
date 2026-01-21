@@ -56,6 +56,53 @@
 
 Профіль зберігається в DataStore і містить всю прогресію гравця.
 
+```mermaid
+classDiagram
+    class Profile {
+        +number userId
+        +timestamp createdAt
+        +timestamp lastLogin
+        +number profileVersion
+    }
+
+    class LocationState {
+        +string currentPlanet
+        +string currentLocation
+        +object lastSafeState
+    }
+
+    class Discovery {
+        +map discoveredPlanets
+        +map exploredLocations
+        +array visitHistory
+    }
+
+    class ShipState {
+        +string spaceShipModel
+        +number energyLevel
+        +number hullIntegrity
+        +ScannerModule scanner
+    }
+
+    class Inventory {
+        +array resources
+        +array knowledge
+    }
+
+    class Statistics {
+        +number totalPlayTime
+        +number locationsExplored
+        +number resourcesCollected
+        +number knowledgeDiscovered
+    }
+
+    Profile --> LocationState
+    Profile --> Discovery
+    Profile --> ShipState
+    Profile --> Inventory
+    Profile --> Statistics
+```
+
 ### 3.1. Ідентифікація
 
 | Поле | Тип | Опис |
@@ -204,6 +251,29 @@ lastSafeState = {
 
 ### 7.3. Прогресія знань
 
+```mermaid
+flowchart LR
+    subgraph Location["📍 На локації"]
+        D[🔍 Discovery<br/>Знаходження]
+        A[🔬 Analysis<br/>Вивчення]
+    end
+
+    subgraph Permanent["💾 Постійне"]
+        K[📚 Knowledge<br/>База знань]
+    end
+
+    subgraph Application["⚙️ Застосування"]
+        U[🔧 Upgrades<br/>Апгрейди корабля]
+        N[🆕 New Abilities<br/>Нові можливості]
+    end
+
+    D --> A --> K
+    K --> U
+    K --> N
+
+    style K fill:#90EE90
+```
+
 | Етап | Опис |
 |------|------|
 | Discovery | Знаходження об'єкта/артефакту |
@@ -298,8 +368,9 @@ lastSafeState = {
 
 ---
 
-**Версія документа:** 1.0
-**Дата:** 2026-01-16
+**Версія документа:** 1.1
+**Дата:** 2026-01-21
 
 **Changelog:**
+- 1.1: Додано Mermaid діаграми (Profile schema, Knowledge progression)
 - 1.0: Початкова версія документа

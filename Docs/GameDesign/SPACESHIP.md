@@ -21,6 +21,34 @@
 | Збереження прогресу | Автоматичне збереження при переходах |
 | Наративний центр | Командний центр для прийняття рішень |
 
+```mermaid
+flowchart TB
+    subgraph Ship["🚀 Самотній Колумб"]
+        subgraph Command["Командний модуль"]
+            Pilot[PilotSeat<br/>Навігація]
+            Scanner[Scanner Seat<br/>Сканування]
+            Locator[Locator Seat<br/>Пошук планет]
+            Engines[Engines Seat<br/>Двигуни]
+            Computer[PC Seat<br/>Інвентар]
+        end
+
+        subgraph Systems["Системи"]
+            Energy[Енергетика]
+            Shield[Захист]
+            Cargo[Карго]
+        end
+
+        subgraph Access["Доступ"]
+            Ramp[Посадочний трап]
+            Exit[Задній вихід]
+        end
+    end
+
+    Pilot --> Energy
+    Scanner --> Energy
+    Locator --> Energy
+```
+
 ---
 
 ## 2. ХАРАКТЕРИСТИКИ КОРАБЛЯ
@@ -375,6 +403,32 @@ discoveryChance = effectiveAccuracy × (locationVisibility / 100)
 
 Посадочний трап — система для безпечного виходу/входу екіпажу на поверхню планети. Трап працює тільки коли корабель приземлився.
 
+```mermaid
+stateDiagram-v2
+    [*] --> InSpace: Корабель в космосі
+
+    state InSpace {
+        RampHidden: Трап схований
+        ExitBlocked: Вихід заблоковано
+    }
+
+    state OnSurface {
+        RampReady: Трап готовий
+        ExitOpen: Вихід відкрито
+        TriggerActive: Тригер активний
+    }
+
+    state RampDeployed {
+        Steps: Сходинки видимі
+        PlayerCanExit: Гравець може вийти
+    }
+
+    InSpace --> OnSurface: Landing Complete
+    OnSurface --> RampDeployed: Touch RampTrigger
+    RampDeployed --> OnSurface: Retract (перед зльотом)
+    OnSurface --> InSpace: Launch
+```
+
 ### 4.2. Компоненти
 
 | Компонент | Тип | Опис |
@@ -493,14 +547,18 @@ discoveryChance = effectiveAccuracy × (locationVisibility / 100)
 
 ### 5.2. Переходи
 
-```
-Enter Game → SpaceShip on Orbit
-    ↓
-Landing → SpaceShip on Surface (Landing Pad)
-    ↓
-Launch → SpaceShip on Orbit
-    ↓
-Leave Planet → SpaceShip warps to new planet (TBD)
+```mermaid
+flowchart LR
+    Start[🎮 Enter Game] --> Orbit1[🛸 Orbit]
+    Orbit1 -->|Landing| Surface[🌍 Surface]
+    Surface -->|Launch| Orbit2[🛸 Orbit]
+    Orbit2 -->|Warp TBD| NewPlanet[🌌 New Planet]
+
+    subgraph States["Стани корабля"]
+        Orbit1
+        Surface
+        Orbit2
+    end
 ```
 
 ### 5.3. Збереження
@@ -600,10 +658,11 @@ API:
 
 ---
 
-**Версія документа:** 1.4
-**Дата:** 2026-01-19
+**Версія документа:** 1.5
+**Дата:** 2026-01-21
 
 **Changelog:**
+- 1.5: Додано Mermaid діаграми (структура корабля, система трапу, життєвий цикл)
 - 1.4: Додано секцію Ramp System (посадочний трап, RampTrigger, RearShipExit)
 - 1.3: Додано формулу ймовірності виявлення локації (visibility, chargeRatio, wearAccuracy)
 - 1.2: Нова модель сканера: власна батарея, система зношення (wear), ремонт

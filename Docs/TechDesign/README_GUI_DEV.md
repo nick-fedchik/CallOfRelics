@@ -4,6 +4,44 @@
 
 Client-side scripts organized for Script Sync compatibility and architectural clarity.
 
+```mermaid
+flowchart TB
+    subgraph Client["🖥️ Client (StarterPlayerScripts)"]
+        subgraph Core["Core/"]
+            CB[ClientBootstrap.client.lua]
+            SC[SeatController.client.lua]
+            CC[CameraController.lua]
+        end
+
+        subgraph UI["UI/"]
+            UIM[UIManager.lua]
+            SSU[ScreenSaverUI.lua]
+            SBU[StatusBarUI.lua]
+            SUIM[SeatUIManager.lua]
+            TUI[TransitionUI.lua]
+
+            subgraph SeatUI["SeatUI/"]
+                PUI[PilotUI.lua]
+                SSUI[SurfaceScannerUI.lua]
+                DSUI[DeepSpaceScannerUI.lua]
+            end
+        end
+
+        subgraph Systems["Systems/"]
+            Future[Future modules...]
+        end
+    end
+
+    CB --> SSU
+    CB --> SBU
+    CB --> UIM
+    CB --> SUIM
+    CB --> TUI
+
+    SC --> SUIM
+    SUIM --> SeatUI
+```
+
 ---
 
 ## Folder Structure
@@ -183,6 +221,44 @@ local ScreenSaverUI = require(UI:WaitForChild("ScreenSaverUI"))
 
 ## Client-Server Communication
 
+### Events Architecture
+
+```mermaid
+flowchart LR
+    subgraph Client["🖥️ Client"]
+        SSU[ScreenSaverUI]
+        UIM[UIManager]
+        SUIM[SeatUIManager]
+        TUI[TransitionUI]
+        PUI[PilotUI]
+        PSSUI[ScannerUI]
+    end
+
+    subgraph Events["📡 RemoteEvents"]
+        direction TB
+        C2S[Client → Server]
+        S2C[Server → Client]
+    end
+
+    subgraph Server["🖧 Server"]
+        GSM[GameStateManager]
+        BS[BootSequence]
+        TS[TransitionService]
+        SSS[SpaceShipService]
+        PSS[ScannerService]
+    end
+
+    SSU -->|ConfirmGameStart| C2S
+    PUI -->|RequestLanding| C2S
+    PUI -->|RequestLaunch| C2S
+    PSSUI -->|RequestScan| C2S
+
+    S2C -->|StateChanged| UIM
+    S2C -->|BootStageUpdate| SSU
+    S2C -->|TransitionUpdate| TUI
+    S2C -->|ScanProgress| PSSUI
+```
+
 ### RemoteEvents Used:
 
 **Client → Server:**
@@ -191,25 +267,152 @@ local ScreenSaverUI = require(UI:WaitForChild("ScreenSaverUI"))
 - SeatOccupied — Player sat in seat
 - SeatVacated — Player left seat
 - SeatActionRequest — Request action from seat
-- RequestLanding — Request landing on location (NEW)
-- RequestLiftoff — Request liftoff to orbit (NEW)
-- RequestAvailableLocations — Request location list (NEW)
+- RequestLanding — Request landing on location
+- RequestLaunch — Request launch to orbit
+- RequestLocations — Request location list
+- RequestScan — Request surface scan
 
 **Server → Client:**
 - StateChanged — Game state transition notification
 - BootStageUpdate — Boot sequence stage data
 - SeatActionResponse — Response to seat action
-- TransitionUpdate — Transition state update (NEW)
-- TransitionLandingCamera — Landing camera data (NEW)
-- AvailableLocationsResponse — List of locations (NEW)
+- TransitionUpdate — Transition state update
+- TransitionLandingCamera — Landing camera data
+- LocationsAvailable — List of available locations
+- ScanProgress — Scan progress percentage
+- ScanComplete — Scan finished with results
+
+### Boot Sequence Protocol
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Client as Client (ScreenSaverUI)
+    participant RE as RemoteEvents
+    participant Server as Server (BootSequence)
+
+    Note over Client,Server: 🚀 Boot Sequence
+
+    Server->>RE: BootStageUpdate(1, GameConfig)
+    RE->>Client: Stage 1 - Show game info
+    Client->>Client: Display version, name
+
+    Server->>RE: BootStageUpdate(2, PlayerInfo)
+    RE->>Client: Stage 2 - Show player info
+    Client->>Client: Display avatar
+
+    Server->>RE: BootStageUpdate(3, ProfileData)
+    RE->>Client: Stage 3 - Profile loaded
+    Client->>Client: Update progress
+
+    Server->>RE: BootStageUpdate(4, Ready)
+    RE->>Client: Stage 4 - Ready
+    Client->>Client: Show "Почати гру" button
+
+    Client->>RE: ConfirmGameStart
+    RE->>Server: Player confirmed
+
+    Server->>RE: StateChanged(InGame)
+    RE->>Client: Hide ScreenSaver
+```
+
+### Landing Sequence Protocol
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant PUI as PilotUI
+    participant TUI as TransitionUI
+    participant RE as RemoteEvents
+    participant TS as TransitionService
+
+    Note over PUI,TS: ⬇️ Landing Sequence
+
+    PUI->>RE: RequestLanding(locationId)
+    RE->>TS: Start landing
+
+    TS->>RE: TransitionUpdate(landing, phase1)
+    RE->>TUI: Show external view (4s)
+
+    TS->>RE: TransitionLandingCamera(cameraData)
+    RE->>TUI: Setup landing camera
+
+    TS->>RE: TransitionUpdate(landing, phase2)
+    RE->>TUI: Switch to cockpit view (3s)
+
+    TS->>RE: TransitionUpdate(complete)
+    RE->>TUI: Hide transition UI
+
+    TUI->>TUI: Smooth camera handoff
+```
+
+### Launch Sequence Protocol
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant PUI as PilotUI
+    participant TUI as TransitionUI
+    participant RE as RemoteEvents
+    participant TS as TransitionService
+
+    Note over PUI,TS: ⬆️ Launch Sequence
+
+    PUI->>RE: RequestLaunch
+    RE->>TS: Start launch
+
+    TS->>RE: TransitionUpdate(launch, phase1)
+    RE->>TUI: Show cockpit view (3s)
+
+    TS->>RE: TransitionUpdate(launch, phase2)
+    RE->>TUI: Switch to external view (4s)
+
+    TS->>RE: TransitionUpdate(arrival)
+    RE->>TUI: Cockpit arrival view (4s)
+
+    TS->>RE: TransitionUpdate(complete)
+    RE->>TUI: Hide transition UI
+```
+
+### Scan Sequence Protocol
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant UI as ScannerUI
+    participant RE as RemoteEvents
+    participant PSS as ScannerService
+    participant PS as ProfileService
+
+    Note over UI,PS: 🔍 Scan Sequence
+
+    UI->>RE: RequestScan(locationId)
+    RE->>PSS: Start scan
+
+    PSS->>PSS: Check battery, cooldown
+
+    loop Every 0.5s
+        PSS->>RE: ScanProgress(percentage)
+        RE->>UI: Update progress bar
+    end
+
+    PSS->>PS: Mark location discovered
+    PSS->>PS: Save scanner state
+
+    PSS->>RE: ScanComplete(results)
+    RE->>UI: Show discovery
+```
 
 ### Event Handlers Location:
 
-- **ScreenSaverUI.lua:** Handles BootStageUpdate, sends ConfirmGameStart
-- **UIManager.lua:** Handles StateChanged
-- **SeatUIManager.lua:** Handles SeatOccupied, SeatVacated
-- **TransitionUI.lua:** Handles TransitionUpdate, TransitionLandingCamera (NEW)
-- **PilotUI.lua:** Handles AvailableLocationsResponse, sends RequestLanding/Liftoff (NEW)
+| Module | Listens To | Sends |
+|--------|------------|-------|
+| **ScreenSaverUI** | BootStageUpdate | ConfirmGameStart, RetryBootStage |
+| **UIManager** | StateChanged | - |
+| **SeatUIManager** | SeatOccupied, SeatVacated | - |
+| **TransitionUI** | TransitionUpdate, TransitionLandingCamera | - |
+| **PilotUI** | LocationsAvailable | RequestLanding, RequestLaunch, RequestLocations |
+| **ScannerUI** | ScanProgress, ScanComplete | RequestScan |
 
 ---
 

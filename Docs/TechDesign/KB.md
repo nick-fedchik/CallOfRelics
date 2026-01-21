@@ -1,8 +1,12 @@
 # Knowledge Base - Call of Relics
 > База знань успішних рішень, ефективних алгоритмів та перевірених практик
 
-**Версія**: 0.3
-**Остання оновлення**: 2026-01-16
+**Версія**: 0.5
+**Остання оновлення**: 2026-01-21
+
+**Changelog:**
+- 0.5: Mermaid diagrams for all documentation (2026-01-21)
+- 0.4: Added Mermaid diagrams, Transition System docs (2026-01-20)
 
 ---
 
@@ -2229,16 +2233,37 @@ metadata = {
 
 ### Архітектура
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      TRANSITION FLOW                        │
-├─────────────────────────────────────────────────────────────┤
-│  Orbit (PilotUI) → Landing → Surface (PilotUI) → Liftoff    │
-│         │            ↓              │               ↓       │
-│         │       [Loading]           │          [Loading]    │
-│         │            ↓              │               ↓       │
-│         └───────────────────────────────────────────┘       │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    subgraph Orbit["🛸 Orbit"]
+        O_Pilot[PilotUI<br/>Вибір локації]
+    end
+
+    subgraph Landing["⬇️ Landing"]
+        L_Load[Loading Screen]
+        L_Camera[Landing Camera]
+        L_Anim[Ship Animation]
+    end
+
+    subgraph Surface["🌍 Surface"]
+        S_Pilot[PilotUI<br/>Кнопка 'На орбіту']
+    end
+
+    subgraph Launch["⬆️ Launch"]
+        U_Load[Loading Screen]
+        U_Camera[Launch Camera]
+        U_Anim[Ship Animation]
+    end
+
+    O_Pilot -->|RequestLanding| L_Load
+    L_Load --> L_Camera
+    L_Camera --> L_Anim
+    L_Anim --> S_Pilot
+
+    S_Pilot -->|RequestLaunch| U_Load
+    U_Load --> U_Camera
+    U_Camera --> U_Anim
+    U_Anim --> O_Pilot
 ```
 
 ### Ключові Компоненти
@@ -2287,28 +2312,72 @@ States = {
 
 ### Landing Sequence Flow
 
+```mermaid
+sequenceDiagram
+    participant P as PilotUI
+    participant C as Client (TransitionUI)
+    participant S as Server (TransitionService)
+    participant L as LocationService
+
+    P->>S: RequestLanding(locationId)
+    S->>C: TransitionUpdate("loading", message)
+    C->>C: ShowLoadingScreen()
+
+    S->>L: UnloadCurrentLocation()
+    S->>L: LoadLocation(locationId)
+    L-->>S: Location loaded
+
+    S->>S: SpawnShipAbovePad()
+    S->>S: GetLandingCameraData()
+    S->>C: TransitionLandingCamera(cameraData)
+    C->>C: ShowLandingCamera() [Scriptable]
+
+    S->>S: AnimateShipLanding() [TweenService]
+    Note over S: Ship descends to pad
+
+    S->>C: TransitionUpdate("complete", displayNames)
+    C->>C: RestoreCamera() [Custom]
+    C->>C: UpdateStatusBar()
 ```
-1. [PilotUI] Гравець вибирає локацію
-       ↓
-2. [Client] RequestLanding → Server
-       ↓
-3. [Server] TransitionUpdate("loading", {message})
-       ↓
-4. [Client] ShowLoadingScreen("Приземлення на...")
-       ↓
-5. [Server] UnloadLocation → LoadLocation
-       ↓
-6. [Server] SpawnShipAbovePad → GetLandingCameraData
-       ↓
-7. [Server] TransitionLandingCamera → Client
-       ↓
-8. [Client] ShowLandingCamera (scriptable camera)
-       ↓
-9. [Server] AnimateShipLanding (TweenService)
-       ↓
-10. [Server] TransitionUpdate("complete", {displayNames})
-       ↓
-11. [Client] RestoreCamera + UpdateStatusBar
+
+### Launch Sequence Flow (Surface → Orbit)
+
+```mermaid
+sequenceDiagram
+    participant P as PilotUI
+    participant C as Client (TransitionUI)
+    participant S as Server (TransitionService)
+    participant L as LocationService
+    participant Ship as SpaceShipService
+
+    P->>S: RequestLaunch()
+    S->>Ship: RetractRamp()
+    S->>C: TransitionUpdate("launch", message)
+    C->>C: ShowLaunchPhase1() [Cockpit view]
+
+    S->>Ship: SetShipLanded(false)
+    Note over Ship: Engine fire ON
+
+    S->>S: AnimateShipLaunch() [TweenService]
+    S->>C: TransitionUpdate("ascent")
+    C->>C: ShowLaunchPhase2() [External view]
+
+    Note over S: Ship ascends
+
+    S->>L: UnloadSurfaceLocation()
+    S->>C: TransitionUpdate("loading")
+    C->>C: ShowLoadingScreen()
+
+    S->>L: LoadOrbitLocation()
+    S->>Ship: RepositionShip(orbitPos)
+    S->>S: SpawnPlayerInPilotSeat()
+
+    S->>C: TransitionUpdate("arrival")
+    C->>C: ShowArrivalAnimation() [Cockpit view]
+    Note over C: Planet approaches in window
+
+    S->>C: TransitionUpdate("complete")
+    C->>C: RestoreCamera() [Seated - immediate]
 ```
 
 ### Технічні Рішення

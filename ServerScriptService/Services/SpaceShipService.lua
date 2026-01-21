@@ -25,7 +25,7 @@ Features:
 - Cleanup on game end / player disconnect
 - Ramp system: deploy/retract ramp, RampTrigger detection, RearShipExit control
 - Engine Fire effects: toggle on landing/launch (visual feedback)
-- Ramp stripes pulsating animation when ramp is deployed
+- Ramp steps pulsating animation when ramp is deployed
 
 API:
 Ship Management:
@@ -81,6 +81,7 @@ Dependencies:
 - RemoteEvents
 
 ChangeLog:
+- 0.8: Replace stripe pulsation with step pulsation (2026-01-21)
 - 0.7: Ramp stripes pulsating animation when deployed (2026-01-20)
 - 0.6: Engine Fire effects toggle on landing/launch (2026-01-19)
 - 0.5: Ramp system: SetShipLanded, DeployRamp, RetractRamp, RampTrigger, RearShipExit (2026-01-19)
@@ -93,7 +94,7 @@ ChangeLog:
 
 local SpaceShipService = {}
 
-local VERSION = "0.7"
+local VERSION = "0.8"
 local MODULE_NAME = "SpaceShipService"
 
 -- ============================================================================
@@ -136,7 +137,7 @@ local shipLandedState = {} -- [player] = boolean
 local rampDeployedState = {} -- [player] = boolean
 local rampConnections = {} -- [player] = {touchConnection, ...}
 local rampAnimating = {} -- [player] = boolean (prevents double animation)
-local rampStripePulseActive = {} -- [player] = boolean (pulsating stripes animation)
+local rampStepsPulseActive = {} -- [player] = boolean (pulsating steps animation)
 
 -- Remote Events (set during Initialize)
 local RemoteEvents
@@ -300,7 +301,7 @@ function SpaceShipService.SpawnShip(player, position, rotation)
 	rampDeployedState[player] = false
 	rampAnimating[player] = false
 
-	-- Hide ramp steps and stripes immediately after spawn
+	-- Hide ramp steps immediately after spawn
 	local ramp = ship:FindFirstChild("ShipRamp")
 	if ramp then
 		for i = 1, 10 do
@@ -308,16 +309,6 @@ function SpaceShipService.SpawnShip(player, position, rotation)
 			if step then
 				step.Transparency = 1
 				step.CanCollide = false
-			end
-		end
-		-- Hide ramp stripes (LeftStripe_N, RightStripe_N)
-		for _, child in ipairs(ramp:GetDescendants()) do
-			if child:IsA("BasePart") and (child.Name:match("LeftStripe_") or child.Name:match("RightStripe_")) then
-				child.Transparency = 1
-				local light = child:FindFirstChildOfClass("PointLight")
-				if light then
-					light.Brightness = 0
-				end
 			end
 		end
 	end
@@ -614,52 +605,6 @@ local function HideRampSteps(ship)
 	end
 end
 
--- Find all stripe parts in ShipRamp (moved here for dependency order)
-local function GetRampStripes(ship)
-	if not ship then return {} end
-
-	local ramp = GetShipRamp(ship)
-	if not ramp then return {} end
-
-	local stripes = {}
-	-- Look for stripe parts (LeftStripe_N, RightStripe_N pattern)
-	for _, child in ipairs(ramp:GetDescendants()) do
-		if child:IsA("BasePart") and (child.Name:match("LeftStripe_") or child.Name:match("RightStripe_")) then
-			table.insert(stripes, child)
-		end
-	end
-
-	return stripes
-end
-
--- Hide all ramp stripes (called on landing/init before ramp is deployed)
-local function HideRampStripes(ship)
-	local stripes = GetRampStripes(ship)
-	for _, stripe in ipairs(stripes) do
-		if stripe and stripe.Parent then
-			stripe.Transparency = 1
-			local light = stripe:FindFirstChildOfClass("PointLight")
-			if light then
-				light.Brightness = 0
-			end
-		end
-	end
-end
-
--- Show all ramp steps (for instant show if needed)
-local function ShowRampSteps(ship)
-	local ramp = GetShipRamp(ship)
-	if not ramp then return end
-
-	for i = 1, SpaceShipConfig.GetRampTotalSteps() do
-		local step = ramp:FindFirstChild("Step" .. i)
-		if step then
-			step.Transparency = 0
-			step.CanCollide = true
-		end
-	end
-end
-
 -- Animate ramp deployment (Step1 → Step10)
 local function AnimateRampDeploy(ship)
 	local ramp = GetShipRamp(ship)
@@ -709,75 +654,72 @@ local function AnimateRampRetract(ship)
 end
 
 -- ============================================================================
--- RAMP STRIPES PULSATING ANIMATION
+-- RAMP STEPS PULSATING ANIMATION
 -- ============================================================================
 
--- Start pulsating animation for ramp stripes
-local function StartRampStripesPulse(player, ship)
-	if rampStripePulseActive[player] then return end
+-- Get all ramp steps
+local function GetRampSteps(ship)
+	if not ship then return {} end
 
-	local stripes = GetRampStripes(ship)
-	if #stripes == 0 then
-		print(string.format("[%s %s] No ramp stripes found for pulsating animation", MODULE_NAME, VERSION))
+	local ramp = GetShipRamp(ship)
+	if not ramp then return {} end
+
+	local steps = {}
+	local totalSteps = SpaceShipConfig.GetRampTotalSteps()
+	for i = 1, totalSteps do
+		local step = ramp:FindFirstChild("Step" .. i)
+		if step then
+			table.insert(steps, step)
+		end
+	end
+
+	return steps
+end
+
+-- Start pulsating animation for ramp steps (subtle transparency pulse)
+local function StartRampStepsPulse(player, ship)
+	if rampStepsPulseActive[player] then return end
+
+	local steps = GetRampSteps(ship)
+	if #steps == 0 then
+		print(string.format("[%s %s] No ramp steps found for pulsating animation", MODULE_NAME, VERSION))
 		return
 	end
 
-	rampStripePulseActive[player] = true
-	print(string.format("[%s %s] Starting ramp stripes pulse animation (%d stripes)", MODULE_NAME, VERSION, #stripes))
+	rampStepsPulseActive[player] = true
+	print(string.format("[%s %s] Starting ramp steps pulse animation (%d steps)", MODULE_NAME, VERSION, #steps))
 
 	-- Run pulsating animation in a separate thread
 	task.spawn(function()
 		local cycleTime = 2.0 -- 2 seconds per full cycle
-		local minTransparency = 0.1
-		local maxTransparency = 0.7
+		local minTransparency = 0.0 -- Fully visible
+		local maxTransparency = 0.3 -- Slightly transparent (subtle pulse)
 
-		while rampStripePulseActive[player] do
-			-- Pulse in (bright)
-			for _, stripe in ipairs(stripes) do
-				if stripe and stripe.Parent then
+		while rampStepsPulseActive[player] do
+			-- Pulse out (slightly dim)
+			for _, step in ipairs(steps) do
+				if step and step.Parent then
 					local tween = TweenService:Create(
-						stripe,
-						TweenInfo.new(cycleTime / 2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
-						{Transparency = minTransparency}
-					)
-					tween:Play()
-
-					-- Also pulse PointLight if exists
-					local light = stripe:FindFirstChildOfClass("PointLight")
-					if light then
-						local lightTween = TweenService:Create(
-							light,
-							TweenInfo.new(cycleTime / 2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
-							{Brightness = 3}
-						)
-						lightTween:Play()
-					end
-				end
-			end
-			task.wait(cycleTime / 2)
-
-			if not rampStripePulseActive[player] then break end
-
-			-- Pulse out (dim)
-			for _, stripe in ipairs(stripes) do
-				if stripe and stripe.Parent then
-					local tween = TweenService:Create(
-						stripe,
+						step,
 						TweenInfo.new(cycleTime / 2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
 						{Transparency = maxTransparency}
 					)
 					tween:Play()
+				end
+			end
+			task.wait(cycleTime / 2)
 
-					-- Also pulse PointLight if exists
-					local light = stripe:FindFirstChildOfClass("PointLight")
-					if light then
-						local lightTween = TweenService:Create(
-							light,
-							TweenInfo.new(cycleTime / 2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
-							{Brightness = 1}
-						)
-						lightTween:Play()
-					end
+			if not rampStepsPulseActive[player] then break end
+
+			-- Pulse in (fully visible)
+			for _, step in ipairs(steps) do
+				if step and step.Parent then
+					local tween = TweenService:Create(
+						step,
+						TweenInfo.new(cycleTime / 2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
+						{Transparency = minTransparency}
+					)
+					tween:Play()
 				end
 			end
 			task.wait(cycleTime / 2)
@@ -785,25 +727,13 @@ local function StartRampStripesPulse(player, ship)
 	end)
 end
 
--- Stop pulsating animation for ramp stripes
-local function StopRampStripesPulse(player, ship)
-	if not rampStripePulseActive[player] then return end
+-- Stop pulsating animation for ramp steps
+local function StopRampStepsPulse(player)
+	if not rampStepsPulseActive[player] then return end
 
-	rampStripePulseActive[player] = false
-	print(string.format("[%s %s] Stopping ramp stripes pulse animation", MODULE_NAME, VERSION))
-
-	-- Hide stripes (set to full transparency)
-	local stripes = GetRampStripes(ship)
-	for _, stripe in ipairs(stripes) do
-		if stripe and stripe.Parent then
-			stripe.Transparency = 1
-
-			local light = stripe:FindFirstChildOfClass("PointLight")
-			if light then
-				light.Brightness = 0
-			end
-		end
-	end
+	rampStepsPulseActive[player] = false
+	print(string.format("[%s %s] Stopping ramp steps pulse animation", MODULE_NAME, VERSION))
+	-- Steps will be hidden by HideRampSteps or AnimateRampRetract
 end
 
 -- Setup RampTrigger touch detection
@@ -866,7 +796,6 @@ function SpaceShipService.SetShipLanded(player, isLanded)
 		SetRampTriggerActive(ship, true) -- Show trigger highlight
 		SetupRampTrigger(player, ship) -- Enable touch detection
 		HideRampSteps(ship) -- Ramp starts hidden, deploys on trigger
-		HideRampStripes(ship) -- Stripes hidden until ramp deploys
 		SetEngineFires(ship, false) -- Turn off engine fire effects
 
 		print(string.format("[%s %s] Ship landed: exit open, trigger active, engines off", MODULE_NAME, VERSION))
@@ -906,8 +835,8 @@ function SpaceShipService.DeployRamp(player)
 	-- Run animation
 	AnimateRampDeploy(ship)
 
-	-- Start pulsating stripes animation
-	StartRampStripesPulse(player, ship)
+	-- Start pulsating steps animation
+	StartRampStepsPulse(player, ship)
 
 	rampDeployedState[player] = true
 	rampAnimating[player] = false
@@ -929,8 +858,8 @@ function SpaceShipService.RetractRamp(player)
 
 	print(string.format("[%s %s] Retracting ramp for %s", MODULE_NAME, VERSION, player.Name))
 
-	-- Stop pulsating stripes animation
-	StopRampStripesPulse(player, ship)
+	-- Stop pulsating steps animation
+	StopRampStepsPulse(player)
 
 	-- Run animation
 	AnimateRampRetract(ship)
@@ -951,7 +880,7 @@ end
 -- Cleanup ramp state for player (called on player leaving)
 function SpaceShipService.CleanupRampState(player)
 	CleanupRampConnections(player)
-	rampStripePulseActive[player] = nil -- Stop any active pulse animation
+	rampStepsPulseActive[player] = nil -- Stop any active pulse animation
 	shipLandedState[player] = nil
 	rampDeployedState[player] = nil
 	rampAnimating[player] = nil

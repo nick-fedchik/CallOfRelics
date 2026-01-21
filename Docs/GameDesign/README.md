@@ -193,6 +193,21 @@ Docs/GameDesign/
 
 ### Ієрархія документації
 
+```mermaid
+flowchart TB
+    GDD[📖 GDD.md<br/>Game Design]
+    GDD -->|деталізується| SHIP[🚀 SPACESHIP.md]
+    GDD -->|деталізується| PLAYER[👤 PLAYER.md]
+    GDD -->|деталізується| PLANETS[🌍 Planets/]
+
+    SHIP -->|реалізується| TDD[📐 TDD.md<br/>Technical Design]
+    PLAYER -->|реалізується| TDD
+    PLANETS -->|реалізується| TDD
+
+    TDD -->|відстежується| ISSUES[📋 GitHub Issues]
+    ISSUES -->|документується| KB[📚 KB.md<br/>Knowledge Base]
+```
+
 ```
 GDD.md (Game Design)
     ↓ деталізується в
@@ -250,9 +265,10 @@ KB.md (Knowledge Base)
 
 ---
 
-**Версія:** 1.1
-**Дата:** 2026-01-16
+**Версія:** 1.2
+**Дата:** 2026-01-21
 
 **Changelog:**
+- 1.2: Додано Mermaid діаграми до всіх документів GameDesign
 - 1.1: Додано PLAYER.md (персонаж гравця та профіль)
 - 1.0: Початкова версія

@@ -23,6 +23,34 @@
 
 Кожна планета зберігається в `ServerStorage/Planets/Planet_Id/`:
 
+```mermaid
+flowchart TB
+    subgraph SS["📁 ServerStorage/Planets"]
+        subgraph Planet["Planet_Id/"]
+            Config[Config.luau]
+
+            subgraph Orbit["Orbit/"]
+                OC[Config.luau]
+                OW[Workspace/<br/>Planet Model]
+                OL[Lighting/]
+                OS[Scripts/]
+            end
+
+            subgraph Surface["Surface/"]
+                subgraph Loc1["Location_1/"]
+                    L1C[Config.luau]
+                    L1W[Workspace/]
+                    L1L[Lighting/]
+                end
+                subgraph Loc2["Location_2/"]
+                    L2C[Config.luau]
+                    L2W[Workspace/]
+                end
+            end
+        end
+    end
+```
+
 ```
 Planet_Id/
 ├── Config.luau                    # Planet configuration
@@ -54,6 +82,29 @@ Planet_Id/
 ---
 
 ## Navigation Rules
+
+```mermaid
+flowchart LR
+    subgraph Planet1["🌍 Planet 1"]
+        O1[Орбіта]
+        L1[Location 1]
+        L2[Location 2]
+    end
+
+    subgraph Planet2["🌍 Planet 2"]
+        O2[Орбіта]
+        L3[Location 1]
+    end
+
+    O1 -->|Landing| L1
+    O1 -->|Landing| L2
+    L1 -->|Launch| O1
+    L2 -->|Launch| O1
+
+    O1 -.->|Warp TBD| O2
+    O2 -->|Landing| L3
+    L3 -->|Launch| O2
+```
 
 1. **Orbit → Surface**: Landing через TransitionService
 2. **Surface → Orbit**: Launch через TransitionService

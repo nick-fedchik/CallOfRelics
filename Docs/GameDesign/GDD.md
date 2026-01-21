@@ -47,11 +47,30 @@ Game Design Document призначений для:
 
 ---
 
-# 2. ГЛОБАЛЬНІ СТАНИ ГРАВЦЯ  
+# 2. ГЛОБАЛЬНІ СТАНИ ГРАВЦЯ
 ## (Out of Game / In Game)
 
 Гравець може перебувати у двох глобальних станах,
 які визначають, чи активний ігровий світ.
+
+```mermaid
+stateDiagram-v2
+    [*] --> LoggedOff: Запуск гри
+
+    LoggedOff --> LoggedIn: Увійти в гру
+    LoggedIn --> LoggedOff: Вийти з гри
+    LoggedIn --> LoggedOff: Втрата з'єднання
+
+    note right of LoggedOff
+        Заставка гри
+        Ігрові системи неактивні
+    end note
+
+    note right of LoggedIn
+        Керування персонажем
+        Всі системи активні
+    end note
+```
 
 ---
 
@@ -104,6 +123,36 @@ Game Design Document призначений для:
 Космічний простір поділений на окремі **планети**,
 кожна з яких є самостійним ігровим світом
 з власними фізичними та атмосферними характеристиками.
+
+```mermaid
+flowchart TB
+    subgraph Space["🌌 Космічний простір"]
+        subgraph P1["Планета 1"]
+            P1O[Орбіта]
+            P1L1[Локація 1]
+            P1L2[Локація 2]
+            P1O --> P1L1
+            P1O --> P1L2
+        end
+
+        subgraph P2["Планета 2"]
+            P2O[Орбіта]
+            P2L1[Локація 1]
+            P2O --> P2L1
+        end
+
+        subgraph Earth["🌍 Земля"]
+            EO[Орбіта]
+            EL[Фінальна локація]
+            EO --> EL
+        end
+    end
+
+    Ship[🚀 Космічний корабель]
+    Ship -.->|Міжпланетний переліт| P1O
+    Ship -.->|Міжпланетний переліт| P2O
+    Ship -.->|Фінал гри| EO
+```
 
 ---
 
@@ -620,6 +669,26 @@ Game Design Document призначений для:
 
 Кожна планетна локація складається з:
 
+```mermaid
+flowchart LR
+    subgraph Location["📍 Планетна локація"]
+        subgraph Landing["🛬 Landing Zone"]
+            Ship[Корабель]
+            Spawn[Точка спавну]
+            Return[Точка повернення]
+        end
+
+        subgraph Exploration["⚠️ Exploration Zone"]
+            Area1[Зона дослідження]
+            Area2[Зона ризику]
+            Area3[Зона NPC/аномалій]
+        end
+    end
+
+    Landing --> Exploration
+    Exploration --> Landing
+```
+
 ### Безпечної зони (Landing Zone)
 - місце посадки корабля
 - зона появи гравця
@@ -801,16 +870,45 @@ Game Design Document призначений для:
 
 Кожна планетна локація має такі логічні стани:
 
-- **Не виявлена**  
+```mermaid
+stateDiagram-v2
+    [*] --> Unknown: Початковий стан
+
+    Unknown --> Discovered: Сканування з орбіти
+    Discovered --> Visited: Посадка на локацію
+    Visited --> Explored: Досягнення головної цілі
+
+    note right of Unknown
+        Не виявлена
+        Не видима на карті
+    end note
+
+    note right of Discovered
+        isDiscovered = true
+        Доступна для посадки
+    end note
+
+    note right of Visited
+        isVisited = true
+        Гравець був на локації
+    end note
+
+    note right of Explored
+        Головна ціль виконана
+        Прогрес зараховано
+    end note
+```
+
+- **Не виявлена**
   Локація ще не знайдена за допомогою сканерів.
 
-- **Виявлена (isDiscovered = true)**  
+- **Виявлена (isDiscovered = true)**
   Локація знайдена з орбіти та доступна для посадки.
 
-- **Відвідана (isVisited = true)**  
+- **Відвідана (isVisited = true)**
   Гравець хоча б один раз фізично перебував на локації.
 
-- **Досліджена**  
+- **Досліджена**
   Гравець досяг головної цілі локації.
 
 Ці стани зберігаються між ігровими сесіями.
@@ -870,6 +968,34 @@ Game Design Document призначений для:
 Гра допускає невдале завершення дослідження локації.
 Невдача не означає кінець гри,
 але має відчутні наслідки.
+
+```mermaid
+flowchart TB
+    subgraph Location["📍 На локації"]
+        Explore[Дослідження]
+        Goal[Головна ціль]
+    end
+
+    subgraph Outcomes["Результати"]
+        Success[✅ Успіх]
+        Escape[🏃 Втеча]
+        Death[💀 Смерть]
+    end
+
+    subgraph Consequences["Наслідки"]
+        SuccessR[Прогрес + Ресурси + Знання]
+        EscapeR[Часткові ресурси втрачено<br/>Знання збережено]
+        DeathR[Ресурси втрачено<br/>Знання збережено]
+    end
+
+    Explore --> Goal --> Success --> SuccessR
+    Explore --> Escape --> EscapeR
+    Explore --> Death --> DeathR
+
+    EscapeR --> Ship[🚀 Корабель на орбіті]
+    DeathR --> Ship
+    SuccessR --> Ship
+```
 
 ---
 
