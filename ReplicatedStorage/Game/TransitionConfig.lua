@@ -81,7 +81,7 @@ local TransitionConfig = {
 
 	-- Landing (surface)
 	ShipSpawnHeight = 500,             -- Height above landing pad
-	ShipLandingHeight = 25,            -- Ship center height above pad (ship is ~30 tall, so center at 25 keeps bottom ~10 above pad)
+	ShipLandingHeight = 20,            -- Ship center height above pad (11 ramp steps, bottom ~5 below center)
 
 	-- ============================================================================
 	-- CAMERA SETTINGS
