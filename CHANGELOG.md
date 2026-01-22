@@ -4,6 +4,39 @@
 
 ---
 
+## [0.15.0] - 2026-01-22 - Ramp 11th Step & Documentation Fixes
+
+### Added - Ramp 11th Step
+
+- **SpaceShipConfig.lua** (v0.7) — Конфігурація 11-ї ступеньки трапа
+  - `Ramp.totalSteps`: 10 → 11
+  - `RampStripes.totalSteps`: 10 → 11, `totalStripes`: 20 → 22
+  - `ShipRamp.totalSteps`: 10 → 11
+  - Додано `Step11` до `ShipRamp.subComponents`
+  - Додано смужки `Step11` (`LeftStripe_11`, `RightStripe_11`)
+  - Оновлено `GetAllRampStripes()`: цикл 1-10 → 1-11
+
+### Fixed - Ramp Initialization
+
+- **SpaceShipService.lua** (v0.8) — Виправлено приховування 11-ї ступеньки
+  - Замінено hardcoded `for i = 1, 10 do` на `SpaceShipConfig.GetRampTotalSteps()`
+  - Step11 тепер правильно приховується на орбіті
+
+### Fixed - Documentation
+
+- **PLANET_LOCATIONS.md** (v1.0 → v1.1) — Виправлено Mermaid діаграми
+  - Pie charts: виправлено синтаксис (`pie title` замість `pie showData title`)
+  - Замінено `quadrantChart` на таблицю "Ризик vs Винагорода"
+  - Замінено `xychart-beta` на таблицю "Збереження прогресу"
+
+### Changed - Documentation Updates
+
+- **Docs/README.md** (v1.0 → v1.1) — Додано PLANET_LOCATIONS.md
+- **Docs/GameDesign/README.md** (v1.3 → v1.4) — Оновлено структуру GDD, додано PLANET_LOCATIONS.md
+- **Docs/TechDesign/README.md** (v2.1 → v2.2) — Оновлено посилання на GameDesign документи
+
+---
+
 ## [0.14.0] - 2026-01-21 - Documentation Restructure
 
 ### Changed - GDD Decomposition
