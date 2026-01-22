@@ -304,7 +304,8 @@ function SpaceShipService.SpawnShip(player, position, rotation)
 	-- Hide ramp steps immediately after spawn
 	local ramp = ship:FindFirstChild("ShipRamp")
 	if ramp then
-		for i = 1, 10 do
+		local totalSteps = SpaceShipConfig.GetRampTotalSteps()
+		for i = 1, totalSteps do
 			local step = ramp:FindFirstChild("Step" .. i)
 			if step then
 				step.Transparency = 1
