@@ -171,7 +171,7 @@ SpaceShipConfig.Ramp = {
 	exitOpenTransparency = 0.8,       -- More transparent when open
 
 	-- Step count (should match ShipRamp model)
-	totalSteps = 10,
+	totalSteps = 11,
 }
 
 -- ============================================================================
@@ -887,9 +887,9 @@ SpaceShipConfig.Structure = {
 					attributes = {
 						parent = "ShipRamp",
 						location = "Sides of each ramp step",
-						totalSteps = 10,
+						totalSteps = 11,
 						stripesPerStep = 2,
-						totalStripes = 20,
+						totalStripes = 22,
 						stripeWidthRatio = 0.1, -- 10% of step width
 						material = "Neon",
 						color = "0, 0.5, 1 (Bright blue)",
@@ -1006,6 +1006,13 @@ SpaceShipConfig.Structure = {
 								stripeWidth = 1.0178728103637696,
 								stepWidth = 10.178728103637696,
 								position = "Left and right sides of Step10"
+							},
+							Step11 = {
+								leftStripe = "LeftStripe_11",
+								rightStripe = "RightStripe_11",
+								stripeWidth = 1.0178728103637696,
+								stepWidth = 10.178728103637696,
+								position = "Left and right sides of Step11"
 							}
 						},
 						specialProperties = {
@@ -1068,9 +1075,9 @@ SpaceShipConfig.Structure = {
 		-- Ramp system
 		ShipRamp = {
 			className = "Model",
-			description = "Ship boarding ramp model with 10 metal steps for crew boarding",
+			description = "Ship boarding ramp model with 11 metal steps for crew boarding",
 			attributes = {
-				totalSteps = 10,
+				totalSteps = 11,
 				stepMaterial = "Metal",
 				stepColor = "0.639216, 0.635294, 0.647059 (Silver Gray)",
 				stepSize = "10.178728103637695, 2.035745620727539, 5.089364051818848",
@@ -1219,9 +1226,23 @@ SpaceShipConfig.Structure = {
 				},
 				Step10 = {
 					className = "Part",
-					description = "Tenth step of the boarding ramp (lowest position, ground level)",
+					description = "Tenth step of the boarding ramp",
 					attributes = {
 						position = "485.98529052734375, -457.26324462890625, -9.432936668395996",
+						size = "10.178728103637695, 2.035745620727539, 5.089364051818848",
+						material = "Metal",
+						color = "0.639216, 0.635294, 0.647059 (Silver Gray)",
+						anchored = true,
+						canCollide = true,
+						transparency = 0,
+						reflectance = 0
+					}
+				},
+				Step11 = {
+					className = "Part",
+					description = "Eleventh step of the boarding ramp (lowest position, ground level)",
+					attributes = {
+						position = "485.9973449707031, -459.29937744140625, -14.522115707397461",
 						size = "10.178728103637695, 2.035745620727539, 5.089364051818848",
 						material = "Metal",
 						color = "0.639216, 0.635294, 0.647059 (Silver Gray)",
@@ -1839,16 +1860,16 @@ end
 function SpaceShipConfig.GetAllRampStripes()
 	local rampStripesConfig = SpaceShipConfig.GetRampStripesConfig()
 	local allStripes = {}
-	
+
 	-- Add all stripes from each step
-	for i = 1, 10 do
+	for i = 1, 11 do
 		local stepKey = "Step" .. i
 		if rampStripesConfig.attributes.stepStripes[stepKey] then
 			table.insert(allStripes, rampStripesConfig.attributes.stepStripes[stepKey].leftStripe)
 			table.insert(allStripes, rampStripesConfig.attributes.stepStripes[stepKey].rightStripe)
 		end
 	end
-	
+
 	return allStripes
 end
 
