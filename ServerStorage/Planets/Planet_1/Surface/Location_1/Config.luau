@@ -37,21 +37,29 @@ local Location1Config = {
                     path = "ServerStorage.Planets.Planet_1.Surface.Location1.Workspace.Baseplate",
                     description = "Main ground surface (1024x16x1024) with texture and zone divisions",
                     properties = {
-                        texture = "Texture instance attached",
                         size = "1024 x 1 x 1024 studs",
                         material = "Rubber",
-                        color = "Dark grey metallic",
+                        color = "0.356863, 0.356863, 0.356863 (Dark grey metallic)",
+                        brickColor = "Dark grey metallic",
                         position = "512, 0, 512",
                         anchored = true,
-                        canCollide = true
+                        canCollide = true,
+                        locked = true,
+                        transparency = 0,
+                        reflectance = 0,
+                        castShadow = true,
+                        canTouch = true,
+                        canQuery = true,
+                        topSurface = "Smooth",
+                        bottomSurface = "Smooth",
+                        frontSurface = "Smooth",
+                        backSurface = "Smooth",
+                        leftSurface = "Smooth",
+                        rightSurface = "Smooth",
+                        shape = "Block"
                     },
                     children = {
-                        {
-                            name = "Texture",
-                            className = "Texture",
-                            path = "ServerStorage.Planets.Planet_1.Surface.Location1.Workspace.Baseplate.Texture",
-                            description = "Surface texture for baseplate"
-                        },
+
                         {
                             name = "ZoneWalls",
                             className = "Folder",
@@ -67,11 +75,22 @@ local Location1Config = {
                                         size = "1 x 40 x 1024 studs",
                                         position = "0, 20, 512",
                                         material = "ForceField",
-                                        color = "Cyan",
+                                        color = "0.015686, 0.686275, 0.925490 (Cyan)",
+                                        brickColor = "Cyan",
                                         transparency = 0.7,
                                         reflectance = 0.3,
                                         anchored = true,
-                                        canCollide = true
+                                        canCollide = true,
+                                        castShadow = true,
+                                        canTouch = true,
+                                        canQuery = true,
+                                        topSurface = "Studs",
+                                        bottomSurface = "Inlet",
+                                        frontSurface = "Smooth",
+                                        backSurface = "Smooth",
+                                        leftSurface = "Smooth",
+                                        rightSurface = "Smooth",
+                                        shape = "Block"
                                     }
                                 },
                                 {
@@ -83,11 +102,22 @@ local Location1Config = {
                                         size = "1 x 40 x 1024 studs",
                                         position = "1024, 20, 512",
                                         material = "ForceField",
-                                        color = "Cyan",
+                                        color = "0.015686, 0.686275, 0.925490 (Cyan)",
+                                        brickColor = "Cyan",
                                         transparency = 0.7,
                                         reflectance = 0.3,
                                         anchored = true,
-                                        canCollide = true
+                                        canCollide = true,
+                                        castShadow = true,
+                                        canTouch = true,
+                                        canQuery = true,
+                                        topSurface = "Studs",
+                                        bottomSurface = "Inlet",
+                                        frontSurface = "Smooth",
+                                        backSurface = "Smooth",
+                                        leftSurface = "Smooth",
+                                        rightSurface = "Smooth",
+                                        shape = "Block"
                                     }
                                 },
                                 {
@@ -99,11 +129,22 @@ local Location1Config = {
                                         size = "1026 x 40 x 1 studs",
                                         position = "512, 20, 1024",
                                         material = "ForceField",
-                                        color = "Cyan",
+                                        color = "0.015686, 0.686275, 0.925490 (Cyan)",
+                                        brickColor = "Cyan",
                                         transparency = 0.7,
                                         reflectance = 0.3,
                                         anchored = true,
-                                        canCollide = true
+                                        canCollide = true,
+                                        castShadow = true,
+                                        canTouch = true,
+                                        canQuery = true,
+                                        topSurface = "Studs",
+                                        bottomSurface = "Inlet",
+                                        frontSurface = "Smooth",
+                                        backSurface = "Smooth",
+                                        leftSurface = "Smooth",
+                                        rightSurface = "Smooth",
+                                        shape = "Block"
                                     }
                                 },
                                 {
@@ -115,11 +156,22 @@ local Location1Config = {
                                         size = "1026 x 40 x 1 studs",
                                         position = "512, 20, 0",
                                         material = "ForceField",
-                                        color = "Cyan",
+                                        color = "0.015686, 0.686275, 0.925490 (Cyan)",
+                                        brickColor = "Cyan",
                                         transparency = 0.7,
                                         reflectance = 0.3,
                                         anchored = true,
-                                        canCollide = true
+                                        canCollide = true,
+                                        castShadow = true,
+                                        canTouch = true,
+                                        canQuery = true,
+                                        topSurface = "Studs",
+                                        bottomSurface = "Inlet",
+                                        frontSurface = "Smooth",
+                                        backSurface = "Smooth",
+                                        leftSurface = "Smooth",
+                                        rightSurface = "Smooth",
+                                        shape = "Block"
                                     }
                                 }
                             }
@@ -133,10 +185,31 @@ local Location1Config = {
                                 size = "1024 x 1 x 1024 studs",
                                 position = "512, 1, 512",
                                 material = "Grass",
-                                color = "Bright green",
+                                color = "0.294118, 0.592157, 0.294118 (Bright green)",
+                                brickColor = "Bright green",
                                 anchored = true,
                                 canCollide = true,
-                                coverage = "100% of baseplate area"
+                                transparency = 0,
+                                reflectance = 0,
+                                castShadow = true,
+                                canTouch = true,
+                                canQuery = true,
+                                coverage = "100% of baseplate area",
+                                topSurface = "Studs",
+                                bottomSurface = "Inlet",
+                                frontSurface = "Smooth",
+                                backSurface = "Smooth",
+                                leftSurface = "Smooth",
+                                rightSurface = "Smooth",
+                                shape = "Block"
+                            },
+                            children = {
+                                {
+                                    name = "Weld",
+                                    className = "Weld",
+                                    path = "ServerStorage.Planets.Planet_1.Surface.Location_1.Workspace.Baseplate.ExplorationZone.Weld",
+                                    description = "Weld constraint for ExplorationZone"
+                                }
                             }
                         },
                         {
@@ -145,21 +218,29 @@ local Location1Config = {
                             path = "ServerStorage.Planets.Planet_1.Surface.Location1.Workspace.Baseplate.LandingZone",
                             description = "Blue landing zone covering 20% of baseplate length near Near wall (1024x16x204.8)",
                             properties = {
-                                size = "256 x 1 x 256 studs",
-                                position = "128, 1.5, 896",
+                                size = "256 x 1 x 368 studs",
+                                position = "128, 1.5, 840",
                                 material = "Concrete",
-                                color = "Bright blue",
+                                color = "0.050980, 0.411765, 0.674510 (Bright blue)",
+                                brickColor = "Bright blue",
                                 anchored = true,
                                 canCollide = true,
-                                coverage = "Specific landing area"
+                                transparency = 0,
+                                reflectance = 0,
+                                castShadow = true,
+                                canTouch = true,
+                                canQuery = true,
+                                coverage = "Specific landing area",
+                                topSurface = "Studs",
+                                bottomSurface = "Inlet",
+                                frontSurface = "Smooth",
+                                backSurface = "Smooth",
+                                leftSurface = "Smooth",
+                                rightSurface = "Smooth",
+                                shape = "Block"
                             },
                             children = {
-                                {
-                                    name = "Texture",
-                                    className = "Texture",
-                                    path = "ServerStorage.Planets.Planet_1.Surface.Location1.Workspace.Baseplate.LandingZone.Texture",
-                                    description = "Surface texture for landing zone"
-                                }
+
                             }
                         },
                         {
@@ -168,13 +249,26 @@ local Location1Config = {
                             path = "ServerStorage.Planets.Planet_1.Surface.Location1.Workspace.Baseplate.SpaceShipLandingPad",
                             description = "Dedicated landing pad for spaceship (60x2x88.8) with visual enhancements and lighting",
                             properties = {
-                                size = "88 x 1 x 144 studs",
-                                position = "130, 2, 902",
+                                size = "122.833 x 0.5 x 201 studs",
+                                position = "138.200, 2, 862.100",
                                 material = "Metal",
-                                color = "Dark stone grey",
+                                color = "0.388235, 0.372549, 0.384314 (Dark stone grey)",
+                                brickColor = "Dark stone grey",
                                 purpose = "Spaceship landing area",
                                 anchored = true,
-                                canCollide = true
+                                canCollide = true,
+                                transparency = 0,
+                                reflectance = 0,
+                                castShadow = true,
+                                canTouch = true,
+                                canQuery = true,
+                                topSurface = "Smooth",
+                                bottomSurface = "Smooth",
+                                frontSurface = "Smooth",
+                                backSurface = "Smooth",
+                                leftSurface = "Smooth",
+                                rightSurface = "Smooth",
+                                shape = "Block"
                             },
                             children = {
                                 {
