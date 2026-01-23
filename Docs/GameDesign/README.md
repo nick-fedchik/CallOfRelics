@@ -21,9 +21,10 @@
 Docs/GameDesign/
 ├── README.md              ← Цей файл (навігація)
 ├── GDD.md                 ← Головний Game Design Document (13 розділів)
+├── GLOSSARY.md            ← Термінологічний глосарій (~70 термінів)
 ├── PLAYER.md              ← Персонаж гравця, глобальні стани, профіль
 ├── SPACESHIP.md           ← Космічний корабель, модулі, сканування
-├── PLANET_LOCATIONS.md    ← Система планетних локацій (NEW)
+├── PLANET_LOCATIONS.md    ← Система планетних локацій
 └── Planets/               ← Планети та локації
     ├── README.md          ← Огляд планетарної системи
     ├── Planet_1/          ← Біллі Рубін (перша планета)
@@ -65,6 +66,24 @@ Docs/GameDesign/
 | 13 | Ідеї подальшого розвитку | — |
 
 **Посилання:** [GDD.md](GDD.md)
+
+---
+
+### GLOSSARY.md — Термінологічний Глосарій
+
+**Словник термінів ігрового дизайну.** Версія 1.1 — ~70 термінів.
+
+**Зміст:**
+- Ігрові терміни (Arcade, Context, Discovery, Exploration...)
+- Типи локацій (Story, Combat, Puzzle, Survival...)
+- Системи корабля (Scanner, Module, Energy, Shield...)
+- Стани гри (Orbit, Surface, Logged In, Logged Off...)
+- Власні назви (Біллі Рубін, Самотній Колумб, The Call, Relics)
+
+**Ключовий принцип:**
+> Якщо термін не має чіткого визначення в глосарії — він не повинен використовуватися в GDD без пояснення.
+
+**Посилання:** [GLOSSARY.md](GLOSSARY.md)
 
 ---
 
@@ -204,10 +223,12 @@ Docs/GameDesign/
 ```mermaid
 flowchart TB
     GDD[📖 GDD.md<br/>Головний документ<br/>13 розділів]
+    GLOSS[📚 GLOSSARY.md<br/>Термінологія<br/>~70 термінів]
     GDD -->|деталізується| SHIP[🚀 SPACESHIP.md<br/>Космічний корабель]
     GDD -->|деталізується| PLAYER[👤 PLAYER.md<br/>Персонаж гравця]
     GDD -->|деталізується| LOCS[📍 PLANET_LOCATIONS.md<br/>Система локацій]
     GDD -->|деталізується| PLANETS[🌍 Planets/<br/>Планети та локації]
+    GDD -.->|термінологія| GLOSS
 
     PLANETS --> P1[Planet_1<br/>Біллі Рубін]
     PLANETS --> PE[Planet_Earth<br/>Земля]
@@ -249,6 +270,7 @@ flowchart TB
 | Що шукаєте? | Де знайти? |
 |-------------|------------|
 | Концепція гри | [GDD.md](GDD.md) |
+| Термінологія / Глосарій | [GLOSSARY.md](GLOSSARY.md) |
 | Персонаж гравця | [PLAYER.md](PLAYER.md) |
 | Глобальні стани гравця | [PLAYER.md#2-глобальні-стани-гравця](PLAYER.md) |
 | Профіль гравця | [PLAYER.md#4-профіль-гравця-player-profile](PLAYER.md) |
@@ -265,10 +287,11 @@ flowchart TB
 
 ---
 
-**Версія:** 1.4
-**Дата:** 2026-01-21
+**Версія:** 1.5
+**Дата:** 2026-01-23
 
 **Changelog:**
+- 1.5: Додано GLOSSARY.md (термінологічний глосарій ~70 термінів)
 - 1.4: Додано PLANET_LOCATIONS.md; оновлено GDD структуру (13 розділів); оновлено посилання
 - 1.3: Видалено технічні посилання (TDD, KB, etc.) — фокус на Game Design
 - 1.2: Додано Mermaid діаграми до всіх документів GameDesign

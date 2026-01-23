@@ -1,18 +1,14 @@
-# Call of Relics
-
-A Roblox game project.
-
 # Call of Relics: Orbital Silence
 
-Single-player exploration RPG on Roblox  
-Status: Active Development
+Single-player exploration RPG on Roblox
+**Version:** 0.16.0 | **Status:** Active Development
 
 ---
 
 ## Overview
 
 **Call of Relics: Orbital Silence** is a single-player exploration RPG focused on
-discovering the remnants of an ancient civilization on a fractured planet.
+discovering the remnants of an ancient civilization across multiple planets.
 
 You are not a conqueror.
 You are not a hero meant to save the galaxy.
@@ -20,6 +16,8 @@ You are not a hero meant to save the galaxy.
 You are an operator.
 A researcher.
 Someone who answers a signal that should no longer exist.
+
+> *"You are not a hero. You are the one who answered The Call."*
 
 The game emphasizes:
 - slow, deliberate exploration
@@ -31,16 +29,19 @@ The game emphasizes:
 
 ## The World
 
-The game takes place in a distant star system, where a planet shows
-severe spatial instability on its surface.
+The game takes place in open space, where the player travels between planets
+aboard the experimental spaceship **"Ones Columbus"** (Самотній Колумб).
 
-The surface is not continuous.
-It is fragmented into isolated locations that cannot be traversed by conventional means.
+Each planet:
+- has its own atmosphere and gravity
+- contains isolated surface locations
+- emits mysterious encoded signals
 
-An orbital Space Station serves as:
-- a safe hub
-- a stabilization point
-- the only reliable anchor for navigation and teleportation
+The spaceship serves as:
+- a mobile base
+- a spawn point
+- a progress save zone
+- the narrative center of the game
 
 Every planetary location is a fragment of something that existed before.
 What that was — is not immediately clear.
@@ -49,13 +50,11 @@ What that was — is not immediately clear.
 
 ## Lore: The Relics
 
-Long before the arrival of the player, the planet was used by an advanced civilization
-that attempted to redefine navigation and spatial access.
+Long before the arrival of the player, multiple planets were visited by an advanced civilization
+that left behind their legacy.
 
 They did not build cities in the traditional sense.
 They built **passages**, **anchors**, and **stability points**.
-
-The experiment failed.
 
 The civilization disappeared, leaving behind:
 - fragmented space
@@ -88,8 +87,8 @@ It exists because the system was never completed.
 The player does not choose to create meaning.
 The player chooses whether to respond.
 
-> *“The signal does not speak.  
-> It only waits.”*
+> *"The signal does not speak.
+> It only waits."*
 
 ---
 
@@ -97,35 +96,55 @@ The player chooses whether to respond.
 
 ### Exploration, Not Rush
 
-- Locations must be discovered before they can be accessed
-- Teleportation is deliberate and contextual
+- Locations must be discovered via orbital scanning before they can be accessed
+- Landing is deliberate and contextual
 - The player must prepare before each transition
 
-### SpawnLocation as a Concept
+### The Spaceship as Home
 
-SpawnLocation is not just a spawn point.
-It is a stabilization platform — a relic interface.
-
-Only when the player steps away and the system recalibrates
-does it become active again.
+The spaceship is not just transport — it's the player's mobile home:
+- **PilotSeat** — navigation, landing, launch
+- **Scanner** — discover new locations on planet surface
+- **Locator** — find new planets in space
+- **Personal Computer** — inventory and knowledge base
 
 Movement between locations is not instant travel.
-It is controlled re-entry into unstable space.
+It is controlled descent into unknown territory.
 
 ---
 
 ## Core Gameplay Loop
 
-1. Start on the Space Station
-2. Scan the planet
+```
+Orbit → Scan → Discover → Land → Explore → Return → Progress
+```
+
+1. Start on the spaceship in orbit
+2. Scan the planet surface
 3. Discover available locations
-4. Choose where to go
-5. Explore a planetary fragment
+4. Choose where to land
+5. Explore a planetary location
 6. Return to orbit
-7. Learn more — or decide not to
+7. Learn more — or move to next planet
 
 The game never forces discovery.
 It only enables it.
+
+---
+
+## First Planet: Billy Rubin
+
+The first destination of the expedition:
+
+| Property | Value |
+|----------|-------|
+| Name | Billy Rubin (Біллі Рубін) |
+| Type | Habitable (Super-Earth) |
+| Atmosphere | Breathable |
+| Gravity | 1.2g |
+| Locations | Landing Site Alpha, Ancient Ruins |
+
+A safe learning environment with minimal hazards.
 
 ---
 
@@ -144,37 +163,26 @@ Interpretation is part of the experience.
 
 ---
 
-## Vision for Development
-
-### Phase 1 — Foundation
-- Stable location lifecycle
-- SpawnLocation-based teleportation
-- Core exploration loop
-- Minimal but consistent lore delivery
-
-### Phase 2 — Depth
-- Expanded planetary locations
-- Exploration Zones with distinct rules
-- More relic systems and logs
-- Stronger environmental storytelling
-
-### Phase 3 — Meaning
-- Deeper narrative fragments
-- Player-driven interpretation
-- Consequences reflected in the world
-- Optional unanswered questions
-
-The goal is not to explain everything.
-The goal is to build a world that feels like it existed before the player arrived.
-
----
-
 ## Design Principles
 
 - Less exposition, more implication
 - Systems before spectacle
 - Lore supports gameplay, not replaces it
 - Mystery is preserved, not resolved too quickly
+- Failure is part of exploration, not punishment
+
+---
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [GDD.md](Docs/GameDesign/GDD.md) | Game Design Document |
+| [GLOSSARY.md](Docs/GameDesign/GLOSSARY.md) | Terminology Glossary |
+| [SPACESHIP.md](Docs/GameDesign/SPACESHIP.md) | Spaceship Systems |
+| [PLAYER.md](Docs/GameDesign/PLAYER.md) | Player Character |
+| [PLANET_LOCATIONS.md](Docs/GameDesign/PLANET_LOCATIONS.md) | Location System |
+| [CHANGELOG.md](CHANGELOG.md) | Version History |
 
 ---
 
@@ -190,7 +198,5 @@ and only systems are left behind.
 
 ---
 
-*Some signals are not meant to be answered.*  
+*Some signals are not meant to be answered.*
 *Others exist because someone eventually will.*
-
-

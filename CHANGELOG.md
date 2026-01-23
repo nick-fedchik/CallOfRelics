@@ -4,6 +4,39 @@
 
 ---
 
+## [0.16.0] - 2026-01-23 - Glossary & Documentation Update
+
+### Added - Terminology Glossary
+
+- **GLOSSARY.md** (v1.1) — Термінологічний глосарій ігрового дизайну
+  - ~70 термінів організованих за алфавітом
+  - Ігрові терміни: Arcade, Context, Core Gameplay Loop, Discovery, Exploration...
+  - Типи локацій: Story, Combat, Puzzle, Survival, Stealth, Escape...
+  - Системи корабля: Scanner, Module, Energy, Shield, Ramp System...
+  - Стани гри: Orbit, Surface, Logged In/Off, Unknown/Discovered/Visited/Explored
+  - Власні назви: Біллі Рубін, Самотній Колумб, Нащаддя Ілона, The Call
+  - **Relics (Реліквії)** — ключовий термін назви гри
+
+### Changed - Documentation Updates
+
+- **Docs/GameDesign/README.md** (v1.4 → v1.5) — Додано секцію GLOSSARY.md
+  - Оновлено структуру документації
+  - Додано до Mermaid діаграми
+  - Додано швидке посилання на глосарій
+
+- **README.md** — Оновлено до актуального стану гри
+  - Замінено Space Station на SpaceShip "Самотній Колумб"
+  - Оновлено Core Gameplay Loop
+  - Додано посилання на документацію
+  - Оновлено версію та статус
+
+- **README-UKR.md** — Синхронізовано з README.md
+  - Оновлено концепцію та світ гри
+  - Оновлено ігровий цикл
+  - Додано посилання на документацію
+
+---
+
 ## [0.15.0] - 2026-01-22 - Ramp 11th Step & Documentation Fixes
 
 ### Added - Ramp 11th Step
