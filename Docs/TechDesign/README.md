@@ -24,7 +24,8 @@ Docs/TechDesign/
 ├── ARCHITECTURE.md        ← Architecture Documentation (з Mermaid діаграмами)
 ├── KB.md                  ← Knowledge Base (перевірені рішення)
 ├── FOLDER_STRUCTURE.md    ← Структура папок проєкту
-└── README_GUI_DEV.md      ← Документація клієнтських UI систем
+├── README_GUI_DEV.md      ← Документація клієнтських UI систем
+└── WORKFLOW.md            ← Development Workflow (NEW)
 ```
 
 ---

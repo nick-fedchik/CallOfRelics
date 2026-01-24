@@ -4,6 +4,43 @@
 
 ---
 
+## [0.17.0] - 2026-01-24 - Location Zone Geometry & MCP Integration
+
+### Fixed - Location_1 Zone Geometry
+
+- **LandingZone** — збільшено для посадки SpaceShip
+  - Size: 1024 x 1 x 260 (було 200)
+  - Position: (512, 1.5, 894)
+  - Z range: 764 - 1024
+  
+- **ExplorationZone** — зменшено відповідно
+  - Size: 1024 x 1 x 764 (було 824)
+  - Position: (512, 1.5, 382)
+  - Z range: 0 - 764
+  - Зони більше **не перетинаються**
+
+- **SpaceShipLandingPad** — центровано в LandingZone
+  - Size: 130 x 0.5 x 242 (оптимізовано під SpaceShip 89x202)
+  - Position: (512, 2, 894)
+  - Запас ~20 studs з кожного боку для маневрування
+
+### Added - Development Workflow Documentation
+
+- **WORKFLOW.md** — новий документ у TechDesign
+  - Опис інструментів розробки (Studio, Script Sync, MCP, Git)
+  - Що синхронізується / не синхронізується
+  - Workflow для змін в моделях vs код
+  - Контрольний список перед commit
+  - GitHub commit message format
+
+### Technical Notes
+
+- SpaceShip bounding box: 89 x 46 x 202 studs
+- Зміни геометрії зроблено через Roblox Studio MCP
+- Script Sync не синхронізує властивості об'єктів (тільки код)
+
+---
+
 ## [0.16.0] - 2026-01-23 - Glossary & Documentation Update
 
 ### Added - Terminology Glossary
