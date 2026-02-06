@@ -1,6 +1,6 @@
 --[[
 ================================================================================
-KOSMICMAZER — ServerBootstrap
+CALL OF RELICS — ServerBootstrap
 ================================================================================
 
 Purpose:
@@ -8,7 +8,7 @@ Main server initialization script. Boots the game in controlled sequence.
 Implements Boot phase from TDD Section 4.3.
 
 Version:
-0.2
+0.3
 
 Features:
 - Initializes core services in correct order
@@ -16,6 +16,7 @@ Features:
 - Sets initial game state to LoggedOff
 - Prepares ScreenSaver environment
 - Handles boot failures safely
+- DebugLogger hooks print/warn for MCP-accessible logs
 
 API:
 - None (auto-executes on server start)
@@ -37,24 +38,32 @@ Dependencies:
 - ProfileService
 - LocationService
 - PlayerService
+- DebugLogger
 
 ChangeLog:
+- 0.3: Added DebugLogger hook for MCP-readable logs (2026-01-24)
 - 0.2: Added LocationService initialization (2026-01-12)
 - 0.1: Initial boot sequence implementation (2026-01-11)
 ================================================================================
 ]]
 
-local VERSION = "0.2"
+local VERSION = "0.3"
 local MODULE_NAME = "ServerBootstrap"
-
-
-
 
 -- ============================================================================
 -- CORE SERVICES
 -- ============================================================================
 
 local ServerScriptService = game:GetService("ServerScriptService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- ============================================================================
+-- DEBUG LOGGER (перехоплення print/warn для MCP)
+-- ============================================================================
+
+local Game = ReplicatedStorage:WaitForChild("Game")
+local Logger = require(Game:WaitForChild("DebugLogger"))
+Logger:HookGlobalOutput()  -- Тепер ВСІ print/warn автоматично логуються
 
 -- ============================================================================
 -- LOAD CORE MODULES

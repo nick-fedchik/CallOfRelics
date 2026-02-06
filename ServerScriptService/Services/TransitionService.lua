@@ -8,7 +8,7 @@ Coordinates location transitions between Orbit and Surface locations.
 Manages landing and launch sequences with client-server synchronization.
 
 Version:
-0.10
+0.11
 
 Features:
 - StartLandingSequence(player, locationId) — Orbit → Surface transition
@@ -45,6 +45,7 @@ Dependencies:
 - ServerStorage.Planets structure
 
 ChangeLog:
+- 0.11: Fix ship orientation on Orbit - always face planet using CFrame.lookAt (2026-01-24)
 - 0.10: Increase streaming delay before Arrival animation (1.5s instead of 0.5s) (2026-01-21)
 - 0.9: Ship arrival animation on orbit (cockpit view, player sees planet approach) (2026-01-21)
 - 0.8: Ramp system integration - SetShipLanded after landing, RetractRamp before launch (2026-01-19)
@@ -59,7 +60,7 @@ ChangeLog:
 ]]
 
 local MODULE_NAME = "TransitionService"
-local VERSION = "0.10"
+local VERSION = "0.11"
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
@@ -256,20 +257,21 @@ end
 
 -- Animate ship arrival on orbit (cockpit view)
 -- Ship flies from startOffset towards finalPosition, decelerating
-local function AnimateShipArrival(ship, finalPosition, arrivalPath, duration)
+-- Ship maintains orientation facing the planet throughout animation
+local function AnimateShipArrival(ship, finalPosition, arrivalPath, duration, planetPosition)
 	if not ship or not arrivalPath then return end
 
 	-- Calculate positions from offsets
-	local startPos = finalPosition + arrivalPath.startOffset  -- e.g., (0, 100, 400)
-	local midPos = finalPosition + arrivalPath.midOffset      -- e.g., (0, 100, 100)
-
-	-- Rotation facing forward (+Z towards planet)
-	local rotation = CFrame.Angles(0, 0, 0)
+	local startPos = finalPosition + arrivalPath.startOffset  -- e.g., (0, 100, -400)
+	local midPos = finalPosition + arrivalPath.midOffset      -- e.g., (0, 100, -100)
+	
+	-- Planet position for look-at calculation
+	local targetPos = planetPosition or Vector3.new(0, 100, 600)
 
 	-- Phase 1: Fast approach (startPos → midPos)
 	local phase1Duration = duration * 0.5
-	local phase1StartCFrame = CFrame.new(startPos) * rotation
-	local phase1EndCFrame = CFrame.new(midPos) * rotation
+	local phase1StartCFrame = CFrame.lookAt(startPos, targetPos)
+	local phase1EndCFrame = CFrame.lookAt(midPos, targetPos)
 
 	local startTime = os.clock()
 	while os.clock() - startTime < phase1Duration do
@@ -283,8 +285,8 @@ local function AnimateShipArrival(ship, finalPosition, arrivalPath, duration)
 
 	-- Phase 2: Deceleration (midPos → finalPos)
 	local phase2Duration = duration * 0.5
-	local phase2StartCFrame = CFrame.new(midPos) * rotation
-	local phase2EndCFrame = CFrame.new(finalPosition) * rotation
+	local phase2StartCFrame = CFrame.lookAt(midPos, targetPos)
+	local phase2EndCFrame = CFrame.lookAt(finalPosition, targetPos)
 
 	startTime = os.clock()
 	while os.clock() - startTime < phase2Duration do
@@ -808,9 +810,14 @@ function TransitionService.StartLaunchSequence(player)
 	local arrivalPath = orbitConfig and orbitConfig.animationData and orbitConfig.animationData.arrivalPath
 	if shipAfterLoad then
 		local startPos = arrivalPath and (orbitSpawnPos + arrivalPath.startOffset) or orbitSpawnPos
-		local newCFrame = CFrame.new(startPos) * orbitSpawnRotation
-		shipAfterLoad:PivotTo(newCFrame)
-		print(string.format("[%s %s][DEBUG] Ship positioned at arrival start: pos=(%.1f, %.1f, %.1f)",
+		
+		-- Calculate rotation to face planet (planet is at +Z relative to ship)
+		local planetPos = orbitConfig and orbitConfig.animationData and orbitConfig.animationData.planet 
+			and orbitConfig.animationData.planet.finalPosition or Vector3.new(0, 100, 600)
+		local shipLookAtPlanet = CFrame.lookAt(startPos, planetPos)
+		
+		shipAfterLoad:PivotTo(shipLookAtPlanet)
+		print(string.format("[%s %s][DEBUG] Ship positioned at arrival start: pos=(%.1f, %.1f, %.1f), facing planet",
 			MODULE_NAME, VERSION, startPos.X, startPos.Y, startPos.Z))
 	end
 	-- === END REPOSITION ===
@@ -843,8 +850,12 @@ function TransitionService.StartLaunchSequence(player)
 			message = TransitionConfig.Messages.GameStartArrival
 		})
 
+		-- Get planet position for animation
+		local planetPos = orbitConfig and orbitConfig.animationData and orbitConfig.animationData.planet 
+			and orbitConfig.animationData.planet.finalPosition or Vector3.new(0, 100, 600)
+		
 		-- Animate ship from start position to final orbit position
-		AnimateShipArrival(shipAfterLoad, orbitSpawnPos, arrivalPath, TransitionConfig.ShipArrivalDuration)
+		AnimateShipArrival(shipAfterLoad, orbitSpawnPos, arrivalPath, TransitionConfig.ShipArrivalDuration, planetPos)
 
 		print(string.format("[%s %s][DEBUG] Launch - Arrival animation complete, ship at final position",
 			MODULE_NAME, VERSION))
@@ -942,7 +953,14 @@ function TransitionService.StartGameSequence(player)
 	-- Spawn ship at start position for arrival animation (or final if no animation)
 	local arrivalPath = orbitConfig and orbitConfig.animationData and orbitConfig.animationData.arrivalPath
 	local shipStartPos = arrivalPath and (orbitSpawnPos + arrivalPath.startOffset) or orbitSpawnPos
-	spaceShipService.SpawnShip(player, shipStartPos)
+	
+	-- Calculate rotation to face planet (planet is at +Z relative to ship)
+	local planetPos = orbitConfig and orbitConfig.animationData and orbitConfig.animationData.planet 
+		and orbitConfig.animationData.planet.finalPosition or Vector3.new(0, 100, 600)
+	local shipLookAtPlanet = CFrame.lookAt(shipStartPos, planetPos)
+	local shipRotation = shipLookAtPlanet - shipLookAtPlanet.Position -- Extract rotation only
+	
+	spaceShipService.SpawnShip(player, shipStartPos, shipRotation)
 
 	-- === DEBUG: Log initial positions ===
 	local shipInitial = spaceShipService.GetShip(player)
@@ -996,8 +1014,8 @@ function TransitionService.StartGameSequence(player)
 			message = TransitionConfig.Messages.GameStartArrival
 		})
 
-		-- Animate ship from start position to final orbit position
-		AnimateShipArrival(ship, orbitSpawnPos, arrivalPath, TransitionConfig.ShipArrivalDuration)
+		-- Animate ship from start position to final orbit position (planetPos already defined above)
+		AnimateShipArrival(ship, orbitSpawnPos, arrivalPath, TransitionConfig.ShipArrivalDuration, planetPos)
 
 		print(string.format("[%s %s][DEBUG] GameStart - Arrival animation complete, ship at final position",
 			MODULE_NAME, VERSION))

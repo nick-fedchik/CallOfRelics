@@ -81,6 +81,8 @@ Dependencies:
 - RemoteEvents
 
 ChangeLog:
+- 0.10: Update paths for new ship structure (RampSystem, LandingGear, etc.) (2026-01-24)
+- 0.9: Rename BottomEngine to LandingGearRear for engine fire lookup (2026-01-24)
 - 0.8: Replace stripe pulsation with step pulsation (2026-01-21)
 - 0.7: Ramp stripes pulsating animation when deployed (2026-01-20)
 - 0.6: Engine Fire effects toggle on landing/launch (2026-01-19)
@@ -94,7 +96,7 @@ ChangeLog:
 
 local SpaceShipService = {}
 
-local VERSION = "0.8"
+local VERSION = "0.10"
 local MODULE_NAME = "SpaceShipService"
 
 -- ============================================================================
@@ -302,7 +304,8 @@ function SpaceShipService.SpawnShip(player, position, rotation)
 	rampAnimating[player] = false
 
 	-- Hide ramp steps immediately after spawn
-	local ramp = ship:FindFirstChild("ShipRamp")
+	local rampSystem = ship:FindFirstChild("RampSystem")
+	local ramp = rampSystem and rampSystem:FindFirstChild("ShipRamp")
 	if ramp then
 		local totalSteps = SpaceShipConfig.GetRampTotalSteps()
 		for i = 1, totalSteps do
@@ -315,15 +318,14 @@ function SpaceShipService.SpawnShip(player, position, rotation)
 	end
 
 	-- Block rear exit
-	local shipParts = ship:FindFirstChild("ShipParts")
-	local rearExit = shipParts and shipParts:FindFirstChild("RearShipExit") or ship:FindFirstChild("RearShipExit")
+	local rearExit = rampSystem and rampSystem:FindFirstChild("RearShipExit")
 	if rearExit then
 		rearExit.CanCollide = true
 		rearExit.Transparency = 0.25
 	end
 
 	-- Hide ramp trigger
-	local trigger = ship:FindFirstChild("RampTrigger")
+	local trigger = rampSystem and rampSystem:FindFirstChild("RampTrigger")
 	if trigger then
 		trigger.Transparency = 1
 		local highlight = trigger:FindFirstChild("RampHighlight")
@@ -486,22 +488,26 @@ end
 -- ENGINE EFFECTS - PRIVATE FUNCTIONS
 -- ============================================================================
 
--- Find all engine Fire effects in ship
+-- Find all engine Fire effects in ship (in LandingGear/LandingGearRearLeft|Right/EnginePart)
 local function GetEngineFires(ship)
 	if not ship then return {} end
 
 	local fires = {}
-	local shipParts = ship:FindFirstChild("ShipParts")
-	if not shipParts then return fires end
+	local landingGear = ship:FindFirstChild("LandingGear")
+	if not landingGear then return fires end
 
-	-- Find BottomEngineLeft and BottomEngineRight
-	local engineNames = {"BottomEngineLeft", "BottomEngineRight"}
-	for _, engineName in ipairs(engineNames) do
-		local engine = shipParts:FindFirstChild(engineName)
-		if engine then
-			local fire = engine:FindFirstChildOfClass("Fire")
-			if fire then
-				table.insert(fires, fire)
+	-- Find LandingGearRearLeft and LandingGearRearRight
+	local gearNames = {"LandingGearRearLeft", "LandingGearRearRight"}
+	for _, gearName in ipairs(gearNames) do
+		local gear = landingGear:FindFirstChild(gearName)
+		if gear then
+			-- Fire is inside EnginePart
+			local enginePart = gear:FindFirstChild("EnginePart")
+			if enginePart then
+				local fire = enginePart:FindFirstChildOfClass("Fire")
+				if fire then
+					table.insert(fires, fire)
+				end
 			end
 		end
 	end
@@ -522,26 +528,34 @@ end
 -- RAMP SYSTEM - PRIVATE FUNCTIONS
 -- ============================================================================
 
--- Find ShipRamp model in ship
+-- Find ShipRamp model in ship (in RampSystem)
 local function GetShipRamp(ship)
 	if not ship then return nil end
-	return ship:FindFirstChild("ShipRamp")
+	local rampSystem = ship:FindFirstChild("RampSystem")
+	if rampSystem then
+		return rampSystem:FindFirstChild("ShipRamp")
+	end
+	return ship:FindFirstChild("ShipRamp", true)
 end
 
--- Find RampTrigger part in ship
+-- Find RampTrigger part in ship (in RampSystem)
 local function GetRampTrigger(ship)
 	if not ship then return nil end
-	return ship:FindFirstChild("RampTrigger")
+	local rampSystem = ship:FindFirstChild("RampSystem")
+	if rampSystem then
+		return rampSystem:FindFirstChild("RampTrigger")
+	end
+	return ship:FindFirstChild("RampTrigger", true)
 end
 
--- Find RearShipExit in ship (inside ShipParts)
+-- Find RearShipExit in ship (in RampSystem)
 local function GetRearShipExit(ship)
 	if not ship then return nil end
-	local shipParts = ship:FindFirstChild("ShipParts")
-	if shipParts then
-		return shipParts:FindFirstChild("RearShipExit")
+	local rampSystem = ship:FindFirstChild("RampSystem")
+	if rampSystem then
+		return rampSystem:FindFirstChild("RearShipExit")
 	end
-	return ship:FindFirstChild("RearShipExit")
+	return ship:FindFirstChild("RearShipExit", true)
 end
 
 -- Set RearShipExit collision state
