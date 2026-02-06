@@ -22,8 +22,10 @@ flowchart TB
 
             subgraph SeatUI["SeatUI/"]
                 PUI[PilotUI.lua]
-                SSUI[SurfaceScannerUI.lua]
-                DSUI[DeepSpaceScannerUI.lua]
+                EUI[EnginesUI.lua]
+                PLUI[PlanetLocatorUI.lua]
+                PCUI[PersonalComputerUI.lua]
+                PSSUI[PlanetSurfaceScannerUI.lua]
             end
         end
 
@@ -59,12 +61,12 @@ StarterPlayer/
     │   ├── StatusBarUI.lua
     │   ├── SeatUIManager.lua
     │   ├── TransitionUI.lua      ← NEW: Transition animations
-    │   └── SeatUI/               ← Per-seat UI modules
+    │   └── SeatUI/               ← Per-seat UI modules (retro CRT terminals)
     │       ├── PilotUI.lua
-    │       ├── SurfaceScannerUI.lua
-    │       ├── DeepSpaceScannerUI.lua
-    │       ├── SystemsConsoleUI.lua
-    │       └── PersonalTerminalUI.lua
+    │       ├── EnginesUI.lua             ← IBM PC EGA theme
+    │       ├── PlanetLocatorUI.lua       ← ZX Spectrum theme
+    │       ├── PersonalComputerUI.lua    ← Apple II theme
+    │       └── PlanetSurfaceScannerUI.lua ← Atari 800 theme
     └── Systems/                  ← Client-side game systems (future)
 ```
 
@@ -138,23 +140,44 @@ StarterPlayer/
 
 **Purpose:** Individual UI modules for each ship seat.
 
+All seat terminals share a common **CRT monitor pattern**: CanvasGroup bezel (540x504) centered on screen, inner Frame as screen area, CRT power-on/off animation via `GroupTransparency`, power LED, and terminal ID label.
+
 ### PilotUI.lua (v0.5)
 - Context-aware UI (Orbit/Surface)
 - Landing menu with available locations (on Orbit)
 - Liftoff button (on Surface)
 - DisplayName localization for locations
 
-### SurfaceScannerUI.lua (v0.1)
-- Placeholder for surface scanning UI
+### EnginesUI.lua (v0.3) — IBM PC EGA
+- Retro IBM PC EGA 16-color CRT terminal (Font: RobotoMono)
+- Energy bar with color-coded status (green/brown/red)
+- Engine status (ONLINE/STANDBY)
+- Power consumption table from SpaceShipConfig
+- Context: Orbit=full panel, Surface=standby mode
+- Terminal ID: KM-DV/01
 
-### DeepSpaceScannerUI.lua (v0.1)
-- Placeholder for deep space scanning UI
+### PlanetLocatorUI.lua (v0.3) — ZX Spectrum
+- Retro ZX Spectrum Sinclair 8-color CRT terminal (Font: Code)
+- Planet list with status badges (ПОТОЧНА/ВIДКРИТА/ЗАКРИТА)
+- Current planet info, travel cost from SpaceShipConfig
+- Context: Orbit=full list, Surface=limited access message
+- Terminal ID: KM-NV/01
 
-### SystemsConsoleUI.lua (v0.1)
-- Placeholder for ship systems management UI
+### PersonalComputerUI.lua (v0.3) — Apple II
+- Retro Apple II green phosphor monochrome CRT terminal (Font: Code)
+- Operator profile (DisplayName), ship info (GameConfig.ShipName)
+- Knowledge base stats (planets, locations, relics, scans)
+- Hull/shield mini-bars from SpaceShipConfig
+- Context badge (ОРБIТА/ПОВЕРХНЯ)
+- Terminal ID: KM-OP/01
 
-### PersonalTerminalUI.lua (v0.1)
-- Placeholder for personal terminal UI
+### PlanetSurfaceScannerUI.lua (v0.2) — Atari 800
+- Retro Atari 800 warm color CRT terminal (Font: RobotoMono)
+- Scan button with hover effects, progress bar
+- Discovered locations ScrollingFrame
+- RemoteEvents: RequestScan, ScanProgress, ScanComplete
+- Context: Orbit=active scanner, Surface=unavailable
+- Terminal ID: KM-SK/01
 
 ---
 
@@ -428,6 +451,7 @@ sequenceDiagram
 
 ## Version History
 
+- **v0.8 (2026-02-06):** Updated SeatUI section with retro CRT terminals (EnginesUI, PlanetLocatorUI, PersonalComputerUI, PlanetSurfaceScannerUI)
 - **v0.7 (2026-01-14):** Added TransitionUI, updated PilotUI with context detection
 - **v0.6 (2026-01-13):** Added SeatUI modules, CameraController, SeatController
 - **v0.2 (2026-01-11):** Reorganized into Core/UI folders for Script Sync

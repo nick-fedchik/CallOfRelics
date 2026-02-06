@@ -1,10 +1,11 @@
 # Knowledge Base - Call of Relics
 > База знань успішних рішень, ефективних алгоритмів та перевірених практик
 
-**Версія**: 0.5
-**Остання оновлення**: 2026-01-21
+**Версія**: 0.6
+**Остання оновлення**: 2026-02-06
 
 **Changelog:**
+- 0.6: Added Retro CRT Monitor Pattern, updated Seat Control table (2026-02-06)
 - 0.5: Mermaid diagrams for all documentation (2026-01-21)
 - 0.4: Added Mermaid diagrams, Transition System docs (2026-01-20)
 
@@ -475,6 +476,60 @@ Stage 4:  [GAME NAME] + [AVATAR + PLAYER NAME] + [READY BUTTON]
 ```
 
 **Файл**: [ScreenSaverUI.lua v0.4](../StarterPlayer/StarterPlayerScripts/UI/ScreenSaverUI.lua)
+
+---
+
+### ✅ Retro CRT Monitor Pattern (SeatUI)
+
+**Задача**: Кожен термінал корабля має виглядати як ретро комп'ютер 80-х років (наратив гри).
+
+**Рішення**: CanvasGroup як CRT-монітор з power-on/off анімацією.
+
+**Структура**:
+```
+CanvasGroup (bezel, 540x504)        ← CRT корпус
+├── UICorner (cornerOuter: 16)
+├── UIStroke (border)
+├── Frame (Power LED, 6x6)
+├── TextLabel (Terminal ID, e.g. KM-DV/01)
+└── Frame (Screen)                  ← CRT екран
+    ├── UICorner (cornerInner: 8)
+    ├── UIStroke (screen border)
+    └── [Content elements...]
+```
+
+**CRT Power-On** (при Show):
+```lua
+mainFrame.GroupTransparency = 1
+TweenService:Create(mainFrame,
+    TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+    {GroupTransparency = 0}
+):Play()
+```
+
+**CRT Power-Off** (при Hide):
+```lua
+TweenService:Create(mainFrame,
+    TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+    {GroupTransparency = 1}
+):Play()
+task.delay(0.12, function()
+    if screenGui then screenGui.Enabled = false end
+end)
+```
+
+**Ретро теми** (кожен термінал — унікальна палітра):
+
+| Термінал | Тема | Шрифт | Головний колір |
+|----------|------|-------|----------------|
+| EnginesUI | IBM PC EGA | RobotoMono | Cyan на dark blue |
+| PlanetLocatorUI | ZX Spectrum | Code | White/Cyan на black |
+| PersonalComputerUI | Apple II | Code | Green phosphor |
+| PlanetSurfaceScannerUI | Atari 800 | RobotoMono | Gold/Orange на purple |
+
+**Ключовий інсайт**: `CanvasGroup.GroupTransparency` — єдиний спосіб анімувати прозорість ВСІХ дочірніх елементів одночасно (Frame не має цієї властивості).
+
+**Шрифти**: В Roblox тільки 2 моноширінних шрифти з підтримкою кирилиці: `Enum.Font.Code` (Source Code Pro) та `Enum.Font.RobotoMono`. `Enum.Font.Arcade` НЕ підтримує кирилицю.
 
 ---
 
@@ -1553,13 +1608,13 @@ profile = {
 
 ### 5 Сидінь на Кораблі
 
-| Seat Name | Type | Display Name | UI Module | Функціонал |
-|-----------|------|--------------|-----------|------------|
-| PilotSeat | VehicleSeat | Пілотське крісло | PilotUI | Керування кораблем |
-| SurfaceScannerSeat | Seat | Сканер поверхні | SurfaceScannerUI | Сканування поверхні планети |
-| DeepSpaceScannerSeat | Seat | Сканер глибокого космосу | DeepSpaceScannerUI | Сканування далекого космосу |
-| SystemsConsoleSeat | Seat | Консоль систем | SystemsConsoleUI | Керування щитами, енергією, життєзабезпеченням |
-| PersonalTerminalSeat | Seat | Особистий термінал | PersonalTerminalUI | Інвентар, журнал, місії |
+| Seat Name | Type | Display Name | UI Module | Ретро тема | Функціонал |
+|-----------|------|--------------|-----------|------------|------------|
+| PilotSeat | VehicleSeat | Пілотське крісло | PilotUI | — | Керування кораблем |
+| Seat Engines | Seat | Двигуни | EnginesUI (v0.3) | IBM PC EGA | Енергія, стан двигунів, витрати |
+| Seat Planet Locator | Seat | Локатор планет | PlanetLocatorUI (v0.3) | ZX Spectrum | Планети, навігація |
+| Seat Personal Computer | Seat | Персональний комп'ютер | PersonalComputerUI (v0.3) | Apple II | Профіль, база знань, стан корабля |
+| Seat Planet Surface Scanner | Seat | Сканер поверхні | PlanetSurfaceScannerUI (v0.2) | Atari 800 | Сканування поверхні планети |
 
 ### Архітектура
 
@@ -1591,12 +1646,12 @@ Player stands up → reverse flow, UI hidden
 - `StarterPlayer/StarterPlayerScripts/Core/SeatController.client.lua` - детекція сидінь
 - `StarterPlayer/StarterPlayerScripts/UI/SeatUIManager.lua` - менеджер UI
 
-#### UI Modules
+#### UI Modules (Retro CRT Terminals)
 - `StarterPlayer/StarterPlayerScripts/UI/SeatUI/PilotUI.lua`
-- `StarterPlayer/StarterPlayerScripts/UI/SeatUI/SurfaceScannerUI.lua`
-- `StarterPlayer/StarterPlayerScripts/UI/SeatUI/DeepSpaceScannerUI.lua`
-- `StarterPlayer/StarterPlayerScripts/UI/SeatUI/SystemsConsoleUI.lua`
-- `StarterPlayer/StarterPlayerScripts/UI/SeatUI/PersonalTerminalUI.lua`
+- `StarterPlayer/StarterPlayerScripts/UI/SeatUI/EnginesUI.lua` — IBM PC EGA
+- `StarterPlayer/StarterPlayerScripts/UI/SeatUI/PlanetLocatorUI.lua` — ZX Spectrum
+- `StarterPlayer/StarterPlayerScripts/UI/SeatUI/PersonalComputerUI.lua` — Apple II
+- `StarterPlayer/StarterPlayerScripts/UI/SeatUI/PlanetSurfaceScannerUI.lua` — Atari 800
 
 ### RemoteEvents
 

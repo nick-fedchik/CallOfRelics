@@ -4,6 +4,48 @@
 
 ---
 
+## [0.18.0] - 2026-02-06 - Retro 80s CRT Terminal Redesign
+
+### Added - Retro CRT Seat UI Terminals
+
+- **EnginesUI v0.3** — IBM PC EGA 16-color CRT terminal
+  - Energy bar, engine status (ONLINE/STANDBY), power consumption table
+  - Font: RobotoMono, Terminal ID: KM-DV/01
+
+- **PlanetLocatorUI v0.3** — ZX Spectrum Sinclair 8-color CRT terminal
+  - Planet list with status badges, travel cost display
+  - Font: Code, Terminal ID: KM-NV/01
+
+- **PersonalComputerUI v0.3** — Apple II green phosphor CRT terminal
+  - Operator profile, knowledge base stats, hull/shield bars
+  - Font: Code, Terminal ID: KM-OP/01
+
+- **PlanetSurfaceScannerUI v0.2** — Atari 800 warm palette CRT terminal
+  - Scan button, progress bar, discovered locations list
+  - RemoteEvents: RequestScan, ScanProgress, ScanComplete
+  - Font: RobotoMono, Terminal ID: KM-SK/01
+
+### Changed - CRT Monitor Pattern
+
+- All seat UIs use **CanvasGroup** bezel (540x504) centered on screen
+- CRT power-on/off animation via `GroupTransparency` (0.15s on, 0.12s off)
+- Power LED indicator and terminal ID on bezel
+- Context-aware: different content for Orbit vs Surface
+
+### Added - Server Infrastructure
+
+- **DebugLogger v1.1** — MCP-accessible logging with `print`/`warn` hooking
+- Updated SpaceShipService v0.10 — new RampSystem hierarchy paths
+- Updated TransitionService — new ship structure paths
+- Updated ServerBootstrap v0.3 — DebugLogger integration
+
+### Changed - Documentation
+
+- **KB.md v0.6** — Added Retro CRT Monitor Pattern, updated seat table
+- **README_GUI_DEV.md v0.8** — Updated SeatUI section with actual modules
+
+---
+
 ## [0.17.0] - 2026-01-24 - Location Zone Geometry & MCP Integration
 
 ### Fixed - Location_1 Zone Geometry
