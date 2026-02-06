@@ -198,7 +198,9 @@ local function UpdateLocationsList()
 
 	if #availableLocations == 0 then
 		statusLabel.Text = "Немає доступних локацій\nПроскануйте поверхню планети"
+		statusLabel.Visible = true
 		locationsContainer.Visible = false
+		mainFrame.Size = UDim2.new(0, 320, 0, 110)
 		return
 	end
 

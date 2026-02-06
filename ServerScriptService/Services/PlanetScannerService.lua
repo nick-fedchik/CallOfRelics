@@ -317,10 +317,8 @@ local function PerformScan(player)
 		if player.Parent and activeScans[player] then
 			local scanData = activeScans[player]
 
-			-- Increment scan count (wear) in ProfileService
-			ProfileService.IncrementScannerWear(player)
-
 			-- Try to discover each location based on its visibility
+			-- NOTE: Wear is incremented AFTER discovery check so guaranteedFirstScan works
 			-- Shuffle locations to randomize discovery order
 			local shuffledLocations = {}
 			for _, loc in ipairs(scanData.discoverable) do
@@ -341,6 +339,9 @@ local function PerformScan(player)
 					break
 				end
 			end
+
+			-- Increment scan count (wear) AFTER discovery check
+			ProfileService.IncrementScannerWear(player)
 
 			-- Update last scan time
 			lastScanTime[player] = os.clock()

@@ -67,12 +67,13 @@ ChangeLog:
 - 0.3: GDD compliance - save on PilotSeat sit, knowledge saved immediately (2026-01-15)
 - 0.4: Send displayName instead of ID for planet/location in ProfileUpdate (2026-01-15)
 - 0.5: Scanner state persistence (battery, wear) in shipState.modules.scanner (2026-01-16)
+- 0.6: v3 schema migration — remove debug Location_1/Location1 from exploredLocations (2026-02-06)
 ================================================================================
 ]]
 
 local ProfileService = {}
 
-local VERSION = "0.5"
+local VERSION = "0.6"
 local MODULE_NAME = "ProfileService"
 
 -- ============================================================================
@@ -91,7 +92,7 @@ local Players = game:GetService("Players")
 local GameConfig = require(ReplicatedStorage:WaitForChild("Game"):WaitForChild("GameConfig"))
 
 local DATASTORE_NAME = "PlayerProfiles"
-local PROFILE_VERSION = 2
+local PROFILE_VERSION = 3
 local MAX_RETRIES = 3
 local RETRY_DELAY = 1 -- seconds (will use exponential backoff)
 
@@ -203,7 +204,6 @@ local function CreateDefaultProfile(player)
 		exploredLocations = {
 			[GameConfig.StartPlanet] = {
 				["Orbit"] = { discoveredAt = timestamp, visitCount = 1 },
-				["Location_1"] = { discoveredAt = timestamp, visitCount = 0 } -- Debug default
 			}
 		},
 		visitHistory = {},
@@ -261,11 +261,10 @@ local function MigrateProfile(profileData)
 			end
 			profileData.exploredLocations = newLocations
 		elseif type(oldLocations) == "table" and next(oldLocations) == nil then
-			-- Empty table, initialize with defaults
+			-- Empty table, initialize with defaults (only Orbit known)
 			profileData.exploredLocations = {
 				[planetId] = {
 					["Orbit"] = { discoveredAt = timestamp, visitCount = 1 },
-					["Location_1"] = { discoveredAt = timestamp, visitCount = 0 }
 				}
 			}
 		end
@@ -321,6 +320,22 @@ local function MigrateProfile(profileData)
 		profileData.knowledge = profileData.knowledge or {}
 
 		profileData.profileVersion = 2
+	end
+
+	-- v2 → v3: Remove debug-default locations from exploredLocations
+	-- Old defaults incorrectly pre-added Location_1/Location1 as discovered
+	if currentVersion < 3 then
+		local debugLocations = { "Location_1", "Location1" }
+
+		for _, planetLocs in pairs(profileData.exploredLocations or {}) do
+			for _, debugLoc in ipairs(debugLocations) do
+				if planetLocs[debugLoc] then
+					planetLocs[debugLoc] = nil
+				end
+			end
+		end
+
+		profileData.profileVersion = 3
 	end
 
 	return profileData
