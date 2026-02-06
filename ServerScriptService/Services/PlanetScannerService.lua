@@ -275,6 +275,9 @@ local function PerformScan(player)
 	local planetId = GetCurrentPlanetId(player)
 	local discoverable = GetDiscoverableLocations(player, planetId)
 
+	print(string.format("[%s] Scan request: player=%s, planet=%s, discoverable=%d, scanCount=%d",
+		MODULE_NAME, player.Name, planetId, #discoverable, state.scanCount or 0))
+
 	if #discoverable == 0 then
 		return false, "Всі локації вже відкриті"
 	end
@@ -339,6 +342,9 @@ local function PerformScan(player)
 					break
 				end
 			end
+
+			print(string.format("[%s] Scan result: player=%s, discovered=%s",
+				MODULE_NAME, player.Name, discovered and discovered.displayName or "NONE"))
 
 			-- Increment scan count (wear) AFTER discovery check
 			ProfileService.IncrementScannerWear(player)

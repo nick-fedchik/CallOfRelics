@@ -116,6 +116,12 @@ local currentContext = nil
 local mainFrame = nil
 local contextLabel = nil
 
+-- Dynamic stat labels (updated from profile)
+local statLocations = nil
+local statScans = nil
+local statPlanets = nil
+local statRelics = nil
+
 -- ============================================================================
 -- PRIVATE FUNCTIONS
 -- ============================================================================
@@ -155,6 +161,7 @@ local function CreateStatRow(parent, label, value, yPos)
 	lbl.Parent = row
 
 	local val = Instance.new("TextLabel")
+	val.Name = "Value"
 	val.Size = UDim2.new(0.35, 0, 1, 0)
 	val.Position = UDim2.new(0.63, 0, 0, 0)
 	val.BackgroundTransparency = 1
@@ -164,6 +171,8 @@ local function CreateStatRow(parent, label, value, yPos)
 	val.Font = Enum.Font.Code
 	val.TextXAlignment = Enum.TextXAlignment.Right
 	val.Parent = row
+
+	return val
 end
 
 local function CreateMiniBar(parent, label, ratio, yPos)
@@ -224,6 +233,20 @@ local function UpdateContext()
 	else
 		contextLabel.Text = "ПОВЕРХНЯ"
 	end
+end
+
+local function UpdateStats(profileData)
+	if not profileData then return end
+
+	local scanCount = 0
+	if profileData.shipState and profileData.shipState.modules and profileData.shipState.modules.scanner then
+		scanCount = profileData.shipState.modules.scanner.scanCount or 0
+	end
+
+	if statPlanets then statPlanets.Text = tostring(profileData.discoveredPlanetsCount or 1) end
+	if statLocations then statLocations.Text = tostring(profileData.exploredCount or 0) end
+	if statRelics then statRelics.Text = tostring(profileData.stats and profileData.stats.knowledgeDiscovered or 0) end
+	if statScans then statScans.Text = tostring(scanCount) end
 end
 
 local function CreateUI()
@@ -384,10 +407,10 @@ local function CreateUI()
 	knowledgeTitle.TextXAlignment = Enum.TextXAlignment.Left
 	knowledgeTitle.Parent = screen
 
-	CreateStatRow(screen, "Планети вiдкритi", "1 / 3", 122)
-	CreateStatRow(screen, "Локацii дослiдженi", "0 / 5", 150)
-	CreateStatRow(screen, "Релiквii знайденi", "0", 178)
-	CreateStatRow(screen, "Сканувань проведено", "0", 206)
+	statPlanets = CreateStatRow(screen, "Планети вiдкритi", "...", 122)
+	statLocations = CreateStatRow(screen, "Локацii дослiдженi", "...", 150)
+	statRelics = CreateStatRow(screen, "Релiквii знайденi", "...", 178)
+	statScans = CreateStatRow(screen, "Сканувань проведено", "...", 206)
 
 	CreateDivider(screen, 238)
 
@@ -454,6 +477,19 @@ function PersonalComputerUI.Initialize()
 	screenGui.Parent = playerGui
 	screenGui.Enabled = false
 
+	-- Listen for profile updates from server
+	local remoteEvents = ReplicatedStorage:WaitForChild("RemoteEvents", 10)
+	if remoteEvents then
+		local profileUpdate = remoteEvents:FindFirstChild("ProfileUpdate")
+		if profileUpdate then
+			profileUpdate.OnClientEvent:Connect(function(data)
+				if data and data.type == "fullSync" and data.profile then
+					UpdateStats(data.profile)
+				end
+			end)
+		end
+	end
+
 	isInitialized = true
 	print(string.format("[%s %s] Initialized", MODULE_NAME, VERSION))
 	return true
@@ -470,6 +506,15 @@ function PersonalComputerUI.Show()
 	end
 
 	UpdateContext()
+
+	-- Request fresh profile data from server
+	local remoteEvents = ReplicatedStorage:FindFirstChild("RemoteEvents")
+	if remoteEvents then
+		local requestSync = remoteEvents:FindFirstChild("RequestProfileSync")
+		if requestSync then
+			requestSync:FireServer()
+		end
+	end
 
 	-- CRT Power On
 	mainFrame.GroupTransparency = 1

@@ -92,7 +92,7 @@ local Players = game:GetService("Players")
 local GameConfig = require(ReplicatedStorage:WaitForChild("Game"):WaitForChild("GameConfig"))
 
 local DATASTORE_NAME = "PlayerProfiles"
-local PROFILE_VERSION = 3
+local PROFILE_VERSION = 4
 local MAX_RETRIES = 3
 local RETRY_DELAY = 1 -- seconds (will use exponential backoff)
 
@@ -322,8 +322,9 @@ local function MigrateProfile(profileData)
 		profileData.profileVersion = 2
 	end
 
-	-- v2 → v3: Remove debug-default locations from exploredLocations
+	-- v2 → v3: Clean slate — remove debug locations, reset scanner
 	-- Old defaults incorrectly pre-added Location_1/Location1 as discovered
+	-- Scanner battery/wear may be depleted from debug testing
 	if currentVersion < 3 then
 		local debugLocations = { "Location_1", "Location1" }
 
@@ -335,7 +336,27 @@ local function MigrateProfile(profileData)
 			end
 		end
 
+		-- Reset scanner to fresh state (battery full, no wear)
+		if profileData.shipState and profileData.shipState.modules then
+			profileData.shipState.modules.scanner = {
+				batteryCharge = 500,
+				scanCount = 0,
+			}
+		end
+
 		profileData.profileVersion = 3
+	end
+
+	-- v3 → v4: Reset scanner to fresh state after debug testing
+	if currentVersion < 4 then
+		if profileData.shipState and profileData.shipState.modules then
+			profileData.shipState.modules.scanner = {
+				batteryCharge = 500,
+				scanCount = 0,
+			}
+		end
+
+		profileData.profileVersion = 4
 	end
 
 	return profileData
@@ -409,6 +430,21 @@ function ProfileService.Initialize()
 							local planetDisplayName = GetPlanetDisplayName(profile.currentPlanet)
 							local locationDisplayName = GetLocationDisplayName(profile.currentPlanet, profile.currentLocation)
 
+							-- Count explored locations (exclude Orbit)
+							local exploredCount = 0
+							for _, planetLocs in pairs(profile.exploredLocations or {}) do
+								for locId, _ in pairs(planetLocs) do
+									if locId ~= "Orbit" then
+										exploredCount += 1
+									end
+								end
+							end
+
+							local discoveredPlanetsCount = 0
+							for _ in pairs(profile.discoveredPlanets or {}) do
+								discoveredPlanetsCount += 1
+							end
+
 							profileUpdate:FireClient(player, {
 								type = "fullSync",
 								profile = {
@@ -417,7 +453,9 @@ function ProfileService.Initialize()
 									resources = profile.resources,
 									knowledge = profile.knowledge,
 									stats = profile.stats,
-									shipState = profile.shipState
+									shipState = profile.shipState,
+									exploredCount = exploredCount,
+									discoveredPlanetsCount = discoveredPlanetsCount,
 								}
 							})
 						end

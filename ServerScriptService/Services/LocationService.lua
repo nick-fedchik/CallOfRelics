@@ -122,6 +122,9 @@ local function IsPlayerCharacter(model)
 end
 
 local function ClearWorkspaceObjects()
+	-- Clear generated terrain (procedural terrain from TerrainGenerator)
+	Workspace.Terrain:Clear()
+
 	-- Clear workspace (keep Terrain, Camera, SpaceShip, Player Characters)
 	for _, child in ipairs(Workspace:GetChildren()) do
 		if child:IsA("Model") or child:IsA("Part") or child:IsA("Folder") then

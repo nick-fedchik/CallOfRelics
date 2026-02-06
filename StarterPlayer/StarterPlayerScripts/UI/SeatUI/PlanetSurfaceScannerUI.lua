@@ -129,7 +129,8 @@ local scanButton = nil
 local progressFrame = nil
 local progressBar = nil
 local progressLabel = nil
-local discoveredTitle = nil
+local spinnerLabel = nil
+local spinnerConnection = nil
 local discoveredContainer = nil
 local discoveredItems = {}
 local contextMsg = nil
@@ -221,6 +222,29 @@ local function UpdateDiscoveredList(locations)
 	end
 end
 
+local SPINNER_FRAMES = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }
+
+local function StartSpinner()
+	if spinnerConnection then return end
+	local frameIndex = 1
+	spinnerConnection = game:GetService("RunService").Heartbeat:Connect(function()
+		frameIndex = (frameIndex % #SPINNER_FRAMES) + 1
+		if spinnerLabel then
+			spinnerLabel.Text = SPINNER_FRAMES[frameIndex]
+		end
+	end)
+end
+
+local function StopSpinner()
+	if spinnerConnection then
+		spinnerConnection:Disconnect()
+		spinnerConnection = nil
+	end
+	if spinnerLabel then
+		spinnerLabel.Text = ""
+	end
+end
+
 local function SetScanningState(scanning)
 	isScanning = scanning
 
@@ -230,9 +254,11 @@ local function SetScanningState(scanning)
 		statusLabel.Text = "СКАНУВАННЯ..."
 		statusLabel.TextColor3 = COLORS.scanActive
 		if statusDot then statusDot.BackgroundColor3 = COLORS.scanActive end
+		StartSpinner()
 	else
 		scanButton.Visible = true
 		progressFrame.Visible = false
+		StopSpinner()
 	end
 end
 
@@ -521,15 +547,28 @@ local function CreateUI()
 	progressFillCorner.CornerRadius = UDim.new(0, 4)
 	progressFillCorner.Parent = progressFill
 
-	-- Progress label
+	-- Spinner label (left side of progress area)
+	local spinner = Instance.new("TextLabel")
+	spinner.Size = UDim2.new(0, 24, 0, 16)
+	spinner.Position = UDim2.new(0, 10, 0, 24)
+	spinner.BackgroundTransparency = 1
+	spinner.Text = ""
+	spinner.TextColor3 = COLORS.scanActive
+	spinner.TextSize = 14
+	spinner.Font = Enum.Font.RobotoMono
+	spinner.Parent = progress
+	spinnerLabel = spinner
+
+	-- Progress label (right of spinner)
 	local progressText = Instance.new("TextLabel")
-	progressText.Size = UDim2.new(1, -20, 0, 16)
-	progressText.Position = UDim2.new(0, 10, 0, 24)
+	progressText.Size = UDim2.new(1, -44, 0, 16)
+	progressText.Position = UDim2.new(0, 34, 0, 24)
 	progressText.BackgroundTransparency = 1
 	progressText.Text = "0%"
 	progressText.TextColor3 = COLORS.text
 	progressText.TextSize = 12
 	progressText.Font = Enum.Font.RobotoMono
+	progressText.TextXAlignment = Enum.TextXAlignment.Left
 	progressText.Parent = progress
 	progressLabel = progressText
 
@@ -584,16 +623,17 @@ local function SetupRemoteEvents()
 	end
 
 	if scanComplete then
-		scanComplete.OnClientEvent:Connect(function(success, discoveredLocations, message)
+		scanComplete.OnClientEvent:Connect(function(success, resultData, message)
 			SetScanningState(false)
 
 			if success then
-				statusLabel.Text = "ЗАВЕРШЕНО"
+				statusLabel.Text = "ЗНАЙДЕНО"
 				statusLabel.TextColor3 = COLORS.successGreen
 				if statusDot then statusDot.BackgroundColor3 = COLORS.successGreen end
 
-				if discoveredLocations then
-					UpdateDiscoveredList(discoveredLocations)
+				-- Parse discovered list from resultData
+				if resultData and resultData.discovered then
+					UpdateDiscoveredList(resultData.discovered)
 				end
 			else
 				statusLabel.Text = "ПОРОЖНЬО"
@@ -601,11 +641,20 @@ local function SetupRemoteEvents()
 				if statusDot then statusDot.BackgroundColor3 = COLORS.warnYellow end
 			end
 
-			task.delay(3, function()
+			-- Show server message in scan status area
+			if message and progressLabel then
+				progressFrame.Visible = true
+				progressBar.Size = UDim2.new(0, 0, 1, 0)
+				progressLabel.Text = message
+				progressLabel.TextColor3 = success and COLORS.successGreen or COLORS.warnYellow
+			end
+
+			task.delay(5, function()
 				if statusLabel and not isScanning then
 					statusLabel.Text = "ГОТОВИЙ"
 					statusLabel.TextColor3 = COLORS.scanReady
 					if statusDot then statusDot.BackgroundColor3 = COLORS.scanReady end
+					if progressFrame then progressFrame.Visible = false end
 				end
 			end)
 		end)
