@@ -131,7 +131,7 @@ local progressBar = nil
 local progressLabel = nil
 local spinnerLabel = nil
 local spinnerConnection = nil
-local discoveredContainer = nil
+local discoveredContainer: ScrollingFrame? = nil
 local discoveredItems = {}
 local contextMsg = nil
 local orbitContent = nil
@@ -165,9 +165,9 @@ local function ClearDiscoveredItems()
 	discoveredItems = {}
 end
 
-local function CreateDiscoveredItem(location, index)
+local function CreateDiscoveredItem(location, index: number)
 	local item = Instance.new("Frame")
-	item.Name = "Discovered_" .. (location.id or index)
+	item.Name = "Discovered_" .. (location.id or tostring(index))
 	item.Size = UDim2.new(1, -32, 0, 30)
 	item.Position = UDim2.new(0, 16, 0, (index - 1) * 35)
 	item.BackgroundColor3 = COLORS.rowBg
@@ -214,7 +214,9 @@ local function UpdateDiscoveredList(locations)
 	end
 
 	local containerHeight = #locations * 35
-	discoveredContainer.Size = UDim2.new(1, 0, 0, containerHeight)
+	if discoveredContainer then
+		discoveredContainer.Size = UDim2.new(1, 0, 0, containerHeight)
+	end
 
 	for i, location in ipairs(locations) do
 		local item = CreateDiscoveredItem(location, i)
@@ -262,7 +264,7 @@ local function SetScanningState(scanning)
 	end
 end
 
-local function UpdateProgress(progress, message)
+local function UpdateProgress(progress: number, message)
 	if progressBar then
 		TweenService:Create(progressBar, TweenInfo.new(0.2), {
 			Size = UDim2.new(progress, 0, 1, 0)
@@ -585,7 +587,6 @@ local function CreateUI()
 	dTitle.Font = Enum.Font.RobotoMono
 	dTitle.TextXAlignment = Enum.TextXAlignment.Left
 	dTitle.Parent = oContent
-	discoveredTitle = dTitle
 
 	-- Discovered container
 	local discovered = Instance.new("ScrollingFrame")

@@ -420,6 +420,55 @@ local function CreateBuilding()
 	MP("DomeSpire", Vector3.new(1.5, mainSpireH, 1.5),
 		Vector3.new(cx, domeTopY + mainSpireH / 2, cz), C_NEON, Enum.Material.Neon)
 
+	-- ======= DOME INTERIOR SYMBOLS (mysterious alien glyphs) =======
+	local DOME_GLYPHS = {
+		"ᚠ", "ᚢ", "ᚦ", "ᚨ", "ᚱ", "ᚲ", "ᚷ", "ᚾ", "ᛁ", "ᛈ",
+		"ᛉ", "ᛊ", "ᛏ", "ᛖ", "ᛗ", "ᛚ", "ᛞ", "ᛟ", "◈", "⊕", "⬡", "△", "☉",
+	}
+	local C_GLYPH = Color3.fromRGB(240, 210, 100)
+	local domeSymbolLabels = {}
+	local numDomeSymbols = 12
+	local innerFactor = 0.82
+	local domeRx = domeSizeXZ / 2 * innerFactor
+	local domeRy = domeSizeY / 2 * innerFactor
+
+	for si = 1, numDomeSymbols do
+		local theta = math.rad(25 + rng:NextNumber(0, 50))
+		local phi = math.rad((si - 1) * (360 / numDomeSymbols) + rng:NextNumber(-10, 10))
+
+		local sx = domeRx * math.sin(theta) * math.cos(phi)
+		local sy = domeRy * math.cos(theta)
+		local sz = domeRx * math.sin(theta) * math.sin(phi)
+
+		local anchor = Instance.new("Part")
+		anchor.Name = "DomeGlyph_" .. si
+		anchor.Size = Vector3.new(0.1, 0.1, 0.1)
+		anchor.Position = Vector3.new(cx + sx, domeCenterY + sy, cz + sz)
+		anchor.Anchored = true
+		anchor.CanCollide = false
+		anchor.Transparency = 1
+		anchor.Parent = building
+
+		local billboard = Instance.new("BillboardGui")
+		billboard.Size = UDim2.new(0, 70, 0, 70)
+		billboard.AlwaysOnTop = false
+		billboard.MaxDistance = 80
+		billboard.LightInfluence = 0
+		billboard.Parent = anchor
+
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.new(1, 0, 1, 0)
+		label.BackgroundTransparency = 1
+		label.Text = DOME_GLYPHS[rng:NextInteger(1, #DOME_GLYPHS)]
+		label.TextColor3 = C_GLYPH
+		label.TextSize = 42
+		label.Font = Enum.Font.GothamBold
+		label.TextTransparency = 1
+		label.Parent = billboard
+
+		table.insert(domeSymbolLabels, label)
+	end
+
 	-- ======= CORNER TOWERS =======
 	local towerH = 36
 	local towerR = 5
@@ -489,6 +538,55 @@ local function CreateBuilding()
 	MP("PedestalNeon", Vector3.new(7, 0.3, 7),
 		Vector3.new(cx, floorY + 4.65, cz), C_NEON, Enum.Material.Neon)
 
+	-- ======= EXTERIOR WALL DECALS (alien cultural art) =======
+	local WALL_GLYPHS = {
+		"𐤀", "𐤁", "𐤂", "𐤃", "𐤄", "𐤅", "𐤆", "𐤇", -- Phoenician
+		"☬", "☸", "✡", "☥", "⚶", "⯅", "⬟", "⏣",     -- Sacred geometry
+		"𓁿", "𓂀", "𓃭", "𓆏", "𓇳", "𓊝",               -- Hieroglyphic style
+	}
+	local C_DECAL = Color3.fromRGB(160, 150, 130) -- Faded stone-carved look
+	local wallDecalPositions = {
+		-- Left wall (Z-) exterior
+		{ x = cx - innerW * 0.25, y = floorY + WH * 0.45, z = cz - halfD - 0.5 },
+		{ x = cx + innerW * 0.15, y = floorY + WH * 0.65, z = cz - halfD - 0.5 },
+		{ x = cx + innerW * 0.35, y = floorY + WH * 0.35, z = cz - halfD - 0.5 },
+		-- Right wall (Z+) exterior
+		{ x = cx - innerW * 0.30, y = floorY + WH * 0.55, z = cz + halfD + 0.5 },
+		{ x = cx + innerW * 0.10, y = floorY + WH * 0.40, z = cz + halfD + 0.5 },
+		{ x = cx + innerW * 0.30, y = floorY + WH * 0.70, z = cz + halfD + 0.5 },
+		-- Front wall (X-) exterior
+		{ x = cx - halfW - 0.5, y = floorY + WH * 0.60, z = cz - D * 0.20 },
+		{ x = cx - halfW - 0.5, y = floorY + WH * 0.40, z = cz + D * 0.25 },
+	}
+
+	for di, pos in ipairs(wallDecalPositions) do
+		local anchor = Instance.new("Part")
+		anchor.Name = "WallDecal_" .. di
+		anchor.Size = Vector3.new(0.1, 0.1, 0.1)
+		anchor.Position = Vector3.new(pos.x, pos.y, pos.z)
+		anchor.Anchored = true
+		anchor.CanCollide = false
+		anchor.Transparency = 1
+		anchor.Parent = building
+
+		local billboard = Instance.new("BillboardGui")
+		billboard.Size = UDim2.new(0, 90, 0, 90)
+		billboard.AlwaysOnTop = false
+		billboard.MaxDistance = 60
+		billboard.LightInfluence = 1
+		billboard.Parent = anchor
+
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.new(1, 0, 1, 0)
+		label.BackgroundTransparency = 1
+		label.Text = WALL_GLYPHS[rng:NextInteger(1, #WALL_GLYPHS)]
+		label.TextColor3 = C_DECAL
+		label.TextSize = 52
+		label.Font = Enum.Font.GothamBold
+		label.TextTransparency = 0.3
+		label.Parent = billboard
+	end
+
 	-- ======= ENTRANCE DOOR FRAMES (thin neon strips, same look from both sides) =======
 	local frameT = 0.5  -- frame strip thickness
 	for _, side in ipairs({
@@ -532,7 +630,7 @@ local function CreateBuilding()
 
 	print(string.format("[%s] Temple created at (%.0f, %.0f) — %d parts",
 		MODULE_NAME, cx, cz, #building:GetChildren()))
-	return building, doorData
+	return building, doorData, domeSymbolLabels
 end
 
 -- ============================================================================
@@ -590,7 +688,54 @@ local function SetupDoorSystem(building, doorData)
 end
 
 -- ============================================================================
--- STEP 6: FRACTAL TREES (cylindrical, turquoise-agate leaves)
+-- STEP 6: DOME SYMBOL ANIMATION
+-- ============================================================================
+
+local function SetupDomeSymbolAnimation(building, symbolLabels)
+	if not building or not symbolLabels or #symbolLabels == 0 then return end
+
+	task.spawn(function()
+		local animRng = Random.new(SEED + 99)
+
+		while building and building.Parent do
+			-- Pick 1-3 random symbols to animate
+			local count = animRng:NextInteger(1, 3)
+			for _ = 1, count do
+				local idx = animRng:NextInteger(1, #symbolLabels)
+				local label = symbolLabels[idx]
+				if not label or not label.Parent then continue end
+
+				-- Fade in
+				local targetTransparency = animRng:NextNumber(0.1, 0.4)
+				local fadeInTime = animRng:NextNumber(1.0, 2.5)
+				TweenService:Create(label,
+					TweenInfo.new(fadeInTime, Enum.EasingStyle.Sine, Enum.EasingDirection.Out),
+					{ TextTransparency = targetTransparency }
+				):Play()
+
+				-- Schedule fade out after hold time
+				local holdTime = animRng:NextNumber(2.0, 5.0)
+				local fadeOutTime = animRng:NextNumber(1.5, 3.0)
+				task.delay(fadeInTime + holdTime, function()
+					if label and label.Parent then
+						TweenService:Create(label,
+							TweenInfo.new(fadeOutTime, Enum.EasingStyle.Sine, Enum.EasingDirection.In),
+							{ TextTransparency = 1 }
+						):Play()
+					end
+				end)
+			end
+
+			-- Wait before next animation cycle
+			task.wait(animRng:NextNumber(3.0, 7.0))
+		end
+	end)
+
+	print(string.format("[%s] Dome symbol animation active (%d symbols)", MODULE_NAME, #symbolLabels))
+end
+
+-- ============================================================================
+-- STEP 7: FRACTAL TREES (cylindrical, turquoise-agate leaves)
 -- ============================================================================
 
 local function CreateFractalTree(rootPosition)
@@ -736,9 +881,10 @@ GenerateBarePatches()
 PickBuildingPosition()
 GenerateTerrain()
 task.wait()
-local building, doorData = CreateBuilding()
+local building, doorData, domeSymbolLabels = CreateBuilding()
 task.wait()
 SetupDoorSystem(building, doorData)
+SetupDomeSymbolAnimation(building, domeSymbolLabels)
 PlantTrees()
 
 print(string.format("[%s %s] Generation complete", MODULE_NAME, VERSION))

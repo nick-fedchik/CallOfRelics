@@ -206,7 +206,7 @@ function FastNoise.createSampler(noiseType: string, config: any?)
 	end
 	
 	if noiseModule.create then
-		return noiseModule.create(config or {})
+		return (noiseModule.create :: any)(config or {})
 	end
 	
 	-- For basic modules without create (Perlin, Value)
