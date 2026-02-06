@@ -420,6 +420,49 @@ local function CreateBuilding()
 	MP("DomeSpire", Vector3.new(1.5, mainSpireH, 1.5),
 		Vector3.new(cx, domeTopY + mainSpireH / 2, cz), C_NEON, Enum.Material.Neon)
 
+	-- ======= CAPACITOR SPHERES & ELECTRIC DISCHARGE =======
+	local C_CAPACITOR = Color3.fromRGB(80, 180, 255)
+	local dischargeBeams = {}
+
+	-- Central capacitor sphere (electromagnetic energy concentrator)
+	local centralCapSize = 6
+	local centralCapY = domeTopY + mainSpireH + centralCapSize / 2
+	local centralCap = Instance.new("Part")
+	centralCap.Name = "CentralCapacitor"
+	centralCap.Shape = Enum.PartType.Ball
+	centralCap.Size = Vector3.new(centralCapSize, centralCapSize, centralCapSize)
+	centralCap.Position = Vector3.new(cx, centralCapY, cz)
+	centralCap.Anchored = true
+	centralCap.CanCollide = false
+	centralCap.Color = C_CAPACITOR
+	centralCap.Material = Enum.Material.Neon
+	centralCap.Parent = building
+
+	local centralAttach = Instance.new("Attachment")
+	centralAttach.Parent = centralCap
+
+	-- Upward energy radiation (chaotic electromagnetic emission into space)
+	local emitter = Instance.new("ParticleEmitter")
+	emitter.Name = "EnergyRadiation"
+	emitter.Rate = 12
+	emitter.Lifetime = NumberRange.new(1.5, 3.0)
+	emitter.Speed = NumberRange.new(20, 45)
+	emitter.SpreadAngle = Vector2.new(12, 12)
+	emitter.Color = ColorSequence.new(C_CAPACITOR, Color3.fromRGB(200, 230, 255))
+	emitter.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.8),
+		NumberSequenceKeypoint.new(0.5, 1.5),
+		NumberSequenceKeypoint.new(1, 0.3),
+	})
+	emitter.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.2),
+		NumberSequenceKeypoint.new(0.6, 0.5),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	emitter.LightEmission = 1
+	emitter.LightInfluence = 0
+	emitter.Parent = centralCap
+
 	-- ======= DOME INTERIOR SYMBOLS (mysterious alien glyphs) =======
 	local DOME_GLYPHS = {
 		"ᚠ", "ᚢ", "ᚦ", "ᚨ", "ᚱ", "ᚲ", "ᚷ", "ᚾ", "ᛁ", "ᛈ",
@@ -512,6 +555,42 @@ local function CreateBuilding()
 		local towerDomeTopY = towerDomeCenterY + towerDomeSizeY / 2
 		MP("TowerSpire_" .. i, Vector3.new(1, towerSpireH, 1),
 			Vector3.new(pos[1], towerDomeTopY + towerSpireH / 2, pos[2]), C_NEON, Enum.Material.Neon)
+
+		-- Tower capacitor sphere
+		local towerCapSize = 4
+		local towerCapY = towerDomeTopY + towerSpireH + towerCapSize / 2
+		local towerCap = Instance.new("Part")
+		towerCap.Name = "TowerCapacitor_" .. i
+		towerCap.Shape = Enum.PartType.Ball
+		towerCap.Size = Vector3.new(towerCapSize, towerCapSize, towerCapSize)
+		towerCap.Position = Vector3.new(pos[1], towerCapY, pos[2])
+		towerCap.Anchored = true
+		towerCap.CanCollide = false
+		towerCap.Color = C_CAPACITOR
+		towerCap.Material = Enum.Material.Neon
+		towerCap.Parent = building
+
+		-- Electric discharge beam from tower to central capacitor
+		local towerAttach = Instance.new("Attachment")
+		towerAttach.Parent = towerCap
+
+		local beam = Instance.new("Beam")
+		beam.Name = "Discharge_" .. i
+		beam.Attachment0 = towerAttach
+		beam.Attachment1 = centralAttach
+		beam.Color = ColorSequence.new(C_CAPACITOR)
+		beam.Width0 = 0.8
+		beam.Width1 = 0.8
+		beam.Transparency = NumberSequence.new(0.5)
+		beam.CurveSize0 = rng:NextNumber(-4, 4)
+		beam.CurveSize1 = rng:NextNumber(-4, 4)
+		beam.Segments = 20
+		beam.FaceCamera = true
+		beam.LightEmission = 1
+		beam.LightInfluence = 0
+		beam.Parent = building
+
+		table.insert(dischargeBeams, beam)
 	end
 
 	-- ======= INTERIOR PILLARS (6 pillars — 2 rows x 3 columns) =======
@@ -630,7 +709,7 @@ local function CreateBuilding()
 
 	print(string.format("[%s] Temple created at (%.0f, %.0f) — %d parts",
 		MODULE_NAME, cx, cz, #building:GetChildren()))
-	return building, doorData, domeSymbolLabels
+	return building, doorData, domeSymbolLabels, dischargeBeams
 end
 
 -- ============================================================================
@@ -735,7 +814,52 @@ local function SetupDomeSymbolAnimation(building, symbolLabels)
 end
 
 -- ============================================================================
--- STEP 7: FRACTAL TREES (cylindrical, turquoise-agate leaves)
+-- STEP 7: ELECTRIC DISCHARGE ANIMATION
+-- ============================================================================
+
+local function SetupElectricDischarges(building, beams)
+	if not building or not beams or #beams == 0 then return end
+
+	task.spawn(function()
+		local arcRng = Random.new(SEED + 77)
+
+		while building and building.Parent do
+			for _, beam in ipairs(beams) do
+				if not beam or not beam.Parent then continue end
+
+				-- Randomize arc shape every tick
+				beam.CurveSize0 = arcRng:NextNumber(-5, 5)
+				beam.CurveSize1 = arcRng:NextNumber(-5, 5)
+
+				-- Random intensity pulse
+				local intensity = arcRng:NextNumber(0, 1)
+				if intensity > 0.7 then
+					-- Bright discharge
+					beam.Enabled = true
+					beam.Width0 = arcRng:NextNumber(0.8, 2.5)
+					beam.Width1 = arcRng:NextNumber(0.8, 2.5)
+					beam.Transparency = NumberSequence.new(arcRng:NextNumber(0, 0.3))
+				elseif intensity > 0.3 then
+					-- Dim arc
+					beam.Enabled = true
+					beam.Width0 = arcRng:NextNumber(0.2, 0.6)
+					beam.Width1 = arcRng:NextNumber(0.2, 0.6)
+					beam.Transparency = NumberSequence.new(arcRng:NextNumber(0.5, 0.8))
+				else
+					-- Momentarily off
+					beam.Enabled = false
+				end
+			end
+
+			task.wait(arcRng:NextNumber(0.05, 0.15))
+		end
+	end)
+
+	print(string.format("[%s] Electric discharge system active (%d beams)", MODULE_NAME, #beams))
+end
+
+-- ============================================================================
+-- STEP 8: FRACTAL TREES (cylindrical, turquoise-agate leaves)
 -- ============================================================================
 
 local function CreateFractalTree(rootPosition)
@@ -881,10 +1005,11 @@ GenerateBarePatches()
 PickBuildingPosition()
 GenerateTerrain()
 task.wait()
-local building, doorData, domeSymbolLabels = CreateBuilding()
+local building, doorData, domeSymbolLabels, dischargeBeams = CreateBuilding()
 task.wait()
 SetupDoorSystem(building, doorData)
 SetupDomeSymbolAnimation(building, domeSymbolLabels)
+SetupElectricDischarges(building, dischargeBeams)
 PlantTrees()
 
 print(string.format("[%s %s] Generation complete", MODULE_NAME, VERSION))
