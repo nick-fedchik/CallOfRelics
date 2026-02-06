@@ -5,22 +5,27 @@ KOSMICMAZER — PlanetSurfaceScannerUI
 
 Purpose:
 Planet surface scanning UI panel for "Seat Planet Surface Scanner".
+Retro Atari 800 CRT terminal style.
 Allows player to scan planet surface and discover new locations.
 
 Version:
-0.1
+0.2
 
 Features:
+- CRT monitor bezel with Atari 800 warm color palette
 - Scan button to start planet surface scan
 - Progress bar during scanning
 - List of discovered locations
 - Context-aware (only active on Orbit)
+- CRT power-on/off animation via CanvasGroup
 
 API:
 - Initialize() — Create UI elements
-- Show() — Display the UI
-- Hide() — Hide the UI
+- Show() — Display the UI with CRT power-on effect
+- Hide() — Hide the UI with CRT power-off effect
 - SetContext(context) — Set Orbit/Surface context
+- GetContext() — Get current context
+- UpdateDiscovered(locations) — Update discovered locations list
 
 Calls to:
 - TransitionConfig (ReplicatedStorage/Game)
@@ -32,9 +37,9 @@ Called from:
 - SeatUIManager.lua
 
 Events:
-- Fires: RequestScan (Client → Server)
-- Listens: ScanProgress (Server → Client)
-- Listens: ScanComplete (Server → Client)
+- Fires: RequestScan (Client -> Server)
+- Listens: ScanProgress (Server -> Client)
+- Listens: ScanComplete (Server -> Client)
 
 Dependencies:
 - TweenService
@@ -42,13 +47,14 @@ Dependencies:
 - RemoteEvents
 
 ChangeLog:
+- 0.2: Retro CRT redesign — Atari 800 theme, centered layout, power-on animation (2026-02-06)
 - 0.1: Initial PlanetSurfaceScannerUI (2026-01-16)
 ================================================================================
 ]]
 
 local PlanetSurfaceScannerUI = {}
 
-local VERSION = "0.1"
+local VERSION = "0.2"
 local MODULE_NAME = "PlanetSurfaceScannerUI"
 
 -- ============================================================================
@@ -69,6 +75,44 @@ local playerGui = LocalPlayer:WaitForChild("PlayerGui")
 local TransitionConfig = require(ReplicatedStorage:WaitForChild("Game"):WaitForChild("TransitionConfig"))
 
 -- ============================================================================
+-- ATARI 800 WARM PALETTE
+-- ============================================================================
+
+local COLORS = {
+	bezel = Color3.fromRGB(35, 30, 42),
+	screenBg = Color3.fromRGB(16, 12, 40),
+	gold = Color3.fromRGB(220, 170, 50),
+	orange = Color3.fromRGB(200, 120, 40),
+	dimOrange = Color3.fromRGB(120, 80, 30),
+	text = Color3.fromRGB(200, 200, 220),
+	textDim = Color3.fromRGB(120, 115, 140),
+	scanReady = Color3.fromRGB(80, 200, 100),
+	scanActive = Color3.fromRGB(220, 170, 50),
+	barBg = Color3.fromRGB(30, 25, 55),
+	barFill = Color3.fromRGB(200, 120, 40),
+	border = Color3.fromRGB(100, 70, 140),
+	rowBg = Color3.fromRGB(25, 20, 50),
+	buttonBg = Color3.fromRGB(140, 80, 30),
+	buttonHover = Color3.fromRGB(180, 110, 40),
+	successGreen = Color3.fromRGB(80, 200, 100),
+	warnYellow = Color3.fromRGB(200, 180, 80),
+}
+
+-- ============================================================================
+-- CRT DIMENSIONS
+-- ============================================================================
+
+local CRT = {
+	width = 540,
+	height = 504,
+	padTop = 14,
+	padSide = 14,
+	padBottom = 28,
+	cornerOuter = 16,
+	cornerInner = 8,
+}
+
+-- ============================================================================
 -- STATE
 -- ============================================================================
 
@@ -76,18 +120,20 @@ local screenGui = nil
 local isVisible = false
 local isInitialized = false
 local isScanning = false
-local currentContext = nil -- "Orbit" or "Surface"
+local currentContext = nil
 
--- UI Elements
 local mainFrame = nil
-local titleLabel = nil
+local statusDot = nil
 local statusLabel = nil
 local scanButton = nil
 local progressFrame = nil
 local progressBar = nil
 local progressLabel = nil
+local discoveredTitle = nil
 local discoveredContainer = nil
 local discoveredItems = {}
+local contextMsg = nil
+local orbitContent = nil
 
 -- RemoteEvents
 local remoteEvents = nil
@@ -98,6 +144,16 @@ local scanComplete = nil
 -- ============================================================================
 -- PRIVATE FUNCTIONS
 -- ============================================================================
+
+local function CreateDivider(parent, yPos)
+	local line = Instance.new("Frame")
+	line.Size = UDim2.new(1, -32, 0, 1)
+	line.Position = UDim2.new(0, 16, 0, yPos)
+	line.BackgroundColor3 = COLORS.border
+	line.BackgroundTransparency = 0.4
+	line.BorderSizePixel = 0
+	line.Parent = parent
+end
 
 local function ClearDiscoveredItems()
 	for _, item in ipairs(discoveredItems) do
@@ -111,39 +167,37 @@ end
 local function CreateDiscoveredItem(location, index)
 	local item = Instance.new("Frame")
 	item.Name = "Discovered_" .. (location.id or index)
-	item.Size = UDim2.new(1, -20, 0, 30)
-	item.Position = UDim2.new(0, 10, 0, (index - 1) * 35)
-	item.BackgroundColor3 = Color3.fromRGB(30, 50, 40)
+	item.Size = UDim2.new(1, -32, 0, 30)
+	item.Position = UDim2.new(0, 16, 0, (index - 1) * 35)
+	item.BackgroundColor3 = COLORS.rowBg
 	item.BackgroundTransparency = 0.3
 	item.BorderSizePixel = 0
 	item.Parent = discoveredContainer
 
 	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 6)
+	corner.CornerRadius = UDim.new(0, 4)
 	corner.Parent = item
 
 	-- Check icon
 	local icon = Instance.new("TextLabel")
-	icon.Name = "Icon"
 	icon.Size = UDim2.new(0, 25, 1, 0)
 	icon.Position = UDim2.new(0, 5, 0, 0)
 	icon.BackgroundTransparency = 1
-	icon.Text = "✓"
-	icon.TextColor3 = Color3.fromRGB(100, 200, 100)
-	icon.TextSize = 16
-	icon.Font = Enum.Font.GothamBold
+	icon.Text = ">"
+	icon.TextColor3 = COLORS.scanReady
+	icon.TextSize = 14
+	icon.Font = Enum.Font.RobotoMono
 	icon.Parent = item
 
 	-- Location name
 	local nameLabel = Instance.new("TextLabel")
-	nameLabel.Name = "Name"
 	nameLabel.Size = UDim2.new(1, -35, 1, 0)
 	nameLabel.Position = UDim2.new(0, 30, 0, 0)
 	nameLabel.BackgroundTransparency = 1
 	nameLabel.Text = location.displayName or location.name or location.id
-	nameLabel.TextColor3 = Color3.fromRGB(180, 220, 180)
+	nameLabel.TextColor3 = COLORS.text
 	nameLabel.TextSize = 13
-	nameLabel.Font = Enum.Font.Gotham
+	nameLabel.Font = Enum.Font.RobotoMono
 	nameLabel.TextXAlignment = Enum.TextXAlignment.Left
 	nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
 	nameLabel.Parent = item
@@ -158,7 +212,6 @@ local function UpdateDiscoveredList(locations)
 		return
 	end
 
-	-- Resize container based on locations count
 	local containerHeight = #locations * 35
 	discoveredContainer.Size = UDim2.new(1, 0, 0, containerHeight)
 
@@ -174,7 +227,9 @@ local function SetScanningState(scanning)
 	if scanning then
 		scanButton.Visible = false
 		progressFrame.Visible = true
-		statusLabel.Text = "Сканування поверхні..."
+		statusLabel.Text = "СКАНУВАННЯ..."
+		statusLabel.TextColor3 = COLORS.scanActive
+		if statusDot then statusDot.BackgroundColor3 = COLORS.scanActive end
 	else
 		scanButton.Visible = true
 		progressFrame.Visible = false
@@ -183,7 +238,6 @@ end
 
 local function UpdateProgress(progress, message)
 	if progressBar then
-		-- Animate progress bar
 		TweenService:Create(progressBar, TweenInfo.new(0.2), {
 			Size = UDim2.new(progress, 0, 1, 0)
 		}):Play()
@@ -195,26 +249,35 @@ local function UpdateProgress(progress, message)
 end
 
 local function ShowOrbitUI()
-	scanButton.Visible = not isScanning
-	progressFrame.Visible = isScanning
-	discoveredContainer.Visible = true
-	statusLabel.Text = "Готовий до сканування"
-	statusLabel.Visible = true
+	if statusDot then statusDot.BackgroundColor3 = COLORS.scanReady end
+	if statusLabel then
+		statusLabel.Text = "ГОТОВИЙ"
+		statusLabel.TextColor3 = COLORS.scanReady
+	end
+	if contextMsg then contextMsg.Visible = false end
+	if orbitContent then orbitContent.Visible = true end
 
-	-- Resize panel
-	mainFrame.Size = UDim2.new(0, 300, 0, 280)
+	-- Restore scanning state if was scanning
+	if isScanning then
+		scanButton.Visible = false
+		progressFrame.Visible = true
+		statusLabel.Text = "СКАНУВАННЯ..."
+		statusLabel.TextColor3 = COLORS.scanActive
+		if statusDot then statusDot.BackgroundColor3 = COLORS.scanActive end
+	else
+		scanButton.Visible = true
+		progressFrame.Visible = false
+	end
 end
 
 local function ShowSurfaceUI()
-	-- Scanner not available on surface
-	scanButton.Visible = false
-	progressFrame.Visible = false
-	discoveredContainer.Visible = false
-	statusLabel.Text = "Сканер доступний лише з орбіти"
-	statusLabel.Visible = true
-
-	-- Compact panel
-	mainFrame.Size = UDim2.new(0, 300, 0, 100)
+	if statusDot then statusDot.BackgroundColor3 = COLORS.warnYellow end
+	if statusLabel then
+		statusLabel.Text = "НЕДОСТУПНИЙ"
+		statusLabel.TextColor3 = COLORS.warnYellow
+	end
+	if contextMsg then contextMsg.Visible = true end
+	if orbitContent then orbitContent.Visible = false end
 end
 
 local function CreateUI()
@@ -224,86 +287,190 @@ local function CreateUI()
 	gui.ResetOnSpawn = false
 	gui.IgnoreGuiInset = true
 
-	-- Main panel (right side)
-	local frame = Instance.new("Frame")
-	frame.Name = "ScannerPanel"
-	frame.Size = UDim2.new(0, 300, 0, 280)
-	frame.Position = UDim2.new(1, -320, 0, 100)
-	frame.AnchorPoint = Vector2.new(0, 0)
-	frame.BackgroundColor3 = Color3.fromRGB(25, 35, 30)
-	frame.BackgroundTransparency = 0.1
-	frame.BorderSizePixel = 0
-	frame.Parent = gui
-	mainFrame = frame
+	-- ========== CRT BEZEL ==========
 
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 10)
-	corner.Parent = frame
+	local bezel = Instance.new("CanvasGroup")
+	bezel.Name = "ScannerPanel"
+	bezel.Size = UDim2.new(0, CRT.width, 0, CRT.height)
+	bezel.AnchorPoint = Vector2.new(0.5, 0.5)
+	bezel.Position = UDim2.new(0.5, 0, 0.5, 0)
+	bezel.BackgroundColor3 = COLORS.bezel
+	bezel.BackgroundTransparency = 0.05
+	bezel.GroupTransparency = 1
+	bezel.Parent = gui
+	mainFrame = bezel
 
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = Color3.fromRGB(60, 120, 80)
-	stroke.Thickness = 2
-	stroke.Parent = frame
+	local bezelCorner = Instance.new("UICorner")
+	bezelCorner.CornerRadius = UDim.new(0, CRT.cornerOuter)
+	bezelCorner.Parent = bezel
+
+	local bezelStroke = Instance.new("UIStroke")
+	bezelStroke.Color = COLORS.border
+	bezelStroke.Thickness = 2
+	bezelStroke.Parent = bezel
+
+	-- Power LED
+	local led = Instance.new("Frame")
+	led.Size = UDim2.new(0, 6, 0, 6)
+	led.Position = UDim2.new(0, 18, 1, -16)
+	led.BackgroundColor3 = COLORS.gold
+	led.BorderSizePixel = 0
+	led.Parent = bezel
+
+	local ledCorner = Instance.new("UICorner")
+	ledCorner.CornerRadius = UDim.new(1, 0)
+	ledCorner.Parent = led
+
+	-- Terminal ID
+	local termId = Instance.new("TextLabel")
+	termId.Size = UDim2.new(0, 100, 0, 12)
+	termId.Position = UDim2.new(1, -112, 1, -17)
+	termId.BackgroundTransparency = 1
+	termId.Text = "KM-SK/01"
+	termId.TextColor3 = COLORS.border
+	termId.TextSize = 9
+	termId.Font = Enum.Font.RobotoMono
+	termId.TextXAlignment = Enum.TextXAlignment.Right
+	termId.Parent = bezel
+
+	-- ========== CRT SCREEN ==========
+
+	local screenH = CRT.height - CRT.padTop - CRT.padBottom
+	local screen = Instance.new("Frame")
+	screen.Name = "Screen"
+	screen.Size = UDim2.new(1, -CRT.padSide * 2, 0, screenH)
+	screen.Position = UDim2.new(0, CRT.padSide, 0, CRT.padTop)
+	screen.BackgroundColor3 = COLORS.screenBg
+	screen.BorderSizePixel = 0
+	screen.ClipsDescendants = true
+	screen.Parent = bezel
+
+	local screenCorner = Instance.new("UICorner")
+	screenCorner.CornerRadius = UDim.new(0, CRT.cornerInner)
+	screenCorner.Parent = screen
+
+	local screenStroke = Instance.new("UIStroke")
+	screenStroke.Color = COLORS.border
+	screenStroke.Thickness = 1
+	screenStroke.Transparency = 0.5
+	screenStroke.Parent = screen
+
+	-- ========== CONTENT ==========
 
 	-- Title
 	local title = Instance.new("TextLabel")
-	title.Name = "Title"
-	title.Size = UDim2.new(1, -20, 0, 30)
-	title.Position = UDim2.new(0, 10, 0, 10)
+	title.Size = UDim2.new(0.55, 0, 0, 28)
+	title.Position = UDim2.new(0, 16, 0, 10)
 	title.BackgroundTransparency = 1
-	title.Text = "СКАНЕР ПОВЕРХНІ"
-	title.TextColor3 = Color3.fromRGB(100, 200, 120)
-	title.TextSize = 16
-	title.Font = Enum.Font.GothamBold
+	title.Text = "СКАНЕР ПОВЕРХНI"
+	title.TextColor3 = COLORS.gold
+	title.TextSize = 18
+	title.Font = Enum.Font.RobotoMono
 	title.TextXAlignment = Enum.TextXAlignment.Left
-	title.Parent = frame
-	titleLabel = title
+	title.Parent = screen
 
-	-- Status
-	local status = Instance.new("TextLabel")
-	status.Name = "Status"
-	status.Size = UDim2.new(1, -20, 0, 20)
-	status.Position = UDim2.new(0, 10, 0, 40)
-	status.BackgroundTransparency = 1
-	status.Text = "Готовий до сканування"
-	status.TextColor3 = Color3.fromRGB(160, 180, 170)
-	status.TextSize = 12
-	status.Font = Enum.Font.Gotham
-	status.TextXAlignment = Enum.TextXAlignment.Left
-	status.Parent = frame
-	statusLabel = status
+	-- Status dot
+	local dot = Instance.new("Frame")
+	dot.Size = UDim2.new(0, 8, 0, 8)
+	dot.Position = UDim2.new(1, -118, 0, 20)
+	dot.BackgroundColor3 = COLORS.scanReady
+	dot.BorderSizePixel = 0
+	dot.Parent = screen
+	statusDot = dot
+
+	local dotCorner = Instance.new("UICorner")
+	dotCorner.CornerRadius = UDim.new(1, 0)
+	dotCorner.Parent = dot
+
+	-- Status label
+	local sLabel = Instance.new("TextLabel")
+	sLabel.Size = UDim2.new(0, 110, 0, 22)
+	sLabel.Position = UDim2.new(1, -106, 0, 14)
+	sLabel.BackgroundTransparency = 1
+	sLabel.Text = "ГОТОВИЙ"
+	sLabel.TextColor3 = COLORS.scanReady
+	sLabel.TextSize = 14
+	sLabel.Font = Enum.Font.RobotoMono
+	sLabel.TextXAlignment = Enum.TextXAlignment.Left
+	sLabel.Parent = screen
+	statusLabel = sLabel
+
+	CreateDivider(screen, 42)
+
+	-- Context message (surface only)
+	local cMsg = Instance.new("TextLabel")
+	cMsg.Size = UDim2.new(1, -32, 0, 120)
+	cMsg.Position = UDim2.new(0, 16, 0, 120)
+	cMsg.BackgroundTransparency = 1
+	cMsg.Text = "СКАНЕР ДОСТУПНИЙ\nЛИШЕ З ОРБIТИ"
+	cMsg.TextColor3 = COLORS.warnYellow
+	cMsg.TextSize = 18
+	cMsg.Font = Enum.Font.RobotoMono
+	cMsg.TextWrapped = true
+	cMsg.TextYAlignment = Enum.TextYAlignment.Center
+	cMsg.Visible = false
+	cMsg.Parent = screen
+	contextMsg = cMsg
+
+	-- ========== ORBIT CONTENT ==========
+
+	local oContent = Instance.new("Frame")
+	oContent.Name = "OrbitContent"
+	oContent.Size = UDim2.new(1, 0, 1, -48)
+	oContent.Position = UDim2.new(0, 0, 0, 48)
+	oContent.BackgroundTransparency = 1
+	oContent.Parent = screen
+	orbitContent = oContent
+
+	-- Scan status text
+	local scanStatus = Instance.new("TextLabel")
+	scanStatus.Size = UDim2.new(1, -32, 0, 20)
+	scanStatus.Position = UDim2.new(0, 16, 0, 4)
+	scanStatus.BackgroundTransparency = 1
+	scanStatus.Text = "Готовий до сканування"
+	scanStatus.TextColor3 = COLORS.textDim
+	scanStatus.TextSize = 12
+	scanStatus.Font = Enum.Font.RobotoMono
+	scanStatus.TextXAlignment = Enum.TextXAlignment.Left
+	scanStatus.Parent = oContent
 
 	-- Scan button
 	local scan = Instance.new("TextButton")
 	scan.Name = "ScanButton"
-	scan.Size = UDim2.new(1, -20, 0, 45)
-	scan.Position = UDim2.new(0, 10, 0, 65)
-	scan.BackgroundColor3 = Color3.fromRGB(50, 120, 70)
+	scan.Size = UDim2.new(1, -32, 0, 44)
+	scan.Position = UDim2.new(0, 16, 0, 30)
+	scan.BackgroundColor3 = COLORS.buttonBg
 	scan.BorderSizePixel = 0
-	scan.Text = "🔍  Сканувати поверхню"
-	scan.TextColor3 = Color3.fromRGB(255, 255, 255)
+	scan.Text = "> СКАНУВАТИ ПОВЕРХНЮ"
+	scan.TextColor3 = COLORS.text
 	scan.TextSize = 15
-	scan.Font = Enum.Font.GothamBold
+	scan.Font = Enum.Font.RobotoMono
 	scan.AutoButtonColor = false
-	scan.Parent = frame
+	scan.Parent = oContent
 	scanButton = scan
 
 	local scanCorner = Instance.new("UICorner")
-	scanCorner.CornerRadius = UDim.new(0, 8)
+	scanCorner.CornerRadius = UDim.new(0, 6)
 	scanCorner.Parent = scan
+
+	local scanStroke = Instance.new("UIStroke")
+	scanStroke.Color = COLORS.orange
+	scanStroke.Thickness = 1
+	scanStroke.Transparency = 0.5
+	scanStroke.Parent = scan
 
 	-- Scan hover effects
 	scan.MouseEnter:Connect(function()
 		if not isScanning then
 			TweenService:Create(scan, TweenInfo.new(0.15), {
-				BackgroundColor3 = Color3.fromRGB(70, 150, 90)
+				BackgroundColor3 = COLORS.buttonHover
 			}):Play()
 		end
 	end)
 
 	scan.MouseLeave:Connect(function()
 		TweenService:Create(scan, TweenInfo.new(0.15), {
-			BackgroundColor3 = Color3.fromRGB(50, 120, 70)
+			BackgroundColor3 = COLORS.buttonBg
 		}):Play()
 	end)
 
@@ -317,83 +484,82 @@ local function CreateUI()
 	-- Progress frame (hidden by default)
 	local progress = Instance.new("Frame")
 	progress.Name = "ProgressFrame"
-	progress.Size = UDim2.new(1, -20, 0, 45)
-	progress.Position = UDim2.new(0, 10, 0, 65)
-	progress.BackgroundColor3 = Color3.fromRGB(30, 40, 35)
+	progress.Size = UDim2.new(1, -32, 0, 44)
+	progress.Position = UDim2.new(0, 16, 0, 30)
+	progress.BackgroundColor3 = COLORS.rowBg
+	progress.BackgroundTransparency = 0.3
 	progress.BorderSizePixel = 0
 	progress.Visible = false
-	progress.Parent = frame
+	progress.Parent = oContent
 	progressFrame = progress
 
 	local progressCorner = Instance.new("UICorner")
-	progressCorner.CornerRadius = UDim.new(0, 8)
+	progressCorner.CornerRadius = UDim.new(0, 6)
 	progressCorner.Parent = progress
 
 	-- Progress bar background
 	local progressBg = Instance.new("Frame")
-	progressBg.Name = "ProgressBackground"
 	progressBg.Size = UDim2.new(1, -20, 0, 12)
-	progressBg.Position = UDim2.new(0, 10, 0, 10)
-	progressBg.BackgroundColor3 = Color3.fromRGB(40, 50, 45)
+	progressBg.Position = UDim2.new(0, 10, 0, 8)
+	progressBg.BackgroundColor3 = COLORS.barBg
 	progressBg.BorderSizePixel = 0
 	progressBg.Parent = progress
 
 	local progressBgCorner = Instance.new("UICorner")
-	progressBgCorner.CornerRadius = UDim.new(0, 6)
+	progressBgCorner.CornerRadius = UDim.new(0, 4)
 	progressBgCorner.Parent = progressBg
 
 	-- Progress bar fill
 	local progressFill = Instance.new("Frame")
-	progressFill.Name = "ProgressFill"
 	progressFill.Size = UDim2.new(0, 0, 1, 0)
-	progressFill.Position = UDim2.new(0, 0, 0, 0)
-	progressFill.BackgroundColor3 = Color3.fromRGB(80, 180, 100)
+	progressFill.BackgroundColor3 = COLORS.barFill
 	progressFill.BorderSizePixel = 0
 	progressFill.Parent = progressBg
 	progressBar = progressFill
 
 	local progressFillCorner = Instance.new("UICorner")
-	progressFillCorner.CornerRadius = UDim.new(0, 6)
+	progressFillCorner.CornerRadius = UDim.new(0, 4)
 	progressFillCorner.Parent = progressFill
 
 	-- Progress label
 	local progressText = Instance.new("TextLabel")
-	progressText.Name = "ProgressLabel"
-	progressText.Size = UDim2.new(1, -20, 0, 18)
-	progressText.Position = UDim2.new(0, 10, 0, 25)
+	progressText.Size = UDim2.new(1, -20, 0, 16)
+	progressText.Position = UDim2.new(0, 10, 0, 24)
 	progressText.BackgroundTransparency = 1
 	progressText.Text = "0%"
-	progressText.TextColor3 = Color3.fromRGB(180, 200, 180)
+	progressText.TextColor3 = COLORS.text
 	progressText.TextSize = 12
-	progressText.Font = Enum.Font.Gotham
+	progressText.Font = Enum.Font.RobotoMono
 	progressText.Parent = progress
 	progressLabel = progressText
 
-	-- Discovered locations section
-	local discoveredTitle = Instance.new("TextLabel")
-	discoveredTitle.Name = "DiscoveredTitle"
-	discoveredTitle.Size = UDim2.new(1, -20, 0, 20)
-	discoveredTitle.Position = UDim2.new(0, 10, 0, 120)
-	discoveredTitle.BackgroundTransparency = 1
-	discoveredTitle.Text = "Виявлені локації:"
-	discoveredTitle.TextColor3 = Color3.fromRGB(140, 160, 150)
-	discoveredTitle.TextSize = 12
-	discoveredTitle.Font = Enum.Font.GothamBold
-	discoveredTitle.TextXAlignment = Enum.TextXAlignment.Left
-	discoveredTitle.Parent = frame
+	CreateDivider(oContent, 82)
+
+	-- Discovered title
+	local dTitle = Instance.new("TextLabel")
+	dTitle.Size = UDim2.new(1, -32, 0, 20)
+	dTitle.Position = UDim2.new(0, 16, 0, 90)
+	dTitle.BackgroundTransparency = 1
+	dTitle.Text = "ВИЯВЛЕНI ЛОКАЦII"
+	dTitle.TextColor3 = COLORS.gold
+	dTitle.TextSize = 13
+	dTitle.Font = Enum.Font.RobotoMono
+	dTitle.TextXAlignment = Enum.TextXAlignment.Left
+	dTitle.Parent = oContent
+	discoveredTitle = dTitle
 
 	-- Discovered container
 	local discovered = Instance.new("ScrollingFrame")
 	discovered.Name = "DiscoveredContainer"
-	discovered.Size = UDim2.new(1, 0, 0, 130)
-	discovered.Position = UDim2.new(0, 0, 0, 145)
+	discovered.Size = UDim2.new(1, 0, 0, 200)
+	discovered.Position = UDim2.new(0, 0, 0, 115)
 	discovered.BackgroundTransparency = 1
 	discovered.BorderSizePixel = 0
 	discovered.ScrollBarThickness = 4
-	discovered.ScrollBarImageColor3 = Color3.fromRGB(80, 120, 90)
+	discovered.ScrollBarImageColor3 = COLORS.border
 	discovered.CanvasSize = UDim2.new(0, 0, 0, 0)
 	discovered.AutomaticCanvasSize = Enum.AutomaticSize.Y
-	discovered.Parent = frame
+	discovered.Parent = oContent
 	discoveredContainer = discovered
 
 	return gui
@@ -410,7 +576,6 @@ local function SetupRemoteEvents()
 	scanProgress = remoteEvents:FindFirstChild("ScanProgress")
 	scanComplete = remoteEvents:FindFirstChild("ScanComplete")
 
-	-- Listen for scan progress
 	if scanProgress then
 		scanProgress.OnClientEvent:Connect(function(progress, message)
 			SetScanningState(true)
@@ -418,28 +583,29 @@ local function SetupRemoteEvents()
 		end)
 	end
 
-	-- Listen for scan complete
 	if scanComplete then
 		scanComplete.OnClientEvent:Connect(function(success, discoveredLocations, message)
 			SetScanningState(false)
 
 			if success then
-				statusLabel.Text = message or "Сканування завершено!"
-				statusLabel.TextColor3 = Color3.fromRGB(100, 200, 120)
+				statusLabel.Text = "ЗАВЕРШЕНО"
+				statusLabel.TextColor3 = COLORS.successGreen
+				if statusDot then statusDot.BackgroundColor3 = COLORS.successGreen end
 
 				if discoveredLocations then
 					UpdateDiscoveredList(discoveredLocations)
 				end
 			else
-				statusLabel.Text = message or "Нічого не знайдено"
-				statusLabel.TextColor3 = Color3.fromRGB(200, 160, 100)
+				statusLabel.Text = "ПОРОЖНЬО"
+				statusLabel.TextColor3 = COLORS.warnYellow
+				if statusDot then statusDot.BackgroundColor3 = COLORS.warnYellow end
 			end
 
-			-- Reset status color after delay
 			task.delay(3, function()
-				if statusLabel then
-					statusLabel.TextColor3 = Color3.fromRGB(160, 180, 170)
-					statusLabel.Text = "Готовий до сканування"
+				if statusLabel and not isScanning then
+					statusLabel.Text = "ГОТОВИЙ"
+					statusLabel.TextColor3 = COLORS.scanReady
+					if statusDot then statusDot.BackgroundColor3 = COLORS.scanReady end
 				end
 			end)
 		end)
@@ -460,6 +626,7 @@ function PlanetSurfaceScannerUI.Initialize()
 	SetupRemoteEvents()
 
 	isInitialized = true
+	print(string.format("[%s %s] Initialized", MODULE_NAME, VERSION))
 	return true
 end
 
@@ -469,37 +636,36 @@ function PlanetSurfaceScannerUI.Show()
 	screenGui.Enabled = true
 	isVisible = true
 
-	-- Default to Orbit if context not set
 	if not currentContext then
 		currentContext = TransitionConfig.Contexts.Orbit
 	end
 
-	-- Show appropriate UI based on context
 	if currentContext == TransitionConfig.Contexts.Orbit then
 		ShowOrbitUI()
 	else
 		ShowSurfaceUI()
 	end
 
-	-- Animate in (from right)
-	mainFrame.Position = UDim2.new(1, 50, 0, 100)
+	-- CRT Power On
+	mainFrame.GroupTransparency = 1
 	TweenService:Create(
 		mainFrame,
-		TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-		{Position = UDim2.new(1, -320, 0, 100)}
+		TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		{GroupTransparency = 0}
 	):Play()
 end
 
 function PlanetSurfaceScannerUI.Hide()
 	if not screenGui then return end
 
+	-- CRT Power Off
 	TweenService:Create(
 		mainFrame,
-		TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-		{Position = UDim2.new(1, 50, 0, 100)}
+		TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+		{GroupTransparency = 1}
 	):Play()
 
-	task.delay(0.2, function()
+	task.delay(0.12, function()
 		if screenGui then
 			screenGui.Enabled = false
 		end
