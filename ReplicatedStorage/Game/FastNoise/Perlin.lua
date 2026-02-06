@@ -30,8 +30,8 @@ local p = {
 	138,236,205,93,222,114,67,29,24,72,243,141,128,195,78,66,215,61,156,180
 }
 
-local perm = table.create(512)
-local permMod12 = table.create(512)
+local perm = table.create(512, 0)
+local permMod12 = table.create(512, 0)
 for i = 0, 511 do
 	perm[i] = p[(i % 256) + 1]
 	permMod12[i] = perm[i] % 12

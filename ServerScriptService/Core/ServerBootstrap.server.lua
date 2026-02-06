@@ -38,10 +38,7 @@ Dependencies:
 - ProfileService
 - LocationService
 - PlayerService
-- DebugLogger
-
 ChangeLog:
-- 0.3: Added DebugLogger hook for MCP-readable logs (2026-01-24)
 - 0.2: Added LocationService initialization (2026-01-12)
 - 0.1: Initial boot sequence implementation (2026-01-11)
 ================================================================================
@@ -55,15 +52,7 @@ local MODULE_NAME = "ServerBootstrap"
 -- ============================================================================
 
 local ServerScriptService = game:GetService("ServerScriptService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- ============================================================================
--- DEBUG LOGGER (перехоплення print/warn для MCP)
--- ============================================================================
-
-local Game = ReplicatedStorage:WaitForChild("Game")
-local Logger = require(Game:WaitForChild("DebugLogger"))
-Logger:HookGlobalOutput()  -- Тепер ВСІ print/warn автоматично логуються
 
 -- ============================================================================
 -- LOAD CORE MODULES

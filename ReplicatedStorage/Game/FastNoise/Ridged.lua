@@ -48,7 +48,7 @@ local function getNoiseFunction3D(noiseType: NoiseType): (number, number, number
 end
 
 local function computeSpectralWeights(octaves: number, lacunarity: number, gain: number): {number}
-	local weights = table.create(octaves)
+	local weights = table.create(octaves, 0)
 	local frequency = 1.0
 	
 	for i = 1, octaves do
