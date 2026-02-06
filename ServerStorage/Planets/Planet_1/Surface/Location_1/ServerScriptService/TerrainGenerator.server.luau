@@ -44,8 +44,8 @@ local VERSION = "0.3"
 
 -- Terrain
 local FREQUENCY = 0.008
-local MAX_HEIGHT = 2             -- Was 4, halved again
-local MIN_HEIGHT = 0.2
+local MAX_HEIGHT = 0.5           -- Subtle grass texture only
+local MIN_HEIGHT = 0.05
 local GRID_STEP = 4
 local OCTAVES = 4
 local LACUNARITY = 2.0
@@ -277,7 +277,7 @@ local function CreateBuilding()
 	-- Colors
 	local C_WALL = Color3.fromRGB(175, 175, 185)
 	local C_DOME = Color3.fromRGB(195, 165, 55)
-	local C_NEON = Color3.fromRGB(0, 220, 255)
+	local C_NEON = Color3.fromRGB(240, 200, 80)
 	local C_FLOOR = Color3.fromRGB(55, 60, 70)
 	local C_GLASS = Color3.fromRGB(20, 160, 200)
 	local C_PILLAR = Color3.fromRGB(150, 150, 165)
@@ -489,14 +489,25 @@ local function CreateBuilding()
 	MP("PedestalNeon", Vector3.new(7, 0.3, 7),
 		Vector3.new(cx, floorY + 4.65, cz), C_NEON, Enum.Material.Neon)
 
-	-- ======= ENTRANCE FRAMES (non-collidable decorative neon) =======
-	local frontArch = MP("FrontArch", Vector3.new(1, DOOR_H + 2, DOOR_W + 2),
-		Vector3.new(cx - halfW - 0.5, floorY + (DOOR_H + 2) / 2 + 0.5, cz), C_NEON, Enum.Material.Neon)
-	frontArch.CanCollide = false
-
-	local backArch = MP("BackArch", Vector3.new(1, DOOR_H + 2, DOOR_W + 2),
-		Vector3.new(cx + halfW + 0.5, floorY + (DOOR_H + 2) / 2 + 0.5, cz), C_NEON, Enum.Material.Neon)
-	backArch.CanCollide = false
+	-- ======= ENTRANCE DOOR FRAMES (thin neon strips, same look from both sides) =======
+	local frameT = 0.5  -- frame strip thickness
+	for _, side in ipairs({
+		{ x = cx - halfW + WT / 2, prefix = "Front" },
+		{ x = cx + halfW - WT / 2, prefix = "Back" },
+	}) do
+		-- Top strip
+		local top = MP(side.prefix .. "DoorFrame_Top", Vector3.new(WT + 0.2, frameT, DOOR_W + 1),
+			Vector3.new(side.x, floorY + DOOR_H + 0.5 + frameT / 2, cz), C_NEON, Enum.Material.Neon)
+		top.CanCollide = false
+		-- Left strip
+		local left = MP(side.prefix .. "DoorFrame_L", Vector3.new(WT + 0.2, DOOR_H, frameT),
+			Vector3.new(side.x, floorY + DOOR_H / 2 + 0.5, cz - DOOR_W / 2 - frameT / 2), C_NEON, Enum.Material.Neon)
+		left.CanCollide = false
+		-- Right strip
+		local right = MP(side.prefix .. "DoorFrame_R", Vector3.new(WT + 0.2, DOOR_H, frameT),
+			Vector3.new(side.x, floorY + DOOR_H / 2 + 0.5, cz + DOOR_W / 2 + frameT / 2), C_NEON, Enum.Material.Neon)
+		right.CanCollide = false
+	end
 
 	building.Parent = proceduralFolder
 
