@@ -1,4 +1,4 @@
-# ЛІТЕРАТУРНІ ДЖЕРЕЛА ТА SF-РЕФЕРЕНСИ
+# ЛІТЕРАТУРНІ ДЖЕРЕЛА ТА ScienseFiction-РЕФЕРЕНСИ
 ## Call of Relics: Orbital Silence
 
 **Версія:** 2.0
