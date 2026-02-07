@@ -17,8 +17,50 @@ Earth — планета походження гравця. Точка стар�
 | Planet ID | Planet_Earth |
 | Display Name | Earth |
 | Type | Home World |
+| Star System | Sol (одиночна зірка G2V) |
 | Status | Planned |
-| Role | Narrative Origin |
+| Role | Narrative Origin / Endgame Destination |
+
+---
+
+## Planetary Characteristics
+
+### Physical Parameters
+
+| Parameter | Value | Notes |
+|-----------|-------|-------|
+| **Gravity** | 1.0g | Еталонне значення для всіх планет |
+| **Atmosphere** | Breathable | Стандартна для людини |
+| **Atm. Composition** | N₂ 78%, O₂ 21%, Ar 0.9%, CO₂ 0.04% | Рідна атмосфера |
+| **Atm. Pressure** | Normal (1.0 atm) | Еталон |
+| **Temperature** | −20°C .. +40°C | Залежно від локації та сезону |
+| **Radiation** | None | Магнітосфера + озоновий шар |
+| **Magnetic Field** | Strong | Стабільна магнітосфера |
+| **Water** | Liquid (71% поверхні) | Океани, річки, озера |
+| **Day/Night Cycle** | 20 хв (ігрового часу) | Еталон: 12 хв день / 8 хв ніч |
+
+### Weather System
+
+| Parameter | Value | Notes |
+|-----------|-------|-------|
+| **Weather Type** | Variable | Залежить від обраної локації |
+| **Precipitation** | Rain / Snow | Стандартні опади |
+| **Wind** | Calm–Moderate | Звичайний для Землі |
+| **Visibility** | Clear | Стандартна видимість |
+| **Weather Events** | None (gameplay) | Земля — безпечна зона, без погодних загроз |
+
+### Gameplay Impact
+
+| Parameter | Value | Notes |
+|-----------|-------|-------|
+| **Suit Mode** | Normal | Рідна планета — скафандр не потрібен |
+| **O₂ Drain Rate** | ×0.0 (вимкнено) | Рідна атмосфера |
+| **Surface Time Limit** | Необмежено | Безпечна зона |
+| **Movement Speed** | ×1.0 (еталон) | Стандартна швидкість |
+| **Jump Height** | ×1.0 (еталон) | Стандартний стрибок |
+| **Hazard Level** | Safe | Домашня планета |
+
+> Earth є еталоном (baseline) для всіх планетарних характеристик. Значення інших планет вимірюються відносно Earth.
 
 ---
 
