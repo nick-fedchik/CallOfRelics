@@ -1,7 +1,7 @@
 # Call of Relics: Orbital Silence
 
 Single-player exploration RPG on Roblox
-**Version:** 0.16.0 | **Status:** Active Development
+**Version:** 0.19.0 | **Status:** Active Development
 
 ---
 
@@ -142,7 +142,7 @@ The first destination of the expedition:
 | Type | Habitable (Super-Earth) |
 | Atmosphere | Breathable |
 | Gravity | 1.2g |
-| Locations | Landing Site Alpha, Ancient Ruins |
+| Locations | 7 (Візитка, Садочок, Маяк, Кузня, Лабіринт, Обсерваторія, Колиска) |
 
 A safe learning environment with minimal hazards.
 

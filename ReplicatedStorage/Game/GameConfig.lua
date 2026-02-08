@@ -31,6 +31,7 @@ Dependencies:
 - None
 
 ChangeLog:
+- 0.10: Version bump to 0.19.0 - Planetary Cartography (2026-02-06)
 - 0.9: Version bump to 0.14.0 - Documentation Restructure (2026-01-21)
 - 0.8: Version bump to 0.12.0 - Ramp Visual Effects (2026-01-20)
 - 0.7: Version bump to 0.11.0 - Ramp System (2026-01-19)
@@ -50,8 +51,8 @@ local GameConfig = {
 
 	GameName = "CALL OF RELICS",
 	GameSubtitle = "Orbital Silence",
-	Version = "0.14.0",
-	VersionTag = "Documentation Restructure",
+	Version = "0.19.0",
+	VersionTag = "Planetary Cartography",
 	Developer = "KosmicMazer",
 
 	-- ============================================================================

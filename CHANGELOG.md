@@ -4,6 +4,78 @@
 
 ---
 
+## [0.19.0] - 2026-02-06 - Planetary Cartography
+
+### Added - PlanetConfig Centralized Module
+
+- **PlanetConfig.lua** (v1.0) — централізована база даних планет
+  - Planet_1 (Біллі Рубін), Planet_2, Planet_Earth
+  - Фізичні характеристики: gravity, atmosphere, pressure, temperature, radiation, magneticField, water, dayNight
+  - Погода: type, precipitation, wind, visibility
+  - Геймплей: suitMode, o2Drain, surfaceTime, speedMod, jumpMod, hazard
+  - API: GetPlanet(), GetPhysical(), GetGameplay(), GetAbbreviated(), GetAllPlanets()
+
+### Added - Planet Characteristics in UI
+
+- **PlanetSurfaceScannerUI v0.3** — характеристики планети на CRT-терміналі сканера
+  - Назва планети (gold, bold) + 7 рядків характеристик
+  - Оновлюється при зміні планети через TransitionUpdate
+  - Інтеграція з PlanetConfig та GameConfig
+
+- **PilotUI v0.8** — інфо про планету у верхній частині панелі навігації
+  - Назва планети (bright blue, bold)
+  - 2 компактні рядки характеристик (gravity, atmosphere, temperature, hazard)
+  - Тонкий розділювач перед секцією навігації
+  - Всі існуючі елементи зміщені на +54px
+
+- **PlanetLocatorUI v0.4** — використовує PlanetConfig замість hardcoded PLANETS
+- **TransitionService** — додано `planetId` до 3 Complete payloads (Landing, Launch, GameStart)
+
+### Added - Vertical Lightning (Електромагнітні явища)
+
+- **TerrainGenerator v0.4** — вертикальна блискавка на Location_1
+  - `SetupVerticalLightning()` — Beam від центрального конденсатора до SkyAnchor (+500 studs)
+  - Випадковий інтервал 15-60 сек, тривалість 0.3-0.8 сек
+  - Flickering CurveSize анімація, PointLight спалах
+  - `CreateBuilding()` тепер повертає `centralCap` як 5-й return value
+
+### Added - Signal Lore Narrative
+
+- **Location_1 README** — "The Signal — Core Narrative"
+  - Скремблований, нестабільний, неповний сигнал з будівлі
+  - Квест стабілізації сигналу (ремонт конденсаторів, калібрування антени)
+  - 4 гіпотези (маяк, релігійний обряд, захисний контур, комунікаційний вузол)
+
+- **Planet_1 README** — секція "The Signal" в Narrative Context
+  - Зв'язок сигналу з усіма локаціями планети
+
+### Added - 7 Location System (Planet_1)
+
+- **5 нових документацій** — Location_3 через Location_7
+  - Маяк (Platforming / Climbing, visibility 50%)
+  - Кузня (Gathering / Crafting, visibility 40%)
+  - Лабіринт (Maze / Stealth, visibility 30%)
+  - Обсерваторія (Puzzle / Hacking, visibility 35%)
+  - Колиска (Survival / Defense, visibility 25%)
+
+- **5 нових Config.luau** — код-стаби для Location_3..7
+  - Стандартна структура: StarterPlayer, ReplicatedStorage, ServerScriptService, Workspace
+  - Metadata з arcadeType для кожної локації
+  - Signal Connection секція в кожному README
+
+### Changed
+
+- **Location_1 README** — повний перепис (Landing Site Alpha → Візитка)
+- **Location_2 README** — оновлено (Ancient Ruins → Садочок, Puzzle / Archaeology)
+- **Planet_1 README** — реєстр 7 локацій з arcade types
+- **PlanetConfig.lua** — locations = 2 → 7
+- **Planets README** — Planet_1 locations = 2 → 7
+- **GameConfig.lua v0.10** — Version 0.14.0 → 0.19.0, codename "Planetary Cartography"
+- **README.md** — Version 0.16.0 → 0.19.0, оновлено таблицю локацій
+- **README-UKR.md** — Версія 0.16.0 → 0.19.0, оновлено таблицю локацій
+
+---
+
 ## [0.18.0] - 2026-02-06 - Retro 80s CRT Terminal Redesign
 
 ### Added - Retro CRT Seat UI Terminals
