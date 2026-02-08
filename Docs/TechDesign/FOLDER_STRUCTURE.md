@@ -98,7 +98,6 @@ ServerScriptService/
 │   ├── TransitionService.lua     -- Переходи Orbit↔Surface (v0.7)
 │   ├── SpaceShipService.lua      -- SpaceShip + Seat management (v0.4) ← NEW
 │   ├── PlanetScannerService.lua  -- Сканування планет (v0.1) ← NEW
-│   ├── EnginesService.lua        -- Двигуни корабля (v0.1) ← NEW
 │   ├── PlanetLocatorService.lua  -- Пошук планет (v0.1) ← NEW
 │   └── PersonalComputerService.lua -- Інвентар/Knowledge (v0.1) ← NEW
 │
@@ -564,7 +563,6 @@ sequenceDiagram
 - `TransitionService.lua`
 - `SpaceShipService.lua`
 - `PlanetScannerService.lua`
-- `EnginesService.lua`
 - `PlanetLocatorService.lua`
 - `PersonalComputerService.lua`
 
@@ -660,7 +658,6 @@ sequenceDiagram
 - `TransitionService.lua` — переходи між локаціями
 - `SpaceShipService.lua` — SpaceShip + seat management
 - `PlanetScannerService.lua` — сканування планет
-- `EnginesService.lua` — керування двигунами
 - `PlanetLocatorService.lua` — пошук планет
 - `PersonalComputerService.lua` — інвентар та knowledge
 
@@ -743,6 +740,10 @@ sequenceDiagram
 
 ## ChangeLog
 
+- **1.5** — Видалено EnginesService stub (2026-02-08)
+  - Видалено EnginesService.lua — stub merged into SpaceShipService
+  - Оновлено всі списки сервісів та описи
+
 - **1.4** — LevelController Framework (2026-02-08)
   - Оновлено LocationService v0.5 → v0.7
   - Додано ServerScriptService/ папки до Orbit та Location структур
@@ -769,7 +770,6 @@ sequenceDiagram
   - Додано SpaceShipService.lua (v0.4) — SpaceShip + seat management
   - Додано SpaceShipConfig.lua — unified SpaceShip configuration
   - Додано PlanetScannerService.lua — planet scanning
-  - Додано EnginesService.lua — engine control
   - Додано PlanetLocatorService.lua — planet discovery
   - Додано PersonalComputerService.lua — inventory/knowledge
   - Додано SeatUI modules: PlanetSurfaceScannerUI, EnginesUI, PlanetLocatorUI, PersonalComputerUI

@@ -106,7 +106,6 @@ flowchart TB
     end
 
     subgraph Stubs["📋 Stub Services"]
-        ES[EnginesService v0.1]
         PCS[PersonalComputerService v0.1]
         PLOCS[PlanetLocatorService v0.1]
     end
