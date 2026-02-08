@@ -4,6 +4,21 @@
 
 ---
 
+## [0.22.0] - 2026-02-08 - Services/Systems Restructure
+
+### Changed - Architecture
+
+- **SpaceShip services** перенесено з `Services/` до `Systems/SpaceShip/`
+  - SpaceShipService (v0.11), PlanetScannerService (v0.6), PlanetLocatorService, PersonalComputerService
+  - Services/ тепер тільки координатори: Player, Profile, Location, Context, Transition
+  - Оновлено require-шляхи в ServerBootstrap, TransitionService та всіх перенесених модулях
+
+- **EnginesService** видалено (stub без логіки, двигунні ефекти вже в SpaceShipService)
+
+- **GameConfig v0.13** — Version 0.22.0, codename "Services/Systems Restructure"
+
+---
+
 ## [0.21.0] - 2026-02-08 - LevelController Framework
 
 ### Changed - LevelController Pattern

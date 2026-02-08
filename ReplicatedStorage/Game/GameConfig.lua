@@ -8,7 +8,7 @@ Centralized game configuration. Single source of truth for game identity and
 initial settings. Used during boot sequence and throughout game lifecycle.
 
 Version:
-0.12
+0.13
 
 Features:
 - Game name and version information
@@ -31,6 +31,7 @@ Dependencies:
 - None
 
 ChangeLog:
+- 0.13: Version bump to 0.22.0 - Services/Systems Restructure (2026-02-08)
 - 0.12: Version bump to 0.21.0 - LevelController Framework (2026-02-08)
 - 0.11: Version bump to 0.20.0 - Octagonal Temple (2026-02-08)
 - 0.10: Version bump to 0.19.0 - Planetary Cartography (2026-02-06)
@@ -53,8 +54,8 @@ local GameConfig = {
 
 	GameName = "CALL OF RELICS",
 	GameSubtitle = "Orbital Silence",
-	Version = "0.21.0",
-	VersionTag = "LevelController Framework",
+	Version = "0.22.0",
+	VersionTag = "Services/Systems Restructure",
 	Developer = "KosmicMazer",
 
 	-- ============================================================================
