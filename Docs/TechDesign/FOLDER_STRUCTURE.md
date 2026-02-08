@@ -93,7 +93,7 @@ ServerScriptService/
 ├── Services/
 │   ├── PlayerService.lua         -- Життєвий цикл гравця (v0.2)
 │   ├── ProfileService.lua        -- DataStore профілі (v0.2)
-│   ├── LocationService.lua       -- Завантаження локацій (v0.5)
+│   ├── LocationService.lua       -- Завантаження локацій, LevelController (v0.7)
 │   ├── ContextRegistryService.lua -- Реєстрація контенту (v0.1)
 │   ├── TransitionService.lua     -- Переходи Orbit↔Surface (v0.7)
 │   ├── SpaceShipService.lua      -- SpaceShip + Seat management (v0.4) ← NEW
@@ -252,12 +252,14 @@ flowchart TB
                 subgraph Orbit["Orbit/"]
                     OC[Config.luau]
                     OW[Workspace/]
+                    OSSS[ServerScriptService/]
                 end
 
                 subgraph Surface["Surface/"]
                     subgraph L1["Location_1/"]
                         L1C[Config.luau]
                         L1W[Workspace/]
+                        L1SSS[ServerScriptService/]
                     end
                     subgraph L2["Location_2/"]
                         L2C[Config.luau]
@@ -284,22 +286,29 @@ ServerStorage/
         ├── Config.luau           -- Конфігурація планети
         ├── Orbit/                -- Орбітальна локація
         │   ├── Config.luau       -- Конфіг орбіти (з animationData)
-        │   └── Workspace/        -- 3D об'єкти
-        │       ├── Lighting/     -- Sky, Atmosphere, Effects
-        │       └── Planet/       -- Модель планети (Surface, CloudLayers)
+        │   ├── Workspace/        -- 3D об'єкти
+        │   │   ├── Lighting/     -- Sky, Atmosphere, Effects
+        │   │   └── Planet/       -- Модель планети (Surface, CloudLayers)
+        │   └── ServerScriptService/ -- Скрипти рівня (клонуються як папка)
+        │       └── LevelController.luau -- Точка входу рівня (levelInit/levelFini)
         │
         └── Surface/              -- Поверхневі локації
             ├── Location_1/       -- "Зелена долина"
             │   ├── Config.luau   -- Конфіг локації
-            │   └── Workspace/    -- 3D об'єкти
-            │       ├── Lighting/ -- Sky конфігурація
-            │       └── Baseplate/ -- Поверхня з зонами
-            │           ├── ExplorationZone   -- 80% території
-            │           ├── LandingZone       -- 20% території
-            │           ├── SpaceShipLandingPad -- Посадковий майданчик
-            │           │   ├── LandingLights/    -- Сигнальні вогні
-            │           │   └── LandingPadFrame/  -- Рамка та декор
-            │           └── ZoneWalls/        -- Стіни з мітками
+            │   ├── Workspace/    -- 3D об'єкти
+            │   │   ├── Lighting/ -- Sky конфігурація
+            │   │   └── Baseplate/ -- Поверхня з зонами
+            │   │       ├── ExplorationZone   -- 80% території
+            │   │       ├── LandingZone       -- 20% території
+            │   │       ├── SpaceShipLandingPad -- Посадковий майданчик
+            │   │       │   ├── LandingLights/    -- Сигнальні вогні
+            │   │       │   └── LandingPadFrame/  -- Рамка та декор
+            │   │       └── ZoneWalls/        -- Стіни з мітками
+            │   └── ServerScriptService/ -- Скрипти рівня (клонуються як папка)
+            │       ├── LevelController.luau -- Точка входу (levelInit/levelFini)
+            │       ├── TerrainGenerator.luau -- Процедурна генерація
+            │       ├── LandingLightsModule.luau -- Вогні посадки
+            │       └── LandingPadEffectsModule.luau -- Ефекти рамки
             │
             └── Location_2/       -- "Гірський хребет"
                 ├── Config.luau
@@ -733,6 +742,12 @@ sequenceDiagram
 ---
 
 ## ChangeLog
+
+- **1.4** — LevelController Framework (2026-02-08)
+  - Оновлено LocationService v0.5 → v0.7
+  - Додано ServerScriptService/ папки до Orbit та Location структур
+  - Додано LevelController.luau як точку входу рівня
+  - Додано модулі TerrainGenerator, LandingLightsModule, LandingPadEffectsModule до Location_1
 
 - **1.3** — Додано Mermaid діаграми (2026-01-21)
   - Додано діаграму DataModel Overview

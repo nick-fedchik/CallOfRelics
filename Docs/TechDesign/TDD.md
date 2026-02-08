@@ -1714,7 +1714,7 @@ flowchart TB
         subgraph Services["Services/"]
             PS[PlayerService v0.2]
             PRS[ProfileService v0.2]
-            LS[LocationService v0.4]
+            LS[LocationService v0.7]
             TS[TransitionService v0.8]
             SSS2[SpaceShipService v0.8]
             PSS[PlanetScannerService v0.3]
@@ -1773,7 +1773,7 @@ ServerScriptService/
 ├── Services/
 │   ├── PlayerService.lua         -- Керування гравцями (v0.2)
 │   ├── ProfileService.lua        -- DataStore integration (v0.2)
-│   ├── LocationService.lua       -- Завантаження локацій (v0.4)
+│   ├── LocationService.lua       -- Завантаження локацій, LevelController (v0.7)
 │   ├── TransitionService.lua     -- Landing/Launch sequences (v0.8)
 │   ├── SpaceShipService.lua      -- Ship + Seat management (v0.8)
 │   └── PlanetScannerService.lua  -- Scanning system (v0.3)

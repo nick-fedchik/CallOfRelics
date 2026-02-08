@@ -1,7 +1,7 @@
 # Architecture Documentation
 **Project:** Call of Relics: Orbital Silence
-**Version:** 1.0
-**Date:** 2026-01-21
+**Version:** 1.1
+**Date:** 2026-02-08
 
 ---
 
@@ -87,7 +87,7 @@ flowchart TB
     subgraph Core["⚙️ Core Services"]
         GSM[GameStateManager v0.1]
         PS[ProfileService v0.5]
-        LS[LocationService v0.5]
+        LS[LocationService v0.7]
     end
 
     subgraph Player["👤 Player Services"]
@@ -132,7 +132,7 @@ flowchart TB
 |---------|---------|------------------|
 | **GameStateManager** | 0.1 | Глобальні стани гри, валідація переходів |
 | **ProfileService** | 0.5 | Профілі гравців, DataStore, міграція v1→v2 |
-| **LocationService** | 0.5 | Завантаження/вивантаження локацій, Init/Fini |
+| **LocationService** | 0.7 | Завантаження/вивантаження локацій, LevelController Init/Fini |
 | **PlayerService** | 0.1 | Життєвий цикл гравця (LogOn/LogOff) |
 | **SpaceShipService** | 0.8 | Спавн корабля, сидіння, рампа, ефекти |
 | **TransitionService** | 0.10 | Послідовності Landing/Launch |
@@ -287,14 +287,14 @@ ServerStorage/
 │   │   │   ├── Config.luau          ← Orbital settings, arrival animation
 │   │   │   ├── Workspace/           ← Planet model, skybox
 │   │   │   ├── Lighting/            ← Space lighting
-│   │   │   ├── ServerScriptService/ ← Orbital scripts
+│   │   │   ├── ServerScriptService/ ← Cloned as folder, LevelController entry point
 │   │   │   └── ReplicatedStorage/   ← Orbital modules
 │   │   └── Surface/
 │   │       ├── Location_1/
 │   │       │   ├── Config.luau      ← Location metadata, landing pad
 │   │       │   ├── Workspace/       ← Baseplate, zones, landing pad
 │   │       │   ├── Lighting/        ← Surface lighting
-│   │       │   ├── ServerScriptService/ ← LandingLightsModule, Effects
+│   │       │   ├── ServerScriptService/ ← Cloned as folder, LevelController entry point
 │   │       │   └── ReplicatedStorage/
 │   │       └── Location_2/
 │   ├── Planet_2/
@@ -434,8 +434,10 @@ sequenceDiagram
         LS->>CRS: Register(Location, objects)
         LS->>LS: Clone Lighting
         LS->>CRS: Register(Location, lighting)
-        LS->>LS: Clone ServerScriptService
-        LS->>CRS: Register(Location, scripts)
+        LS->>LS: Clone ServerScriptService folder
+        LS->>CRS: Register(Location, folder)
+        Note over LS: Find & require LevelController
+        LS->>LS: LevelController.levelInit()
         LS->>LS: Clone ReplicatedStorage
         LS->>CRS: Register(Location, modules)
     end
@@ -476,7 +478,7 @@ flowchart LR
 
     SW -->|Clone children| TW
     SL -->|Clone children| TL
-    SS -->|Clone children| TS
+    SS -->|Clone folder + LevelController.levelInit| TS
     SR -->|Clone children| TR
 
     TW -.->|Track| R
@@ -552,14 +554,15 @@ sequenceDiagram
 flowchart TB
     subgraph Fini["🧹 FiniLocation Process"]
         F1[Get registered content from ContextRegistry]
+        F1b[LevelController.levelFini — stop loops, cleanup]
         F2[Destroy Workspace objects]
         F3[Destroy Lighting objects]
-        F4[Destroy ServerScriptService scripts]
+        F4[Destroy ServerScriptService folder]
         F5[Destroy ReplicatedStorage modules]
         F6[Clear registry for Location level]
     end
 
-    F1 --> F2 --> F3 --> F4 --> F5 --> F6
+    F1 --> F1b --> F2 --> F3 --> F4 --> F5 --> F6
 
     subgraph Hierarchy["📊 Cleanup Hierarchy"]
         L[Location Level]
