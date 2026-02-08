@@ -95,17 +95,17 @@ flowchart TB
         BS[BootSequence v0.5]
     end
 
-    subgraph Ship["🚀 Ship Services"]
-        SSS[SpaceShipService v0.8]
+    subgraph Ship["🚀 Ship Services (Services/)"]
         TS[TransitionService v0.10]
     end
 
     subgraph Discovery["🔍 Discovery Services"]
-        PSS[PlanetScannerService v0.5]
         CRS[ContextRegistryService v0.1]
     end
 
-    subgraph Stubs["📋 Stub Services"]
+    subgraph SpaceShipSys["🛸 Systems/SpaceShip/"]
+        SSS[SpaceShipService v0.11]
+        PSS[PlanetScannerService v0.6]
         PCS[PersonalComputerService v0.1]
         PLOCS[PlanetLocatorService v0.1]
     end
@@ -133,10 +133,17 @@ flowchart TB
 | **ProfileService** | 0.5 | Профілі гравців, DataStore, міграція v1→v2 |
 | **LocationService** | 0.7 | Завантаження/вивантаження локацій, LevelController Init/Fini |
 | **PlayerService** | 0.1 | Життєвий цикл гравця (LogOn/LogOff) |
-| **SpaceShipService** | 0.8 | Спавн корабля, сидіння, рампа, ефекти |
 | **TransitionService** | 0.10 | Послідовності Landing/Launch |
-| **PlanetScannerService** | 0.5 | Сканування поверхні, відкриття локацій |
 | **ContextRegistryService** | 0.1 | Реєстр скопійованого контенту для очистки |
+
+#### Systems/SpaceShip/ Reference
+
+| System | Version | Відповідальність |
+|--------|---------|------------------|
+| **SpaceShipService** | 0.11 | Спавн корабля, сидіння, рампа, ефекти |
+| **PlanetScannerService** | 0.6 | Сканування поверхні, відкриття локацій |
+| **PlanetLocatorService** | 0.1 | Пошук планет (stub) |
+| **PersonalComputerService** | 0.1 | Інвентар та knowledge (stub) |
 
 ---
 

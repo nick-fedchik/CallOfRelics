@@ -39,12 +39,13 @@ Dependencies:
 - LocationService
 - PlayerService
 ChangeLog:
+- 0.4: SpaceShip systems moved to Systems/SpaceShip/ (2026-02-08)
 - 0.2: Added LocationService initialization (2026-01-12)
 - 0.1: Initial boot sequence implementation (2026-01-11)
 ================================================================================
 ]]
 
-local VERSION = "0.3"
+local VERSION = "0.4"
 local MODULE_NAME = "ServerBootstrap"
 
 -- ============================================================================
@@ -65,6 +66,9 @@ local GameStateManager = require(Core:WaitForChild("GameStateManager"))
 -- Services
 local Services = ServerScriptService:WaitForChild("Services")
 local PlayerService = require(Services:WaitForChild("PlayerService"))
+
+-- Systems
+local SpaceShipSystems = ServerScriptService:WaitForChild("Systems"):WaitForChild("SpaceShip")
 
 -- ============================================================================
 -- BOOT SEQUENCE (TDD Section 4.3)
@@ -94,7 +98,7 @@ local function Boot()
 	end
 
 	-- SpaceShipService now includes seat management (merged from SeatService)
-	local SpaceShipService = require(Services:WaitForChild("SpaceShipService"))
+	local SpaceShipService = require(SpaceShipSystems:WaitForChild("SpaceShipService"))
 	success = SpaceShipService.Initialize()
 	if not success then
 		error("[ServerBootstrap] SpaceShipService initialization failed!")
@@ -106,7 +110,7 @@ local function Boot()
 		error("[ServerBootstrap] TransitionService initialization failed!")
 	end
 
-	local PlanetScannerService = require(Services:WaitForChild("PlanetScannerService"))
+	local PlanetScannerService = require(SpaceShipSystems:WaitForChild("PlanetScannerService"))
 	success = PlanetScannerService.Initialize()
 	if not success then
 		error("[ServerBootstrap] PlanetScannerService initialization failed!")

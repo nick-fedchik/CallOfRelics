@@ -70,9 +70,9 @@ function PersonalComputerService.Initialize()
 	if isInitialized then return true end
 
 	-- Load modules
-	local servicesFolder = script.Parent
-	ProfileService = require(servicesFolder:WaitForChild("ProfileService"))
-	SpaceShipService = require(servicesFolder:WaitForChild("SpaceShipService"))
+	local Services = game:GetService("ServerScriptService"):WaitForChild("Services")
+	ProfileService = require(Services:WaitForChild("ProfileService"))
+	SpaceShipService = require(script.Parent:WaitForChild("SpaceShipService"))
 
 	-- TODO: Setup RemoteEvents when implemented
 

@@ -1716,8 +1716,10 @@ flowchart TB
             PRS[ProfileService v0.2]
             LS[LocationService v0.7]
             TS[TransitionService v0.8]
-            SSS2[SpaceShipService v0.8]
-            PSS[PlanetScannerService v0.3]
+        end
+        subgraph SpaceShipSys["Systems/SpaceShip/"]
+            SSS2[SpaceShipService v0.11]
+            PSS[PlanetScannerService v0.6]
         end
         subgraph Setup["Setup/"]
             RES[RemoteEventsSetup v0.5]
@@ -1768,15 +1770,20 @@ ServerScriptService/
 ├── Core/
 │   ├── GameStateManager.lua      -- Єдиний координатор станів (v0.2)
 │   ├── BootSequence.lua          -- 4-stage boot sequence (v0.4)
-│   └── ServerBootstrap.server.lua -- Точка входу (v0.3)
+│   └── ServerBootstrap.server.lua -- Точка входу (v0.4)
 │
 ├── Services/
 │   ├── PlayerService.lua         -- Керування гравцями (v0.2)
 │   ├── ProfileService.lua        -- DataStore integration (v0.2)
 │   ├── LocationService.lua       -- Завантаження локацій, LevelController (v0.7)
-│   ├── TransitionService.lua     -- Landing/Launch sequences (v0.8)
-│   ├── SpaceShipService.lua      -- Ship + Seat management (v0.8)
-│   └── PlanetScannerService.lua  -- Scanning system (v0.3)
+│   └── TransitionService.lua     -- Landing/Launch sequences (v0.8)
+│
+├── Systems/
+│   └── SpaceShip/
+│       ├── SpaceShipService.lua      -- Ship + Seat management (v0.11)
+│       ├── PlanetScannerService.lua  -- Scanning system (v0.6)
+│       ├── PlanetLocatorService.lua  -- Planet discovery (v0.1, stub)
+│       └── PersonalComputerService.lua -- Inventory/Knowledge (v0.1, stub)
 │
 └── Setup/
     └── RemoteEventsSetup.server.lua -- RemoteEvents infrastructure (v0.5)

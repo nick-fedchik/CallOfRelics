@@ -8,7 +8,7 @@ Server-side management of planet surface scanning.
 Handles scan requests, progress, and location discovery.
 
 Version:
-0.3
+0.6
 
 Features:
 - Process scan requests from clients
@@ -51,6 +51,7 @@ Dependencies:
 - TransitionConfig
 
 ChangeLog:
+- 0.6: Moved from Services/ to Systems/SpaceShip/ (2026-02-08)
 - 0.5: Scanner state persistence via ProfileService (battery, wear saved to profile) (2026-01-16)
 - 0.4: Added location visibility support, new discovery formula (2026-01-16)
 - 0.3: New scanner model: battery system, wear-based accuracy (2026-01-16)
@@ -61,7 +62,7 @@ ChangeLog:
 
 local PlanetScannerService = {}
 
-local VERSION = "0.5"
+local VERSION = "0.6"
 local MODULE_NAME = "PlanetScannerService"
 
 -- ============================================================================
@@ -414,8 +415,8 @@ function PlanetScannerService.Initialize()
 	if isInitialized then return true end
 
 	-- Load modules
-	local servicesFolder = script.Parent
-	ProfileService = require(servicesFolder:WaitForChild("ProfileService"))
+	local Services = game:GetService("ServerScriptService"):WaitForChild("Services")
+	ProfileService = require(Services:WaitForChild("ProfileService"))
 
 	local Game = ReplicatedStorage:WaitForChild("Game")
 	TransitionConfig = require(Game:WaitForChild("TransitionConfig"))

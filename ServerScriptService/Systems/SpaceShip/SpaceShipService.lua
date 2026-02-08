@@ -9,7 +9,7 @@ Clones SpaceShip from ServerStorage/Actors based on player profile.
 Tracks seat occupancy and processes seat-based actions.
 
 Version:
-0.7
+0.11
 
 Features:
 - Clone SpaceShip from ServerStorage/Actors/{modelName}
@@ -81,6 +81,7 @@ Dependencies:
 - RemoteEvents
 
 ChangeLog:
+- 0.11: Moved from Services/ to Systems/SpaceShip/ (2026-02-08)
 - 0.10: Update paths for new ship structure (RampSystem, LandingGear, etc.) (2026-01-24)
 - 0.9: Rename BottomEngine to LandingGearRear for engine fire lookup (2026-01-24)
 - 0.8: Replace stripe pulsation with step pulsation (2026-01-21)
@@ -96,7 +97,7 @@ ChangeLog:
 
 local SpaceShipService = {}
 
-local VERSION = "0.10"
+local VERSION = "0.11"
 local MODULE_NAME = "SpaceShipService"
 
 -- ============================================================================
@@ -196,9 +197,9 @@ end
 function SpaceShipService.Initialize()
 	if isInitialized then return true end
 
-	-- Load ProfileService
-	local servicesFolder = script.Parent
-	local profileServiceModule = servicesFolder:FindFirstChild("ProfileService")
+	-- Load ProfileService (from Services/)
+	local Services = game:GetService("ServerScriptService"):WaitForChild("Services")
+	local profileServiceModule = Services:FindFirstChild("ProfileService")
 	if profileServiceModule then
 		ProfileService = require(profileServiceModule)
 	end

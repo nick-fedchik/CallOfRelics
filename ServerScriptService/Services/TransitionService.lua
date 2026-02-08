@@ -94,7 +94,9 @@ end
 
 local function GetSpaceShipService()
 	if not SpaceShipService then
-		SpaceShipService = require(script.Parent.SpaceShipService)
+		local SpaceShipSystems = game:GetService("ServerScriptService")
+			:WaitForChild("Systems"):WaitForChild("SpaceShip")
+		SpaceShipService = require(SpaceShipSystems:WaitForChild("SpaceShipService"))
 	end
 	return SpaceShipService
 end

@@ -66,8 +66,13 @@ flowchart TB
             PRS[ProfileService]
             LS[LocationService]
             TS[TransitionService]
+        end
+
+        subgraph Systems["Systems/SpaceShip/"]
             SSS2[SpaceShipService]
             PSS[PlanetScannerService]
+            PLOCS[PlanetLocatorService]
+            PCS[PersonalComputerService]
         end
 
         subgraph Setup["Setup/"]
@@ -81,28 +86,28 @@ flowchart TB
     BS --> TS
 ```
 
-### Поточна структура (v0.9)
+### Поточна структура (v0.10)
 
 ```
 ServerScriptService/
 ├── Core/
 │   ├── GameStateManager.lua      -- Координатор станів (v0.2)
 │   ├── BootSequence.lua          -- 4-stage boot sequence (v0.4)
-│   └── ServerBootstrap.server.lua -- Точка входу (v0.3)
+│   └── ServerBootstrap.server.lua -- Точка входу (v0.4)
 │
 ├── Services/
 │   ├── PlayerService.lua         -- Життєвий цикл гравця (v0.2)
 │   ├── ProfileService.lua        -- DataStore профілі (v0.2)
 │   ├── LocationService.lua       -- Завантаження локацій, LevelController (v0.7)
 │   ├── ContextRegistryService.lua -- Реєстрація контенту (v0.1)
-│   ├── TransitionService.lua     -- Переходи Orbit↔Surface (v0.7)
-│   ├── SpaceShipService.lua      -- SpaceShip + Seat management (v0.4) ← NEW
-│   ├── PlanetScannerService.lua  -- Сканування планет (v0.1) ← NEW
-│   ├── PlanetLocatorService.lua  -- Пошук планет (v0.1) ← NEW
-│   └── PersonalComputerService.lua -- Інвентар/Knowledge (v0.1) ← NEW
+│   └── TransitionService.lua     -- Переходи Orbit↔Surface (v0.7)
 │
 ├── Systems/
-│   └── (підготовлено для майбутніх систем)
+│   └── SpaceShip/
+│       ├── SpaceShipService.lua      -- SpaceShip + Seat management (v0.11)
+│       ├── PlanetScannerService.lua  -- Сканування планет (v0.6)
+│       ├── PlanetLocatorService.lua  -- Пошук планет (v0.1, stub)
+│       └── PersonalComputerService.lua -- Інвентар/Knowledge (v0.1, stub)
 │
 └── Setup/
     └── RemoteEventsSetup.server.lua -- RemoteEvents (v0.5)
@@ -561,6 +566,8 @@ sequenceDiagram
 - `LocationService.lua`
 - `ContextRegistryService.lua`
 - `TransitionService.lua`
+
+**ServerScriptService/Systems/SpaceShip:**
 - `SpaceShipService.lua`
 - `PlanetScannerService.lua`
 - `PlanetLocatorService.lua`
@@ -656,10 +663,6 @@ sequenceDiagram
 - `LocationService.lua` — завантаження локацій
 - `ContextRegistryService.lua` — реєстрація контенту
 - `TransitionService.lua` — переходи між локаціями
-- `SpaceShipService.lua` — SpaceShip + seat management
-- `PlanetScannerService.lua` — сканування планет
-- `PlanetLocatorService.lua` — пошук планет
-- `PersonalComputerService.lua` — інвентар та knowledge
 
 ---
 
@@ -675,6 +678,12 @@ sequenceDiagram
 - "Реагує на зміни станів"
 - "Не ініціює переходи станів напряму"
 - Працює в межах дозволеного контексту
+
+**Поточні файли (SpaceShip/):**
+- `SpaceShipService.lua` — SpaceShip + seat management
+- `PlanetScannerService.lua` — сканування планет
+- `PlanetLocatorService.lua` — пошук планет (stub)
+- `PersonalComputerService.lua` — інвентар та knowledge (stub)
 
 **Майбутні файли:**
 - `CombatSystem.lua` — бойова система
@@ -739,6 +748,11 @@ sequenceDiagram
 ---
 
 ## ChangeLog
+
+- **1.6** — SpaceShip services moved to Systems/SpaceShip/ (2026-02-08)
+  - SpaceShipService, PlanetScannerService, PlanetLocatorService, PersonalComputerService → Systems/SpaceShip/
+  - Services/ тепер тільки координатори (Player, Profile, Location, Context, Transition)
+  - Оновлено діаграми та всі списки файлів
 
 - **1.5** — Видалено EnginesService stub (2026-02-08)
   - Видалено EnginesService.lua — stub merged into SpaceShipService
