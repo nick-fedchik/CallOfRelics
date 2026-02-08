@@ -8,19 +8,21 @@ Procedural content generation for Location_1 "Візитка" surface.
 Generates terrain, bare patches, alien temple with doors, and fractal trees.
 
 Version:
-0.4
+0.6
 
 Features:
 - FBM noise terrain with gentle hills (6x lower than v0.1)
 - Random bare patches (4-24 clearings without grass)
-- Futuristic temple building (alien orthodox church style, 4x footprint, 2x height)
-- Proximity-triggered sliding doors on both entrances
+- Octagonal alien temple with 8 corner towers and 8 capacitor spheres
+- Proximity-triggered sliding doors on front/back walls
 - Fractal trees with cylindrical trunks/branches, turquoise-agate leaves
 - Random tree height variation
 - Deterministic seed-based generation
-- Building exclusion zones for terrain and trees
+- Circular building exclusion zone for terrain and trees
 - Clear entrance paths to building
-- Periodic vertical lightning bolt from central capacitor into sky
+- Periodic vertical lightning bolt from central capacitor into sky with thunder
+- Spires embedded into dome spheres for visual contact
+- Sporadic electrostatic discharge bursts (tower → central)
 
 Dependencies:
 - FastNoise (ReplicatedStorage/Game/FastNoise)
@@ -29,6 +31,8 @@ Dependencies:
 - Players (door proximity detection)
 
 ChangeLog:
+- 0.6: Octagonal temple with 8 corner towers and 8 capacitor spheres (2026-02-08)
+- 0.5: Spire embedding, lightning-like discharges, thunder (2026-02-08)
 - 0.4: Vertical lightning bolt from central spire (2026-02-08)
 - 0.3: 4x building, doors, cylindrical trees, turquoise leaves, lower grass (2026-02-06)
 - 0.2: Bare patches, alien temple, fractal trees, lower terrain (2026-02-06)
@@ -42,7 +46,7 @@ ChangeLog:
 
 local SEED = 42
 local MODULE_NAME = "LocationGenerator"
-local VERSION = "0.4"
+local VERSION = "0.6"
 
 -- Terrain
 local FREQUENCY = 0.008
@@ -73,8 +77,7 @@ local BUILDING_ZONE_MIN_X = 433
 local BUILDING_ZONE_MAX_X = 851
 local BUILDING_ZONE_MIN_Z = 232
 local BUILDING_ZONE_MAX_Z = 792
-local BUILDING_W = 160           -- Was 40, 4x wider
-local BUILDING_D = 120           -- Was 30, 4x deeper
+local BUILDING_RADIUS = 80       -- Circumradius of octagonal temple
 local BUILDING_CLEARANCE = 20    -- Terrain exclusion around building
 
 -- Trees
@@ -175,8 +178,8 @@ end
 local buildingCenter = nil
 
 local function PickBuildingPosition()
-	local bx = rng:NextNumber(BUILDING_ZONE_MIN_X + BUILDING_W / 2, BUILDING_ZONE_MAX_X - BUILDING_W / 2)
-	local bz = rng:NextNumber(BUILDING_ZONE_MIN_Z + BUILDING_D / 2, BUILDING_ZONE_MAX_Z - BUILDING_D / 2)
+	local bx = rng:NextNumber(BUILDING_ZONE_MIN_X + BUILDING_RADIUS, BUILDING_ZONE_MAX_X - BUILDING_RADIUS)
+	local bz = rng:NextNumber(BUILDING_ZONE_MIN_Z + BUILDING_RADIUS, BUILDING_ZONE_MAX_Z - BUILDING_RADIUS)
 	buildingCenter = { x = bx, z = bz }
 	print(string.format("[%s] Building position: (%.0f, %.0f)", MODULE_NAME, bx, bz))
 end
@@ -187,11 +190,8 @@ end
 
 local function IsInBuildingZone(x, z)
 	if not buildingCenter then return false end
-	local hw = BUILDING_W / 2 + BUILDING_CLEARANCE
-	local hd = BUILDING_D / 2 + BUILDING_CLEARANCE
-	return IsInsideRect(x, z,
-		buildingCenter.x - hw, buildingCenter.z - hd,
-		buildingCenter.x + hw, buildingCenter.z + hd)
+	local r = BUILDING_RADIUS + BUILDING_CLEARANCE
+	return (x - buildingCenter.x) ^ 2 + (z - buildingCenter.z) ^ 2 <= r * r
 end
 
 local function IsInBarePatch(x, z)
@@ -249,7 +249,7 @@ local function GenerateTerrain()
 end
 
 -- ============================================================================
--- STEP 4: BUILDING — Futuristic Alien Temple (4x footprint, 2x height)
+-- STEP 4: BUILDING — Octagonal Alien Temple (circumradius 80, 8 corner towers)
 -- ============================================================================
 
 local function CreateBuilding()
@@ -262,19 +262,20 @@ local function CreateBuilding()
 	local cz = buildingCenter.z
 	local floorY = GROUND_Y
 
-	-- Dimensions (4x horizontal, 2x vertical from v0.2; entrances unchanged)
-	local W = BUILDING_W       -- 160
-	local D = BUILDING_D       -- 120
-	local WH = 32              -- Wall height (was 16)
+	-- Octagonal geometry
+	local R = BUILDING_RADIUS                          -- 80 (circumradius)
+	local SIDES = 8
+	local sideLen = 2 * R * math.sin(math.pi / SIDES) -- ~61.24
+	local apothem = R * math.cos(math.pi / SIDES)     -- ~73.9
+
+	-- Dimensions
+	local WH = 32              -- Wall height
 	local WT = 4               -- Wall thickness
-	local DOOR_W = 8           -- Door width (unchanged)
-	local DOOR_H = 12          -- Door height (unchanged)
+	local DOOR_W = 8           -- Door width
+	local DOOR_H = 12          -- Door height
 	local WIN_W = 6            -- Window width
 	local WIN_H = 12           -- Window height
-	local NUM_WIN = 4          -- Windows per side wall
-	local halfW = W / 2        -- 80
-	local halfD = D / 2        -- 60
-	local innerW = W - 2 * WT  -- 152
+	local NUM_WIN = 2          -- Windows per solid wall
 
 	-- Colors
 	local C_WALL = Color3.fromRGB(175, 175, 185)
@@ -286,11 +287,16 @@ local function CreateBuilding()
 	local C_TOWER = Color3.fromRGB(165, 165, 175)
 	local C_DOOR = Color3.fromRGB(110, 120, 135)
 
-	local function MP(name, size, position, color, material, transparency)
+	-- Part factory: accepts CFrame or Vector3 position
+	local function MP(name, size, cfOrPos, color, material, transparency)
 		local p = Instance.new("Part")
 		p.Name = name
 		p.Size = size
-		p.Position = position
+		if typeof(cfOrPos) == "CFrame" then
+			p.CFrame = cfOrPos
+		else
+			p.Position = cfOrPos
+		end
 		p.Anchored = true
 		p.Color = color or C_WALL
 		p.Material = material or Enum.Material.SmoothPlastic
@@ -299,92 +305,148 @@ local function CreateBuilding()
 		return p
 	end
 
-	-- ======= FLOOR =======
-	MP("Floor", Vector3.new(W, 1, D), Vector3.new(cx, floorY, cz), C_FLOOR)
-
-	-- ======= FRONT WALL (X- face) with door =======
-	local sideSegZ = (D - DOOR_W) / 2
-	local wallCenterY = floorY + WH / 2 + 0.5
-	local frontWallX = cx - halfW + WT / 2
-	local backWallX = cx + halfW - WT / 2
-
-	MP("FrontWall_L", Vector3.new(WT, WH, sideSegZ),
-		Vector3.new(frontWallX, wallCenterY, cz - halfD + sideSegZ / 2), C_WALL)
-	MP("FrontWall_R", Vector3.new(WT, WH, sideSegZ),
-		Vector3.new(frontWallX, wallCenterY, cz + halfD - sideSegZ / 2), C_WALL)
-	MP("FrontWall_Top", Vector3.new(WT, WH - DOOR_H, DOOR_W),
-		Vector3.new(frontWallX, floorY + DOOR_H + (WH - DOOR_H) / 2 + 0.5, cz), C_WALL)
-
-	-- ======= BACK WALL (X+ face) with door =======
-	MP("BackWall_L", Vector3.new(WT, WH, sideSegZ),
-		Vector3.new(backWallX, wallCenterY, cz - halfD + sideSegZ / 2), C_WALL)
-	MP("BackWall_R", Vector3.new(WT, WH, sideSegZ),
-		Vector3.new(backWallX, wallCenterY, cz + halfD - sideSegZ / 2), C_WALL)
-	MP("BackWall_Top", Vector3.new(WT, WH - DOOR_H, DOOR_W),
-		Vector3.new(backWallX, floorY + DOOR_H + (WH - DOOR_H) / 2 + 0.5, cz), C_WALL)
-
-	-- ======= DOOR PANELS (slide open on proximity) =======
-	local frontDoorL = MP("FrontDoor_L", Vector3.new(WT, DOOR_H, DOOR_W / 2),
-		Vector3.new(frontWallX, floorY + DOOR_H / 2 + 0.5, cz - DOOR_W / 4), C_DOOR)
-	local frontDoorR = MP("FrontDoor_R", Vector3.new(WT, DOOR_H, DOOR_W / 2),
-		Vector3.new(frontWallX, floorY + DOOR_H / 2 + 0.5, cz + DOOR_W / 4), C_DOOR)
-	local backDoorL = MP("BackDoor_L", Vector3.new(WT, DOOR_H, DOOR_W / 2),
-		Vector3.new(backWallX, floorY + DOOR_H / 2 + 0.5, cz - DOOR_W / 4), C_DOOR)
-	local backDoorR = MP("BackDoor_R", Vector3.new(WT, DOOR_H, DOOR_W / 2),
-		Vector3.new(backWallX, floorY + DOOR_H / 2 + 0.5, cz + DOOR_W / 4), C_DOOR)
-
-	-- ======= SIDE WALLS (Z- and Z+ faces) with windows =======
-	local winSillY = floorY + 12 + 0.5
-	local wallStartX = cx - innerW / 2
-	local wallEndX = cx + innerW / 2
-	local bottomH = winSillY - floorY - 0.5
-	local topH = (floorY + WH + 0.5) - (winSillY + WIN_H)
-
-	-- Window X positions (evenly spaced)
-	local winSpacing = innerW / (NUM_WIN + 1)
-	local winXPositions = {}
-	for w = 1, NUM_WIN do
-		table.insert(winXPositions, wallStartX + w * winSpacing)
+	-- ======= OCTAGONAL VERTICES =======
+	-- Vertex i at angle 22.5° + i*45° (i=0..7)
+	local vertices = {}
+	for i = 0, SIDES - 1 do
+		local angle = math.rad(22.5 + i * 45)
+		vertices[i + 1] = {
+			x = cx + R * math.cos(angle),
+			z = cz + R * math.sin(angle),
+		}
 	end
 
-	for _, side in ipairs({
-		{ z = cz - halfD + WT / 2, prefix = "Left" },
-		{ z = cz + halfD - WT / 2, prefix = "Right" },
-	}) do
-		-- Full-width bottom strip (below windows)
-		MP(side.prefix .. "Wall_Bottom", Vector3.new(innerW, bottomH, WT),
-			Vector3.new(cx, floorY + bottomH / 2 + 0.5, side.z), C_WALL)
-		-- Full-width top strip (above windows)
-		MP(side.prefix .. "Wall_Top", Vector3.new(innerW, topH, WT),
-			Vector3.new(cx, winSillY + WIN_H + topH / 2, side.z), C_WALL)
-		-- Vertical segments between and around windows
-		for s = 0, NUM_WIN do
-			local segL = (s == 0) and wallStartX or (winXPositions[s] + WIN_W / 2)
-			local segR = (s == NUM_WIN) and wallEndX or (winXPositions[s + 1] - WIN_W / 2)
-			local segW = segR - segL
-			if segW > 0.5 then
-				MP(side.prefix .. "WallSeg_" .. s, Vector3.new(segW, WIN_H, WT),
-					Vector3.new((segL + segR) / 2, winSillY + WIN_H / 2, side.z), C_WALL)
+	-- Wall i (1..8): between vertex i and vertex i+1 (mod 8)
+	-- Normal angle for wall i = i * 45° (outward)
+	-- Wall 4: normal 180° → faces -X (FRONT door)
+	-- Wall 8: normal 360°/0° → faces +X (BACK door)
+	local doorWalls = { [4] = true, [8] = true }
+
+	-- ======= FLOOR (cylindrical, inscribed circle) =======
+	local floorDiam = apothem * 2
+	local floorPart = Instance.new("Part")
+	floorPart.Name = "Floor"
+	floorPart.Shape = Enum.PartType.Cylinder
+	floorPart.Size = Vector3.new(1, floorDiam, floorDiam)
+	floorPart.CFrame = CFrame.new(cx, floorY, cz) * CFrame.Angles(0, 0, math.rad(90))
+	floorPart.Anchored = true
+	floorPart.Color = C_FLOOR
+	floorPart.Material = Enum.Material.SmoothPlastic
+	floorPart.Parent = building
+
+	-- ======= WALLS (8 sides: 2 with doors, 6 with windows) =======
+	-- Wall CFrame: Size(WT, WH, sideLen), local X=normal, local Z=tangent
+	-- CFrame = CFrame.new(wallCenter) * CFrame.Angles(0, -normalAngle, 0)
+	local wallCenterY = floorY + WH / 2 + 0.5
+	local doorPanels = {}
+	local doorData = {}
+
+	for i = 1, SIDES do
+		local normalAngle = math.rad(i * 45)
+		local nx = math.cos(normalAngle)
+		local nz = math.sin(normalAngle)
+		local tx = -math.sin(normalAngle)  -- tangent direction
+		local tz = math.cos(normalAngle)
+		local wallCX = cx + apothem * nx
+		local wallCZ = cz + apothem * nz
+		local rot = CFrame.Angles(0, -normalAngle, 0)
+
+		if doorWalls[i] then
+			-- === DOOR WALL ===
+			local sideSegLen = (sideLen - DOOR_W) / 2
+
+			-- Left segment (tangent negative side)
+			MP("Wall" .. i .. "_L", Vector3.new(WT, WH, sideSegLen),
+				CFrame.new(wallCX + tx * (sideLen / 2 - sideSegLen / 2) * -1,
+					wallCenterY,
+					wallCZ + tz * (sideLen / 2 - sideSegLen / 2) * -1) * rot, C_WALL)
+			-- Right segment (tangent positive side)
+			MP("Wall" .. i .. "_R", Vector3.new(WT, WH, sideSegLen),
+				CFrame.new(wallCX + tx * (sideLen / 2 - sideSegLen / 2),
+					wallCenterY,
+					wallCZ + tz * (sideLen / 2 - sideSegLen / 2)) * rot, C_WALL)
+			-- Top segment (above door)
+			local topH = WH - DOOR_H
+			MP("Wall" .. i .. "_Top", Vector3.new(WT, topH, DOOR_W),
+				CFrame.new(wallCX, floorY + DOOR_H + topH / 2 + 0.5, wallCZ) * rot, C_WALL)
+
+			-- Door panels (slide along tangent)
+			local doorCenterY = floorY + DOOR_H / 2 + 0.5
+			local doorL = MP("Door" .. i .. "_L", Vector3.new(WT, DOOR_H, DOOR_W / 2),
+				CFrame.new(wallCX + tx * (-DOOR_W / 4), doorCenterY, wallCZ + tz * (-DOOR_W / 4)) * rot, C_DOOR)
+			local doorR = MP("Door" .. i .. "_R", Vector3.new(WT, DOOR_H, DOOR_W / 2),
+				CFrame.new(wallCX + tx * (DOOR_W / 4), doorCenterY, wallCZ + tz * (DOOR_W / 4)) * rot, C_DOOR)
+
+			-- Door frame neon strips
+			local frameT = 0.5
+			local ftop = MP("DoorFrame" .. i .. "_Top", Vector3.new(WT + 0.2, frameT, DOOR_W + 1),
+				CFrame.new(wallCX, floorY + DOOR_H + 0.5 + frameT / 2, wallCZ) * rot, C_NEON, Enum.Material.Neon)
+			ftop.CanCollide = false
+			local fleft = MP("DoorFrame" .. i .. "_L", Vector3.new(WT + 0.2, DOOR_H, frameT),
+				CFrame.new(wallCX + tx * (-DOOR_W / 2 - frameT / 2), doorCenterY,
+					wallCZ + tz * (-DOOR_W / 2 - frameT / 2)) * rot, C_NEON, Enum.Material.Neon)
+			fleft.CanCollide = false
+			local fright = MP("DoorFrame" .. i .. "_R", Vector3.new(WT + 0.2, DOOR_H, frameT),
+				CFrame.new(wallCX + tx * (DOOR_W / 2 + frameT / 2), doorCenterY,
+					wallCZ + tz * (DOOR_W / 2 + frameT / 2)) * rot, C_NEON, Enum.Material.Neon)
+			fright.CanCollide = false
+
+			-- Door slide data (tangent direction for open/close)
+			local slideOffset = DOOR_W / 2 + 1
+			local tangent = Vector3.new(tx, 0, tz)
+			table.insert(doorData, {
+				position = Vector3.new(wallCX, GROUND_Y + 3, wallCZ),
+				panels = {
+					{ part = doorL, closedPos = doorL.Position, openPos = doorL.Position - tangent * slideOffset },
+					{ part = doorR, closedPos = doorR.Position, openPos = doorR.Position + tangent * slideOffset },
+				},
+			})
+		else
+			-- === SOLID WALL WITH WINDOWS ===
+			local winSillY = floorY + 12 + 0.5
+			local bottomH = winSillY - floorY - 0.5
+			local topH = (floorY + WH + 0.5) - (winSillY + WIN_H)
+
+			-- Full-width bottom strip (below windows)
+			MP("Wall" .. i .. "_Bottom", Vector3.new(WT, bottomH, sideLen),
+				CFrame.new(wallCX, floorY + bottomH / 2 + 0.5, wallCZ) * rot, C_WALL)
+			-- Full-width top strip (above windows)
+			MP("Wall" .. i .. "_Top", Vector3.new(WT, topH, sideLen),
+				CFrame.new(wallCX, winSillY + WIN_H + topH / 2, wallCZ) * rot, C_WALL)
+
+			-- Window positions along the wall (local Z offsets)
+			local winSpacing = sideLen / (NUM_WIN + 1)
+			local winOffsets = {}
+			for w = 1, NUM_WIN do
+				winOffsets[w] = -sideLen / 2 + w * winSpacing
+			end
+
+			-- Vertical segments between and around windows
+			for s = 0, NUM_WIN do
+				local segL = (s == 0) and (-sideLen / 2) or (winOffsets[s] + WIN_W / 2)
+				local segR = (s == NUM_WIN) and (sideLen / 2) or (winOffsets[s + 1] - WIN_W / 2)
+				local segW = segR - segL
+				if segW > 0.5 then
+					local segOff = (segL + segR) / 2
+					MP("WallSeg" .. i .. "_" .. s, Vector3.new(WT, WIN_H, segW),
+						CFrame.new(wallCX + tx * segOff, winSillY + WIN_H / 2, wallCZ + tz * segOff) * rot, C_WALL)
+				end
+			end
+
+			-- Window glass panes
+			for w, wOff in ipairs(winOffsets) do
+				MP("Win" .. i .. "_" .. w, Vector3.new(0.5, WIN_H, WIN_W),
+					CFrame.new(wallCX + tx * wOff, winSillY + WIN_H / 2, wallCZ + tz * wOff) * rot,
+					C_GLASS, Enum.Material.Glass, 0.4)
 			end
 		end
-		-- Window glass panes
-		for w, wx in ipairs(winXPositions) do
-			MP(side.prefix .. "Win_" .. w, Vector3.new(WIN_W, WIN_H, 0.5),
-				Vector3.new(wx, winSillY + WIN_H / 2, side.z), C_GLASS, Enum.Material.Glass, 0.4)
-		end
-	end
 
-	-- ======= NEON TRIM (top edge of walls) =======
-	local neonH = 0.5
-	local wallTopY = floorY + WH + 0.5 + neonH / 2
-	MP("NeonTrim_Front", Vector3.new(WT + 0.4, neonH, D + 0.4),
-		Vector3.new(frontWallX, wallTopY, cz), C_NEON, Enum.Material.Neon)
-	MP("NeonTrim_Back", Vector3.new(WT + 0.4, neonH, D + 0.4),
-		Vector3.new(backWallX, wallTopY, cz), C_NEON, Enum.Material.Neon)
-	MP("NeonTrim_Left", Vector3.new(innerW, neonH, WT + 0.4),
-		Vector3.new(cx, wallTopY, cz - halfD + WT / 2), C_NEON, Enum.Material.Neon)
-	MP("NeonTrim_Right", Vector3.new(innerW, neonH, WT + 0.4),
-		Vector3.new(cx, wallTopY, cz + halfD - WT / 2), C_NEON, Enum.Material.Neon)
+		-- Neon trim on top of each wall
+		local neonH = 0.5
+		local wallTopY = floorY + WH + 0.5 + neonH / 2
+		MP("NeonTrim_" .. i, Vector3.new(WT + 0.4, neonH, sideLen + 0.4),
+			CFrame.new(wallCX, wallTopY, wallCZ) * rot, C_NEON, Enum.Material.Neon)
+	end
 
 	-- ======= MAIN DOME =======
 	local drumH = 8
@@ -416,11 +478,12 @@ local function CreateBuilding()
 	domePart.Transparency = 0
 	domePart.Parent = building
 
-	-- Dome spire — touches top of dome sphere
+	-- Dome spire — embedded into dome sphere for visual contact
 	local mainSpireH = 12
 	local domeTopY = domeCenterY + domeSizeY / 2
+	local spireEmbed = 3
 	MP("DomeSpire", Vector3.new(1.5, mainSpireH, 1.5),
-		Vector3.new(cx, domeTopY + mainSpireH / 2, cz), C_NEON, Enum.Material.Neon)
+		Vector3.new(cx, domeTopY - spireEmbed + mainSpireH / 2, cz), C_NEON, Enum.Material.Neon)
 
 	-- ======= CAPACITOR SPHERES & ELECTRIC DISCHARGE =======
 	local C_CAPACITOR = Color3.fromRGB(80, 180, 255)
@@ -428,7 +491,7 @@ local function CreateBuilding()
 
 	-- Central capacitor sphere (electromagnetic energy concentrator)
 	local centralCapSize = 6
-	local centralCapY = domeTopY + mainSpireH + centralCapSize / 2
+	local centralCapY = domeTopY - spireEmbed + mainSpireH - 1 + centralCapSize / 2
 	local centralCap = Instance.new("Part")
 	centralCap.Name = "CentralCapacitor"
 	centralCap.Shape = Enum.PartType.Ball
@@ -514,27 +577,20 @@ local function CreateBuilding()
 		table.insert(domeSymbolLabels, label)
 	end
 
-	-- ======= CORNER TOWERS =======
+	-- ======= CORNER TOWERS (8 towers at octagonal vertices) =======
 	local towerH = 36
 	local towerR = 5
 	local towerDomeSize = 14
 	local towerDomeSizeY = towerDomeSize * 1.3
 	local towerSpireH = 8
-	local tox = halfW - 6
-	local toz = halfD - 6
 
-	local towerPositions = {
-		{ cx - tox, cz - toz }, { cx - tox, cz + toz },
-		{ cx + tox, cz - toz }, { cx + tox, cz + toz },
-	}
-
-	for i, pos in ipairs(towerPositions) do
+	for i, vtx in ipairs(vertices) do
 		-- Tower cylinder
 		local tower = Instance.new("Part")
 		tower.Name = "Tower_" .. i
 		tower.Shape = Enum.PartType.Cylinder
 		tower.Size = Vector3.new(towerH, towerR * 2, towerR * 2)
-		tower.CFrame = CFrame.new(pos[1], floorY + towerH / 2 + 0.5, pos[2]) * CFrame.Angles(0, 0, math.rad(90))
+		tower.CFrame = CFrame.new(vtx.x, floorY + towerH / 2 + 0.5, vtx.z) * CFrame.Angles(0, 0, math.rad(90))
 		tower.Anchored = true
 		tower.Color = C_TOWER
 		tower.Material = Enum.Material.SmoothPlastic
@@ -546,26 +602,27 @@ local function CreateBuilding()
 		td.Name = "TowerDome_" .. i
 		td.Shape = Enum.PartType.Ball
 		td.Size = Vector3.new(towerDomeSize, towerDomeSizeY, towerDomeSize)
-		td.Position = Vector3.new(pos[1], towerDomeCenterY, pos[2])
+		td.Position = Vector3.new(vtx.x, towerDomeCenterY, vtx.z)
 		td.Anchored = true
 		td.Color = C_DOME
 		td.Material = Enum.Material.Glass
 		td.Transparency = 0
 		td.Parent = building
 
-		-- Tower spire — touches top of tower dome sphere
+		-- Tower spire — embedded into tower dome for visual contact
 		local towerDomeTopY = towerDomeCenterY + towerDomeSizeY / 2
+		local towerEmbed = 2
 		MP("TowerSpire_" .. i, Vector3.new(1, towerSpireH, 1),
-			Vector3.new(pos[1], towerDomeTopY + towerSpireH / 2, pos[2]), C_NEON, Enum.Material.Neon)
+			Vector3.new(vtx.x, towerDomeTopY - towerEmbed + towerSpireH / 2, vtx.z), C_NEON, Enum.Material.Neon)
 
-		-- Tower capacitor sphere
+		-- Tower capacitor sphere (embedded 1 stud into spire top)
 		local towerCapSize = 4
-		local towerCapY = towerDomeTopY + towerSpireH + towerCapSize / 2
+		local towerCapY = towerDomeTopY - towerEmbed + towerSpireH - 1 + towerCapSize / 2
 		local towerCap = Instance.new("Part")
 		towerCap.Name = "TowerCapacitor_" .. i
 		towerCap.Shape = Enum.PartType.Ball
 		towerCap.Size = Vector3.new(towerCapSize, towerCapSize, towerCapSize)
-		towerCap.Position = Vector3.new(pos[1], towerCapY, pos[2])
+		towerCap.Position = Vector3.new(vtx.x, towerCapY, vtx.z)
 		towerCap.Anchored = true
 		towerCap.CanCollide = false
 		towerCap.Color = C_CAPACITOR
@@ -580,38 +637,34 @@ local function CreateBuilding()
 		beam.Name = "Discharge_" .. i
 		beam.Attachment0 = towerAttach
 		beam.Attachment1 = centralAttach
-		beam.Color = ColorSequence.new(C_CAPACITOR)
-		beam.Width0 = 0.8
-		beam.Width1 = 0.8
-		beam.Transparency = NumberSequence.new(0.5)
-		beam.CurveSize0 = rng:NextNumber(-4, 4)
-		beam.CurveSize1 = rng:NextNumber(-4, 4)
-		beam.Segments = 20
+		beam.Color = ColorSequence.new(C_CAPACITOR, Color3.fromRGB(200, 230, 255))
+		beam.Width0 = 1.5
+		beam.Width1 = 0.5
+		beam.Transparency = NumberSequence.new(0)
+		beam.CurveSize0 = rng:NextNumber(-15, 15)
+		beam.CurveSize1 = rng:NextNumber(-15, 15)
+		beam.Segments = 40
 		beam.FaceCamera = true
 		beam.LightEmission = 1
 		beam.LightInfluence = 0
+		beam.Enabled = false
 		beam.Parent = building
 
 		table.insert(dischargeBeams, beam)
 	end
 
-	-- ======= INTERIOR PILLARS (6 pillars — 2 rows x 3 columns) =======
+	-- ======= INTERIOR PILLARS (8 pillars in a circle) =======
 	local pillarSize = 3
-	local pox = innerW / 4
-	local poz = (D - 2 * WT) / 4
+	local pillarRadius = apothem * 0.45  -- ~33 studs from center
 
-	local pillarPositions = {}
-	for _, px in ipairs({ cx - pox, cx + pox }) do
-		for _, pz in ipairs({ cz - poz, cz, cz + poz }) do
-			table.insert(pillarPositions, { px, pz })
-		end
-	end
-
-	for i, pos in ipairs(pillarPositions) do
+	for i = 1, SIDES do
+		local pAngle = math.rad(i * 45)
+		local px = cx + pillarRadius * math.cos(pAngle)
+		local pz = cz + pillarRadius * math.sin(pAngle)
 		MP("Pillar_" .. i, Vector3.new(pillarSize, WH, pillarSize),
-			Vector3.new(pos[1], floorY + WH / 2 + 0.5, pos[2]), C_PILLAR)
+			Vector3.new(px, floorY + WH / 2 + 0.5, pz), C_PILLAR)
 		MP("PillarNeon_" .. i, Vector3.new(pillarSize + 0.5, 0.3, pillarSize + 0.5),
-			Vector3.new(pos[1], floorY + WH + 0.2, pos[2]), C_NEON, Enum.Material.Neon)
+			Vector3.new(px, floorY + WH + 0.2, pz), C_NEON, Enum.Material.Neon)
 	end
 
 	-- Central pedestal (for future artifact)
@@ -625,91 +678,48 @@ local function CreateBuilding()
 		"☬", "☸", "✡", "☥", "⚶", "⯅", "⬟", "⏣",     -- Sacred geometry
 		"𓁿", "𓂀", "𓃭", "𓆏", "𓇳", "𓊝",               -- Hieroglyphic style
 	}
-	local C_DECAL = Color3.fromRGB(160, 150, 130) -- Faded stone-carved look
-	local wallDecalPositions = {
-		-- Left wall (Z-) exterior
-		{ x = cx - innerW * 0.25, y = floorY + WH * 0.45, z = cz - halfD - 0.5 },
-		{ x = cx + innerW * 0.15, y = floorY + WH * 0.65, z = cz - halfD - 0.5 },
-		{ x = cx + innerW * 0.35, y = floorY + WH * 0.35, z = cz - halfD - 0.5 },
-		-- Right wall (Z+) exterior
-		{ x = cx - innerW * 0.30, y = floorY + WH * 0.55, z = cz + halfD + 0.5 },
-		{ x = cx + innerW * 0.10, y = floorY + WH * 0.40, z = cz + halfD + 0.5 },
-		{ x = cx + innerW * 0.30, y = floorY + WH * 0.70, z = cz + halfD + 0.5 },
-		-- Front wall (X-) exterior
-		{ x = cx - halfW - 0.5, y = floorY + WH * 0.60, z = cz - D * 0.20 },
-		{ x = cx - halfW - 0.5, y = floorY + WH * 0.40, z = cz + D * 0.25 },
-	}
+	local C_DECAL = Color3.fromRGB(160, 150, 130)
 
-	for di, pos in ipairs(wallDecalPositions) do
-		local anchor = Instance.new("Part")
-		anchor.Name = "WallDecal_" .. di
-		anchor.Size = Vector3.new(0.1, 0.1, 0.1)
-		anchor.Position = Vector3.new(pos.x, pos.y, pos.z)
-		anchor.Anchored = true
-		anchor.CanCollide = false
-		anchor.Transparency = 1
-		anchor.Parent = building
+	-- Place 1 decal on each solid wall (6 walls without doors)
+	for i = 1, SIDES do
+		if not doorWalls[i] then
+			local normalAngle = math.rad(i * 45)
+			local decalDist = apothem + 0.5  -- just outside the wall
+			local decalX = cx + decalDist * math.cos(normalAngle)
+			local decalZ = cz + decalDist * math.sin(normalAngle)
+			local decalY = floorY + WH * rng:NextNumber(0.35, 0.70)
 
-		local billboard = Instance.new("BillboardGui")
-		billboard.Size = UDim2.new(0, 90, 0, 90)
-		billboard.AlwaysOnTop = false
-		billboard.MaxDistance = 60
-		billboard.LightInfluence = 1
-		billboard.Parent = anchor
+			local anchor = Instance.new("Part")
+			anchor.Name = "WallDecal_" .. i
+			anchor.Size = Vector3.new(0.1, 0.1, 0.1)
+			anchor.Position = Vector3.new(decalX, decalY, decalZ)
+			anchor.Anchored = true
+			anchor.CanCollide = false
+			anchor.Transparency = 1
+			anchor.Parent = building
 
-		local label = Instance.new("TextLabel")
-		label.Size = UDim2.new(1, 0, 1, 0)
-		label.BackgroundTransparency = 1
-		label.Text = WALL_GLYPHS[rng:NextInteger(1, #WALL_GLYPHS)]
-		label.TextColor3 = C_DECAL
-		label.TextSize = 52
-		label.Font = Enum.Font.GothamBold
-		label.TextTransparency = 0.3
-		label.Parent = billboard
-	end
+			local billboard = Instance.new("BillboardGui")
+			billboard.Size = UDim2.new(0, 90, 0, 90)
+			billboard.AlwaysOnTop = false
+			billboard.MaxDistance = 60
+			billboard.LightInfluence = 1
+			billboard.Parent = anchor
 
-	-- ======= ENTRANCE DOOR FRAMES (thin neon strips, same look from both sides) =======
-	local frameT = 0.5  -- frame strip thickness
-	for _, side in ipairs({
-		{ x = cx - halfW + WT / 2, prefix = "Front" },
-		{ x = cx + halfW - WT / 2, prefix = "Back" },
-	}) do
-		-- Top strip
-		local top = MP(side.prefix .. "DoorFrame_Top", Vector3.new(WT + 0.2, frameT, DOOR_W + 1),
-			Vector3.new(side.x, floorY + DOOR_H + 0.5 + frameT / 2, cz), C_NEON, Enum.Material.Neon)
-		top.CanCollide = false
-		-- Left strip
-		local left = MP(side.prefix .. "DoorFrame_L", Vector3.new(WT + 0.2, DOOR_H, frameT),
-			Vector3.new(side.x, floorY + DOOR_H / 2 + 0.5, cz - DOOR_W / 2 - frameT / 2), C_NEON, Enum.Material.Neon)
-		left.CanCollide = false
-		-- Right strip
-		local right = MP(side.prefix .. "DoorFrame_R", Vector3.new(WT + 0.2, DOOR_H, frameT),
-			Vector3.new(side.x, floorY + DOOR_H / 2 + 0.5, cz + DOOR_W / 2 + frameT / 2), C_NEON, Enum.Material.Neon)
-		right.CanCollide = false
+			local label = Instance.new("TextLabel")
+			label.Size = UDim2.new(1, 0, 1, 0)
+			label.BackgroundTransparency = 1
+			label.Text = WALL_GLYPHS[rng:NextInteger(1, #WALL_GLYPHS)]
+			label.TextColor3 = C_DECAL
+			label.TextSize = 52
+			label.Font = Enum.Font.GothamBold
+			label.TextTransparency = 0.3
+			label.Parent = billboard
+		end
 	end
 
 	building.Parent = proceduralFolder
 
-	-- Prepare door animation data
-	local slideOffset = DOOR_W / 2 + 1
-	local doorData = {
-		{
-			position = Vector3.new(cx - halfW, GROUND_Y + 3, cz),
-			panels = {
-				{ part = frontDoorL, closedPos = frontDoorL.Position, openPos = frontDoorL.Position + Vector3.new(0, 0, -slideOffset) },
-				{ part = frontDoorR, closedPos = frontDoorR.Position, openPos = frontDoorR.Position + Vector3.new(0, 0, slideOffset) },
-			},
-		},
-		{
-			position = Vector3.new(cx + halfW, GROUND_Y + 3, cz),
-			panels = {
-				{ part = backDoorL, closedPos = backDoorL.Position, openPos = backDoorL.Position + Vector3.new(0, 0, -slideOffset) },
-				{ part = backDoorR, closedPos = backDoorR.Position, openPos = backDoorR.Position + Vector3.new(0, 0, slideOffset) },
-			},
-		},
-	}
-
-	print(string.format("[%s] Temple created at (%.0f, %.0f) — %d parts",
+	print(string.format("[%s] Octagonal temple at (%.0f, %.0f) — %d parts",
 		MODULE_NAME, cx, cz, #building:GetChildren()))
 	return building, doorData, domeSymbolLabels, dischargeBeams, centralCap
 end
@@ -826,34 +836,59 @@ local function SetupElectricDischarges(building, beams)
 		local arcRng = Random.new(SEED + 77)
 
 		while building and building.Parent do
-			for _, beam in ipairs(beams) do
-				if not beam or not beam.Parent then continue end
+			-- Long quiet period between discharges (8-25 seconds)
+			task.wait(arcRng:NextNumber(8, 25))
 
-				-- Randomize arc shape every tick
-				beam.CurveSize0 = arcRng:NextNumber(-5, 5)
-				beam.CurveSize1 = arcRng:NextNumber(-5, 5)
+			if not building or not building.Parent then break end
 
-				-- Random intensity pulse
-				local intensity = arcRng:NextNumber(0, 1)
-				if intensity > 0.7 then
-					-- Bright discharge
+			-- Pick 1-3 random beams to fire simultaneously
+			local fireCount = arcRng:NextInteger(1, math.min(3, #beams))
+			local fireIndices = {}
+			for _ = 1, fireCount do
+				local idx = arcRng:NextInteger(1, #beams)
+				fireIndices[idx] = true
+			end
+
+			-- Burst: 3-6 rapid flickers over 0.3-1.0 seconds
+			local flickerCount = arcRng:NextInteger(3, 6)
+			for f = 1, flickerCount do
+				for idx in pairs(fireIndices) do
+					local beam = beams[idx]
+					if not beam or not beam.Parent then continue end
+
+					-- Jagged lightning shape — large random curves
+					beam.CurveSize0 = arcRng:NextNumber(-20, 20)
+					beam.CurveSize1 = arcRng:NextNumber(-20, 20)
+
+					-- Bright flash
 					beam.Enabled = true
-					beam.Width0 = arcRng:NextNumber(0.8, 2.5)
-					beam.Width1 = arcRng:NextNumber(0.8, 2.5)
-					beam.Transparency = NumberSequence.new(arcRng:NextNumber(0, 0.3))
-				elseif intensity > 0.3 then
-					-- Dim arc
-					beam.Enabled = true
-					beam.Width0 = arcRng:NextNumber(0.2, 0.6)
-					beam.Width1 = arcRng:NextNumber(0.2, 0.6)
-					beam.Transparency = NumberSequence.new(arcRng:NextNumber(0.5, 0.8))
-				else
-					-- Momentarily off
-					beam.Enabled = false
+					beam.Width0 = arcRng:NextNumber(1.0, 3.0)
+					beam.Width1 = arcRng:NextNumber(0.3, 1.5)
+					beam.Transparency = NumberSequence.new(arcRng:NextNumber(0, 0.2))
+				end
+
+				-- Brief flash duration
+				task.wait(arcRng:NextNumber(0.04, 0.10))
+
+				-- Momentary off between flickers (looks like re-strike)
+				if f < flickerCount then
+					for idx in pairs(fireIndices) do
+						local beam = beams[idx]
+						if beam and beam.Parent then
+							beam.Enabled = false
+						end
+					end
+					task.wait(arcRng:NextNumber(0.03, 0.08))
 				end
 			end
 
-			task.wait(arcRng:NextNumber(0.05, 0.15))
+			-- All off after burst
+			for idx in pairs(fireIndices) do
+				local beam = beams[idx]
+				if beam and beam.Parent then
+					beam.Enabled = false
+				end
+			end
 		end
 	end)
 
@@ -886,18 +921,18 @@ local function SetupVerticalLightning(building, centralCapacitor)
 		capAttach.Parent = centralCapacitor
 	end
 
-	-- Lightning beam (initially disabled)
+	-- Main lightning bolt beam (initially disabled)
 	local bolt = Instance.new("Beam")
 	bolt.Name = "VerticalLightning"
 	bolt.Attachment0 = capAttach
 	bolt.Attachment1 = skyAttach
 	bolt.Color = ColorSequence.new(
-		Color3.fromRGB(120, 200, 255),
+		Color3.fromRGB(140, 210, 255),
 		Color3.fromRGB(255, 255, 255)
 	)
-	bolt.Width0 = 3
-	bolt.Width1 = 0.5
-	bolt.Segments = 30
+	bolt.Width0 = 4
+	bolt.Width1 = 0.3
+	bolt.Segments = 50
 	bolt.FaceCamera = true
 	bolt.LightEmission = 1
 	bolt.LightInfluence = 0
@@ -905,48 +940,101 @@ local function SetupVerticalLightning(building, centralCapacitor)
 	bolt.Enabled = false
 	bolt.Parent = building
 
-	-- Flash light on the capacitor
+	-- Secondary thinner bolt (branch lightning)
+	local bolt2 = Instance.new("Beam")
+	bolt2.Name = "VerticalLightning2"
+	bolt2.Attachment0 = capAttach
+	bolt2.Attachment1 = skyAttach
+	bolt2.Color = ColorSequence.new(
+		Color3.fromRGB(180, 220, 255),
+		Color3.fromRGB(220, 240, 255)
+	)
+	bolt2.Width0 = 1.5
+	bolt2.Width1 = 0.1
+	bolt2.Segments = 40
+	bolt2.FaceCamera = true
+	bolt2.LightEmission = 1
+	bolt2.LightInfluence = 0
+	bolt2.Transparency = NumberSequence.new(0.3)
+	bolt2.Enabled = false
+	bolt2.Parent = building
+
+	-- Flash light on the capacitor (large radius for dramatic effect)
 	local flash = Instance.new("PointLight")
 	flash.Name = "LightningFlash"
-	flash.Color = Color3.fromRGB(140, 210, 255)
+	flash.Color = Color3.fromRGB(160, 220, 255)
 	flash.Brightness = 0
-	flash.Range = 120
+	flash.Range = 200
 	flash.Parent = centralCapacitor
+
+	-- Thunder sound
+	local thunder = Instance.new("Sound")
+	thunder.Name = "Thunder"
+	thunder.SoundId = "rbxassetid://12222084"  -- Roblox thunder sound
+	thunder.Volume = 2.5
+	thunder.RollOffMaxDistance = 600
+	thunder.RollOffMinDistance = 50
+	thunder.Parent = centralCapacitor
 
 	task.spawn(function()
 		local boltRng = Random.new(SEED + 55)
 
 		while building and building.Parent do
-			-- Wait random interval between bolts (15-60 seconds)
-			task.wait(boltRng:NextNumber(15, 60))
+			-- Wait random interval between bolts (12-40 seconds)
+			task.wait(boltRng:NextNumber(12, 40))
 
 			if not building or not building.Parent then break end
 
-			-- Randomize bolt shape
-			bolt.CurveSize0 = boltRng:NextNumber(-15, 15)
-			bolt.CurveSize1 = boltRng:NextNumber(-15, 15)
-			bolt.Width0 = boltRng:NextNumber(2, 5)
-			bolt.Width1 = boltRng:NextNumber(0.3, 1.0)
+			-- Multiple re-strikes (2-4 bolts in rapid succession, like real lightning)
+			local strikeCount = boltRng:NextInteger(2, 4)
 
-			-- FLASH: enable bolt + light burst
-			bolt.Enabled = true
-			flash.Brightness = boltRng:NextNumber(3, 6)
+			for strike = 1, strikeCount do
+				-- Randomize bolt shape — large jagged curves
+				bolt.CurveSize0 = boltRng:NextNumber(-30, 30)
+				bolt.CurveSize1 = boltRng:NextNumber(-30, 30)
+				bolt.Width0 = boltRng:NextNumber(3, 7)
+				bolt.Width1 = boltRng:NextNumber(0.2, 0.8)
 
-			-- Hold for 0.3-0.8 seconds with flickering
-			local holdTime = boltRng:NextNumber(0.3, 0.8)
-			local flickerEnd = os.clock() + holdTime
-			while os.clock() < flickerEnd do
-				bolt.CurveSize0 = boltRng:NextNumber(-20, 20)
-				bolt.CurveSize1 = boltRng:NextNumber(-20, 20)
-				bolt.Transparency = NumberSequence.new(boltRng:NextNumber(0, 0.3))
-				flash.Brightness = boltRng:NextNumber(1, 6)
-				task.wait(0.05)
+				-- Branch bolt with different curve (offset path)
+				bolt2.CurveSize0 = boltRng:NextNumber(-25, 25)
+				bolt2.CurveSize1 = boltRng:NextNumber(-25, 25)
+
+				-- FLASH: both bolts + light burst
+				bolt.Enabled = true
+				bolt2.Enabled = true
+				flash.Brightness = boltRng:NextNumber(5, 10)
+
+				-- Play thunder on first strike
+				if strike == 1 then
+					thunder.PlaybackSpeed = boltRng:NextNumber(0.7, 1.3)
+					thunder:Play()
+				end
+
+				-- Brief bright hold with jitter
+				local holdTime = boltRng:NextNumber(0.05, 0.15)
+				local flickerEnd = os.clock() + holdTime
+				while os.clock() < flickerEnd do
+					bolt.CurveSize0 = boltRng:NextNumber(-35, 35)
+					bolt.CurveSize1 = boltRng:NextNumber(-35, 35)
+					bolt.Transparency = NumberSequence.new(boltRng:NextNumber(0, 0.15))
+					flash.Brightness = boltRng:NextNumber(3, 10)
+					task.wait(0.03)
+				end
+
+				-- Off between re-strikes
+				bolt.Enabled = false
+				bolt2.Enabled = false
+				flash.Brightness = 0
+
+				if strike < strikeCount then
+					task.wait(boltRng:NextNumber(0.05, 0.20))
+				end
 			end
 
-			-- Fade out
-			bolt.Enabled = false
+			-- Slow flash fade out (afterglow)
+			flash.Brightness = 1
 			TweenService:Create(flash,
-				TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				TweenInfo.new(1.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 				{ Brightness = 0 }
 			):Play()
 		end
@@ -1042,28 +1130,25 @@ local function PlantTrees()
 		local tx = rng:NextNumber(ZONE_MIN_X + 20, ZONE_MAX_X - 10)
 		local tz = rng:NextNumber(ZONE_MIN_Z + 10, ZONE_MAX_Z - 10)
 
-		-- Building exclusion (building + margin + entrance paths)
+		-- Building exclusion (circular zone + entrance paths)
 		if buildingCenter then
-			local bHW = BUILDING_W / 2 + TREE_BUILDING_MARGIN
-			local bHD = BUILDING_D / 2 + TREE_BUILDING_MARGIN
-			if IsInsideRect(tx, tz,
-				buildingCenter.x - bHW, buildingCenter.z - bHD,
-				buildingCenter.x + bHW, buildingCenter.z + bHD) then
+			local exclR = BUILDING_RADIUS + TREE_BUILDING_MARGIN
+			if IsInsideCircle(tx, tz, buildingCenter.x, buildingCenter.z, exclR) then
 				continue
 			end
 			-- Front entrance path (X- direction)
 			if IsInsideRect(tx, tz,
-				buildingCenter.x - BUILDING_W / 2 - TREE_ENTRANCE_LENGTH,
+				buildingCenter.x - BUILDING_RADIUS - TREE_ENTRANCE_LENGTH,
 				buildingCenter.z - TREE_ENTRANCE_WIDTH / 2,
-				buildingCenter.x - BUILDING_W / 2,
+				buildingCenter.x - BUILDING_RADIUS,
 				buildingCenter.z + TREE_ENTRANCE_WIDTH / 2) then
 				continue
 			end
 			-- Back entrance path (X+ direction)
 			if IsInsideRect(tx, tz,
-				buildingCenter.x + BUILDING_W / 2,
+				buildingCenter.x + BUILDING_RADIUS,
 				buildingCenter.z - TREE_ENTRANCE_WIDTH / 2,
-				buildingCenter.x + BUILDING_W / 2 + TREE_ENTRANCE_LENGTH,
+				buildingCenter.x + BUILDING_RADIUS + TREE_ENTRANCE_LENGTH,
 				buildingCenter.z + TREE_ENTRANCE_WIDTH / 2) then
 				continue
 			end

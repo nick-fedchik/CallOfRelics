@@ -8,7 +8,7 @@ Centralized game configuration. Single source of truth for game identity and
 initial settings. Used during boot sequence and throughout game lifecycle.
 
 Version:
-0.9
+0.10
 
 Features:
 - Game name and version information
@@ -31,6 +31,7 @@ Dependencies:
 - None
 
 ChangeLog:
+- 0.11: Version bump to 0.20.0 - Octagonal Temple (2026-02-08)
 - 0.10: Version bump to 0.19.0 - Planetary Cartography (2026-02-06)
 - 0.9: Version bump to 0.14.0 - Documentation Restructure (2026-01-21)
 - 0.8: Version bump to 0.12.0 - Ramp Visual Effects (2026-01-20)
@@ -51,8 +52,8 @@ local GameConfig = {
 
 	GameName = "CALL OF RELICS",
 	GameSubtitle = "Orbital Silence",
-	Version = "0.19.0",
-	VersionTag = "Planetary Cartography",
+	Version = "0.20.0",
+	VersionTag = "Octagonal Temple",
 	Developer = "KosmicMazer",
 
 	-- ============================================================================

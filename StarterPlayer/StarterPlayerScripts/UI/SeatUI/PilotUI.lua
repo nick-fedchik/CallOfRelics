@@ -8,10 +8,10 @@ Navigation UI panel for pilot seat. Shows landing/launch options.
 Context-aware: shows landing options on Orbit, launch option on Surface.
 
 Version:
-0.8
+0.9
 
 Features:
-- Planet name and abbreviated characteristics at top
+- NavDisplay management on PilotMonitorLeft physical monitor
 - Navigation menu (renamed from "Пілотське крісло")
 - Context detection (Orbit/Surface)
 - Landing menu with available locations (Orbit)
@@ -52,6 +52,7 @@ Dependencies:
 - RemoteEvents
 
 ChangeLog:
+- 0.9: Planet characteristics moved to NavDisplay on PilotMonitorLeft, removed from floating panel (2026-02-06)
 - 0.8: Added planet name and abbreviated characteristics at top (2026-02-06)
 - 0.7: Rename Liftoff → Launch (RequestLaunch, launchButton) (2026-01-15)
 - 0.6: Renamed to "Навігація", removed status text on Surface (2026-01-15)
@@ -65,7 +66,7 @@ ChangeLog:
 
 local PilotUI = {}
 
-local VERSION = "0.8"
+local VERSION = "0.9"
 local MODULE_NAME = "PilotUI"
 
 -- ============================================================================
@@ -106,9 +107,7 @@ local locationsContainer = nil
 local launchButton = nil
 local locationButtons = {}
 local currentPlanetId = nil
-local planetNameLabel = nil
-local charLine1 = nil
-local charLine2 = nil
+local navDisplay = nil -- SurfaceGui on PilotMonitorLeft
 
 -- RemoteEvents
 local remoteEvents = nil
@@ -207,27 +206,66 @@ local function CreateLocationButton(location, index)
 	return button
 end
 
-local function UpdatePlanetInfo(planetId)
-	if not planetId then return end
-	currentPlanetId = planetId
+local function FindNavDisplay()
+	if navDisplay then return navDisplay end
+	local character = LocalPlayer.Character
+	if not character then return nil end
+	local humanoid = character:FindFirstChild("Humanoid")
+	if not humanoid then return nil end
+	local seat = humanoid.SeatPart
+	if not seat then return nil end
+	local cockpit = seat.Parent
+	if not cockpit then return nil end
+	local monitor = cockpit:FindFirstChild("PilotMonitorLeft")
+	if not monitor then return nil end
+	navDisplay = monitor:FindFirstChild("NavDisplay")
+	return navDisplay
+end
 
-	local planet = PlanetConfig.GetPlanet(planetId)
-	if not planet then return end
+local function UpdateNavDisplay(planetId, context, locationName)
+	local sg = FindNavDisplay()
+	if not sg then return end
+	local bg = sg:FindFirstChild("BG")
+	if not bg then return end
 
-	if planetNameLabel then
-		planetNameLabel.Text = string.upper(planet.name)
+	if planetId then
+		currentPlanetId = planetId
+		local planet = PlanetConfig.GetPlanet(planetId)
+		if planet then
+			local pName = bg:FindFirstChild("PlanetName")
+			if pName then pName.Text = string.upper(planet.name) end
+			local pType = bg:FindFirstChild("PlanetType")
+			if pType then pType.Text = planet.type end
+			local charValues = {
+				planet.physical.gravity,
+				planet.physical.atmosphere,
+				planet.physical.pressure,
+				planet.physical.temperature,
+				planet.physical.radiation,
+				planet.physical.magneticField,
+				planet.gameplay.hazard,
+			}
+			for i, value in ipairs(charValues) do
+				local valLabel = bg:FindFirstChild("CharValue" .. i)
+				if valLabel then valLabel.Text = value end
+			end
+		end
 	end
 
-	local abbreviated = PlanetConfig.GetAbbreviated(planetId)
-	if abbreviated and charLine1 then
-		charLine1.Text = string.format("%s: %s  |  %s: %s",
-			abbreviated[1].label, abbreviated[1].value,
-			abbreviated[2].label, abbreviated[2].value)
+	if context then
+		local ctx = bg:FindFirstChild("ContextText")
+		if ctx then
+			if context == TransitionConfig.Contexts.Orbit then
+				ctx.Text = "ОРБІТА"
+			else
+				ctx.Text = "ПОВЕРХНЯ"
+			end
+		end
 	end
-	if abbreviated and charLine2 then
-		charLine2.Text = string.format("%s: %s  |  %s: %s",
-			abbreviated[3].label, abbreviated[3].value,
-			abbreviated[5].label, abbreviated[5].value)
+
+	local locLabel = bg:FindFirstChild("LocName")
+	if locLabel then
+		locLabel.Text = locationName or ""
 	end
 end
 
@@ -238,7 +276,7 @@ local function UpdateLocationsList()
 		statusLabel.Text = "Немає доступних локацій\nПроскануйте поверхню планети"
 		statusLabel.Visible = true
 		locationsContainer.Visible = false
-		mainFrame.Size = UDim2.new(0, 320, 0, 164)
+		mainFrame.Size = UDim2.new(0, 320, 0, 110)
 		return
 	end
 
@@ -249,7 +287,7 @@ local function UpdateLocationsList()
 	-- Resize container based on locations count
 	local containerHeight = 5 + #availableLocations * 42 + 10
 	locationsContainer.Size = UDim2.new(1, 0, 0, containerHeight)
-	mainFrame.Size = UDim2.new(0, 320, 0, 104 + containerHeight)
+	mainFrame.Size = UDim2.new(0, 320, 0, 50 + containerHeight)
 
 	for i, location in ipairs(availableLocations) do
 		local button = CreateLocationButton(location, i)
@@ -276,8 +314,8 @@ local function ShowSurfaceUI()
 	locationsContainer.Visible = false
 	launchButton.Visible = true
 
-	-- Compact panel size for Surface (planet info + title + button)
-	mainFrame.Size = UDim2.new(0, 320, 0, 164)
+	-- Compact panel size for Surface (title + button)
+	mainFrame.Size = UDim2.new(0, 320, 0, 110)
 end
 
 local function CreateUI()
@@ -290,7 +328,7 @@ local function CreateUI()
 	-- Main panel (top-left corner)
 	local frame = Instance.new("Frame")
 	frame.Name = "PilotPanel"
-	frame.Size = UDim2.new(0, 320, 0, 334)
+	frame.Size = UDim2.new(0, 320, 0, 280)
 	frame.Position = UDim2.new(0, 20, 0, 100)
 	frame.BackgroundColor3 = Color3.fromRGB(20, 30, 45)
 	frame.BackgroundTransparency = 0.1
@@ -307,66 +345,13 @@ local function CreateUI()
 	stroke.Thickness = 2
 	stroke.Parent = frame
 
-	-- ========== PLANET INFO SECTION ==========
-
-	-- Planet name
-	local pName = Instance.new("TextLabel")
-	pName.Name = "PlanetName"
-	pName.Size = UDim2.new(1, -20, 0, 20)
-	pName.Position = UDim2.new(0, 10, 0, 8)
-	pName.BackgroundTransparency = 1
-	pName.Text = "---"
-	pName.TextColor3 = Color3.fromRGB(100, 200, 255)
-	pName.TextSize = 16
-	pName.Font = Enum.Font.GothamBold
-	pName.TextXAlignment = Enum.TextXAlignment.Left
-	pName.Parent = frame
-	planetNameLabel = pName
-
-	-- Characteristics line 1
-	local cLine1 = Instance.new("TextLabel")
-	cLine1.Name = "CharLine1"
-	cLine1.Size = UDim2.new(1, -20, 0, 14)
-	cLine1.Position = UDim2.new(0, 10, 0, 28)
-	cLine1.BackgroundTransparency = 1
-	cLine1.Text = ""
-	cLine1.TextColor3 = Color3.fromRGB(140, 170, 200)
-	cLine1.TextSize = 12
-	cLine1.Font = Enum.Font.Gotham
-	cLine1.TextXAlignment = Enum.TextXAlignment.Left
-	cLine1.Parent = frame
-	charLine1 = cLine1
-
-	-- Characteristics line 2
-	local cLine2 = Instance.new("TextLabel")
-	cLine2.Name = "CharLine2"
-	cLine2.Size = UDim2.new(1, -20, 0, 14)
-	cLine2.Position = UDim2.new(0, 10, 0, 42)
-	cLine2.BackgroundTransparency = 1
-	cLine2.Text = ""
-	cLine2.TextColor3 = Color3.fromRGB(140, 170, 200)
-	cLine2.TextSize = 12
-	cLine2.Font = Enum.Font.Gotham
-	cLine2.TextXAlignment = Enum.TextXAlignment.Left
-	cLine2.Parent = frame
-	charLine2 = cLine2
-
-	-- Divider
-	local divider = Instance.new("Frame")
-	divider.Size = UDim2.new(1, -20, 0, 1)
-	divider.Position = UDim2.new(0, 10, 0, 58)
-	divider.BackgroundColor3 = Color3.fromRGB(60, 100, 140)
-	divider.BackgroundTransparency = 0.5
-	divider.BorderSizePixel = 0
-	divider.Parent = frame
-
 	-- ========== NAVIGATION SECTION ==========
 
 	-- Title
 	local title = Instance.new("TextLabel")
 	title.Name = "Title"
 	title.Size = UDim2.new(1, -20, 0, 30)
-	title.Position = UDim2.new(0, 10, 0, 64)
+	title.Position = UDim2.new(0, 10, 0, 10)
 	title.BackgroundTransparency = 1
 	title.Text = "НАВІГАЦІЯ"
 	title.TextColor3 = Color3.fromRGB(100, 180, 255)
@@ -380,7 +365,7 @@ local function CreateUI()
 	local status = Instance.new("TextLabel")
 	status.Name = "Status"
 	status.Size = UDim2.new(1, -20, 0, 40)
-	status.Position = UDim2.new(0, 10, 0, 99)
+	status.Position = UDim2.new(0, 10, 0, 45)
 	status.BackgroundTransparency = 1
 	status.Text = "Корабель на орбіті"
 	status.TextColor3 = Color3.fromRGB(180, 200, 220)
@@ -395,7 +380,7 @@ local function CreateUI()
 	local locContainer = Instance.new("Frame")
 	locContainer.Name = "LocationsContainer"
 	locContainer.Size = UDim2.new(1, 0, 0, 180)
-	locContainer.Position = UDim2.new(0, 0, 0, 99)
+	locContainer.Position = UDim2.new(0, 0, 0, 45)
 	locContainer.BackgroundTransparency = 1
 	locContainer.Parent = frame
 	locationsContainer = locContainer
@@ -404,7 +389,7 @@ local function CreateUI()
 	local launch = Instance.new("TextButton")
 	launch.Name = "LaunchButton"
 	launch.Size = UDim2.new(1, -20, 0, 50)
-	launch.Position = UDim2.new(0, 10, 0, 99)
+	launch.Position = UDim2.new(0, 10, 0, 45)
 	launch.BackgroundColor3 = Color3.fromRGB(80, 140, 200)
 	launch.BorderSizePixel = 0
 	launch.Text = "🚀  Зліт на орбіту"
@@ -466,14 +451,12 @@ local function SetupRemoteEvents()
 		end)
 	end
 
-	-- Listen for transition updates (to update context and planet info)
+	-- Listen for transition updates (to update context and NavDisplay)
 	if transitionUpdate then
 		transitionUpdate.OnClientEvent:Connect(function(state, data)
 			if state == TransitionConfig.States.Complete and data and data.context then
 				PilotUI.SetContext(data.context)
-				if data.planetId then
-					UpdatePlanetInfo(data.planetId)
-				end
+				UpdateNavDisplay(data.planetId, data.context, data.locationName)
 			end
 		end)
 	end
@@ -502,8 +485,8 @@ function PilotUI.Show()
 	-- Always show "НАВІГАЦІЯ" title
 	titleLabel.Text = "НАВІГАЦІЯ"
 
-	-- Initialize planet info
-	UpdatePlanetInfo(currentPlanetId or GameConfig.StartPlanet)
+	-- Update physical monitor display
+	UpdateNavDisplay(currentPlanetId or GameConfig.StartPlanet, currentContext)
 
 	screenGui.Enabled = true
 	isVisible = true
@@ -545,6 +528,7 @@ function PilotUI.Hide()
 	end)
 
 	isVisible = false
+	navDisplay = nil
 end
 
 function PilotUI.IsVisible()

@@ -4,6 +4,38 @@
 
 ---
 
+## [0.20.0] - 2026-02-08 - Octagonal Temple
+
+### Changed - Octagonal Temple (Location_1)
+
+- **TerrainGenerator v0.6** — конвертація будівлі маяка з прямокутної на 8-кутну
+  - Правильний октагон з circumradius 80 (sideLen ~61.24, apothem ~73.9)
+  - 8 вершин під кутами 22.5° + i*45° (i=0..7)
+  - 8 стін: 2 з дверима (стіна 4 = фронт -X, стіна 8 = тил +X), 6 з вікнами
+  - 8 кутових веж з куполами, шпилями та конденсаторними сферами (було 4)
+  - 8 розрядних Beam'ів від веж до центрального конденсатора
+  - Кругла підлога (Cylinder), 8 інтер'єрних колон у колі
+  - CFrame-орієнтація стін: `CFrame.Angles(0, -normalAngle, 0)`, Size(WT, WH, sideLen)
+  - Кругова зона виключення для терену та дерев (замість прямокутної)
+  - Збережено: купол, шпиль, конденсатор, блискавку, розряди, двері, гліфи, декалі
+
+### Changed - Cockpit NavDisplay (PilotMonitorLeft)
+
+- **PilotUI v0.9** — характеристики планети на фізичному моніторі NavDisplay
+  - `FindNavDisplay()` — пошук через SeatPart → Cockpit → PilotMonitorLeft → NavDisplay
+  - `UpdateNavDisplay()` — оновлення PlanetName, PlanetType, 7 CharValue, ContextText, LocName
+  - Видалено planetNameLabel, charLine1, charLine2 з плаваючої панелі
+  - Навігаційна секція зміщена вгору (title Y=10, status/containers Y=45)
+
+### Changed - Ukrainian Language & Cockpit
+
+- **SysDisplay** (PilotMonitorRight) — переклад на українську: СИС, ПАЛИВО, КОРПУС, ЩИТИ
+- **NavDisplay** (PilotMonitorLeft) — зелена CRT-тема, українські характеристики планети
+- **FrontPilotLamp** — 2x тонший (0.5 замість 1), wall-to-wall (23.5 studs)
+- **GameConfig v0.11** — Version 0.19.0 → 0.20.0, codename "Octagonal Temple"
+
+---
+
 ## [0.19.0] - 2026-02-06 - Planetary Cartography
 
 ### Added - PlanetConfig Centralized Module
