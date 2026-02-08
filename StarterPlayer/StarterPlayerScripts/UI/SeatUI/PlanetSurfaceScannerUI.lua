@@ -9,10 +9,11 @@ Retro Atari 800 CRT terminal style.
 Allows player to scan planet surface and discover new locations.
 
 Version:
-0.2
+0.3
 
 Features:
 - CRT monitor bezel with Atari 800 warm color palette
+- Planet characteristics display (physical + gameplay)
 - Scan button to start planet surface scan
 - Progress bar during scanning
 - List of discovered locations
@@ -29,6 +30,8 @@ API:
 
 Calls to:
 - TransitionConfig (ReplicatedStorage/Game)
+- PlanetConfig (ReplicatedStorage/Game)
+- GameConfig (ReplicatedStorage/Game)
 - RequestScan RemoteEvent
 - ScanProgress RemoteEvent
 - ScanComplete RemoteEvent
@@ -40,13 +43,17 @@ Events:
 - Fires: RequestScan (Client -> Server)
 - Listens: ScanProgress (Server -> Client)
 - Listens: ScanComplete (Server -> Client)
+- Listens: TransitionUpdate (Server -> Client)
 
 Dependencies:
 - TweenService
 - TransitionConfig
+- PlanetConfig
+- GameConfig
 - RemoteEvents
 
 ChangeLog:
+- 0.3: Added planet characteristics display section (2026-02-06)
 - 0.2: Retro CRT redesign — Atari 800 theme, centered layout, power-on animation (2026-02-06)
 - 0.1: Initial PlanetSurfaceScannerUI (2026-01-16)
 ================================================================================
@@ -54,7 +61,7 @@ ChangeLog:
 
 local PlanetSurfaceScannerUI = {}
 
-local VERSION = "0.2"
+local VERSION = "0.3"
 local MODULE_NAME = "PlanetSurfaceScannerUI"
 
 -- ============================================================================
@@ -72,7 +79,10 @@ local playerGui = LocalPlayer:WaitForChild("PlayerGui")
 -- CONFIGURATION
 -- ============================================================================
 
-local TransitionConfig = require(ReplicatedStorage:WaitForChild("Game"):WaitForChild("TransitionConfig"))
+local Game = ReplicatedStorage:WaitForChild("Game")
+local TransitionConfig = require(Game:WaitForChild("TransitionConfig"))
+local PlanetConfig = require(Game:WaitForChild("PlanetConfig"))
+local GameConfig = require(Game:WaitForChild("GameConfig"))
 
 -- ============================================================================
 -- ATARI 800 WARM PALETTE
@@ -135,12 +145,16 @@ local discoveredContainer: ScrollingFrame? = nil
 local discoveredItems = {}
 local contextMsg = nil
 local orbitContent = nil
+local currentPlanetId = nil
+local planetNameLabel = nil
+local characteristicValues = {}
 
 -- RemoteEvents
 local remoteEvents = nil
 local requestScan = nil
 local scanProgress = nil
 local scanComplete = nil
+local transitionUpdate = nil
 
 -- ============================================================================
 -- PRIVATE FUNCTIONS
@@ -276,6 +290,79 @@ local function UpdateProgress(progress: number, message)
 	end
 end
 
+-- ============================================================================
+-- PLANET CHARACTERISTICS
+-- ============================================================================
+
+local CHARACTERISTICS_KEYS = {
+	{ key = "gravity",       label = "Гравiтацiя" },
+	{ key = "atmosphere",    label = "Атмосфера" },
+	{ key = "pressure",      label = "Тиск" },
+	{ key = "temperature",   label = "Температура" },
+	{ key = "radiation",     label = "Радiацiя" },
+	{ key = "magneticField", label = "Магн.поле" },
+	{ key = "hazard",        label = "Загроза",    source = "gameplay" },
+}
+
+local function CreateCharacteristicRow(parent, label, yPos)
+	local row = Instance.new("Frame")
+	row.Size = UDim2.new(1, -32, 0, 20)
+	row.Position = UDim2.new(0, 16, 0, yPos)
+	row.BackgroundColor3 = COLORS.rowBg
+	row.BackgroundTransparency = 0.4
+	row.BorderSizePixel = 0
+	row.Parent = parent
+
+	local rowCorner = Instance.new("UICorner")
+	rowCorner.CornerRadius = UDim.new(0, 3)
+	rowCorner.Parent = row
+
+	local lbl = Instance.new("TextLabel")
+	lbl.Size = UDim2.new(0.45, 0, 1, 0)
+	lbl.Position = UDim2.new(0, 8, 0, 0)
+	lbl.BackgroundTransparency = 1
+	lbl.Text = label
+	lbl.TextColor3 = COLORS.dimOrange
+	lbl.TextSize = 11
+	lbl.Font = Enum.Font.RobotoMono
+	lbl.TextXAlignment = Enum.TextXAlignment.Left
+	lbl.Parent = row
+
+	local val = Instance.new("TextLabel")
+	val.Name = "Value"
+	val.Size = UDim2.new(0.55, -8, 1, 0)
+	val.Position = UDim2.new(0.45, 0, 0, 0)
+	val.BackgroundTransparency = 1
+	val.Text = "---"
+	val.TextColor3 = COLORS.gold
+	val.TextSize = 11
+	val.Font = Enum.Font.RobotoMono
+	val.TextXAlignment = Enum.TextXAlignment.Right
+	val.Parent = row
+
+	return val
+end
+
+local function UpdatePlanetCharacteristics(planetId)
+	if not planetId then return end
+	currentPlanetId = planetId
+
+	local planet = PlanetConfig.GetPlanet(planetId)
+	if not planet then return end
+
+	if planetNameLabel then
+		planetNameLabel.Text = string.upper(planet.name)
+	end
+
+	for _, entry in ipairs(CHARACTERISTICS_KEYS) do
+		local valLabel = characteristicValues[entry.key]
+		if valLabel then
+			local source = entry.source == "gameplay" and planet.gameplay or planet.physical
+			valLabel.Text = source and source[entry.key] or "---"
+		end
+	end
+end
+
 local function ShowOrbitUI()
 	if statusDot then statusDot.BackgroundColor3 = COLORS.scanReady end
 	if statusLabel then
@@ -296,6 +383,9 @@ local function ShowOrbitUI()
 		scanButton.Visible = true
 		progressFrame.Visible = false
 	end
+
+	-- Update planet characteristics
+	UpdatePlanetCharacteristics(currentPlanetId or GameConfig.StartPlanet)
 end
 
 local function ShowSurfaceUI()
@@ -576,10 +666,33 @@ local function CreateUI()
 
 	CreateDivider(oContent, 82)
 
+	-- Planet name label
+	local pName = Instance.new("TextLabel")
+	pName.Size = UDim2.new(1, -32, 0, 18)
+	pName.Position = UDim2.new(0, 16, 0, 90)
+	pName.BackgroundTransparency = 1
+	pName.Text = "---"
+	pName.TextColor3 = COLORS.gold
+	pName.TextSize = 14
+	pName.Font = Enum.Font.RobotoMono
+	pName.TextXAlignment = Enum.TextXAlignment.Left
+	pName.Parent = oContent
+	planetNameLabel = pName
+
+	-- Characteristic rows
+	local charY = 112
+	for _, entry in ipairs(CHARACTERISTICS_KEYS) do
+		local valLabel = CreateCharacteristicRow(oContent, entry.label, charY)
+		characteristicValues[entry.key] = valLabel
+		charY = charY + 22
+	end
+
+	CreateDivider(oContent, charY + 4)
+
 	-- Discovered title
 	local dTitle = Instance.new("TextLabel")
 	dTitle.Size = UDim2.new(1, -32, 0, 20)
-	dTitle.Position = UDim2.new(0, 16, 0, 90)
+	dTitle.Position = UDim2.new(0, 16, 0, charY + 12)
 	dTitle.BackgroundTransparency = 1
 	dTitle.Text = "ВИЯВЛЕНI ЛОКАЦII"
 	dTitle.TextColor3 = COLORS.gold
@@ -591,8 +704,8 @@ local function CreateUI()
 	-- Discovered container
 	local discovered = Instance.new("ScrollingFrame")
 	discovered.Name = "DiscoveredContainer"
-	discovered.Size = UDim2.new(1, 0, 0, 200)
-	discovered.Position = UDim2.new(0, 0, 0, 115)
+	discovered.Size = UDim2.new(1, 0, 0, 100)
+	discovered.Position = UDim2.new(0, 0, 0, charY + 37)
 	discovered.BackgroundTransparency = 1
 	discovered.BorderSizePixel = 0
 	discovered.ScrollBarThickness = 4
@@ -615,6 +728,7 @@ local function SetupRemoteEvents()
 	requestScan = remoteEvents:FindFirstChild("RequestScan")
 	scanProgress = remoteEvents:FindFirstChild("ScanProgress")
 	scanComplete = remoteEvents:FindFirstChild("ScanComplete")
+	transitionUpdate = remoteEvents:FindFirstChild("TransitionUpdate")
 
 	if scanProgress then
 		scanProgress.OnClientEvent:Connect(function(progress, message)
@@ -658,6 +772,18 @@ local function SetupRemoteEvents()
 					if progressFrame then progressFrame.Visible = false end
 				end
 			end)
+		end)
+	end
+
+	-- Listen for transition updates (to capture planetId)
+	if transitionUpdate then
+		transitionUpdate.OnClientEvent:Connect(function(state, data)
+			if state == TransitionConfig.States.Complete and data and data.planetId then
+				currentPlanetId = data.planetId
+				if isVisible then
+					UpdatePlanetCharacteristics(data.planetId)
+				end
+			end
 		end)
 	end
 end

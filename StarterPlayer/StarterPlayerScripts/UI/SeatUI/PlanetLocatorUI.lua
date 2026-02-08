@@ -9,7 +9,7 @@ Retro ZX Spectrum CRT terminal style.
 Displays known planets, current planet, and discovery status.
 
 Version:
-0.3
+0.4
 
 Features:
 - CRT monitor bezel with ZX Spectrum 8-color Sinclair palette
@@ -30,6 +30,7 @@ Calls to:
 - SpaceShipConfig (ReplicatedStorage/Game)
 - TransitionConfig (ReplicatedStorage/Game)
 - GameConfig (ReplicatedStorage/Game)
+- PlanetConfig (ReplicatedStorage/Game)
 
 Called from:
 - SeatUIManager.lua
@@ -42,8 +43,10 @@ Dependencies:
 - SpaceShipConfig
 - TransitionConfig
 - GameConfig
+- PlanetConfig
 
 ChangeLog:
+- 0.4: Use PlanetConfig instead of hardcoded PLANETS table (2026-02-06)
 - 0.3: Retro CRT redesign — ZX Spectrum theme, centered layout, power-on animation (2026-02-06)
 - 0.2: Functional UI with planet list, status badges, travel cost (2026-02-06)
 - 0.1: Initial PlanetLocatorUI stub (2026-01-16)
@@ -52,7 +55,7 @@ ChangeLog:
 
 local PlanetLocatorUI = {}
 
-local VERSION = "0.3"
+local VERSION = "0.4"
 local MODULE_NAME = "PlanetLocatorUI"
 
 -- ============================================================================
@@ -74,6 +77,7 @@ local Game = ReplicatedStorage:WaitForChild("Game")
 local SpaceShipConfig = require(Game:WaitForChild("SpaceShipConfig"))
 local TransitionConfig = require(Game:WaitForChild("TransitionConfig"))
 local GameConfig = require(Game:WaitForChild("GameConfig"))
+local PlanetConfig = require(Game:WaitForChild("PlanetConfig"))
 
 -- ============================================================================
 -- ZX SPECTRUM SINCLAIR PALETTE
@@ -118,35 +122,7 @@ local CRT = {
 -- PLANET REGISTRY
 -- ============================================================================
 
-local PLANETS = {
-	{
-		id = "Planet_1",
-		name = "Бiллi Рубiн",
-		type = "Суперземля",
-		locations = 2,
-		gravity = "1.2g",
-		atmosphere = "OK",
-		status = "current",
-	},
-	{
-		id = "Planet_2",
-		name = "Kepler-442b",
-		type = "Кам'яна",
-		locations = 2,
-		gravity = "0.8g",
-		atmosphere = "Тонка",
-		status = "locked",
-	},
-	{
-		id = "Planet_Earth",
-		name = "Земля",
-		type = "Рiдна планета",
-		locations = 1,
-		gravity = "1.0g",
-		atmosphere = "OK",
-		status = "locked",
-	},
-}
+local PLANETS = PlanetConfig.GetAllPlanets()
 
 -- ============================================================================
 -- STATE
@@ -240,7 +216,7 @@ local function CreatePlanetRow(parent, planet, yPos)
 	badgeCorner.Parent = badge
 
 	-- Planet info
-	local infoText = string.format("%s  |  %s  |  Лок: %d", planet.type, planet.gravity, planet.locations)
+	local infoText = string.format("%s  |  %s  |  Лок: %d", planet.type, planet.physical.gravity, planet.locations)
 	local infoLabel = Instance.new("TextLabel")
 	infoLabel.Size = UDim2.new(1, -20, 0, 16)
 	infoLabel.Position = UDim2.new(0, 10, 0, 30)

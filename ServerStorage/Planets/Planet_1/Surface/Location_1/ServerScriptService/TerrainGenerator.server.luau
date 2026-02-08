@@ -8,7 +8,7 @@ Procedural content generation for Location_1 "Візитка" surface.
 Generates terrain, bare patches, alien temple with doors, and fractal trees.
 
 Version:
-0.3
+0.4
 
 Features:
 - FBM noise terrain with gentle hills (6x lower than v0.1)
@@ -20,6 +20,7 @@ Features:
 - Deterministic seed-based generation
 - Building exclusion zones for terrain and trees
 - Clear entrance paths to building
+- Periodic vertical lightning bolt from central capacitor into sky
 
 Dependencies:
 - FastNoise (ReplicatedStorage/Game/FastNoise)
@@ -28,6 +29,7 @@ Dependencies:
 - Players (door proximity detection)
 
 ChangeLog:
+- 0.4: Vertical lightning bolt from central spire (2026-02-08)
 - 0.3: 4x building, doors, cylindrical trees, turquoise leaves, lower grass (2026-02-06)
 - 0.2: Bare patches, alien temple, fractal trees, lower terrain (2026-02-06)
 - 0.1: Initial procedural terrain with FBM noise (2026-02-06)
@@ -40,7 +42,7 @@ ChangeLog:
 
 local SEED = 42
 local MODULE_NAME = "LocationGenerator"
-local VERSION = "0.3"
+local VERSION = "0.4"
 
 -- Terrain
 local FREQUENCY = 0.008
@@ -709,7 +711,7 @@ local function CreateBuilding()
 
 	print(string.format("[%s] Temple created at (%.0f, %.0f) — %d parts",
 		MODULE_NAME, cx, cz, #building:GetChildren()))
-	return building, doorData, domeSymbolLabels, dischargeBeams
+	return building, doorData, domeSymbolLabels, dischargeBeams, centralCap
 end
 
 -- ============================================================================
@@ -859,7 +861,102 @@ local function SetupElectricDischarges(building, beams)
 end
 
 -- ============================================================================
--- STEP 8: FRACTAL TREES (cylindrical, turquoise-agate leaves)
+-- STEP 8: VERTICAL LIGHTNING BOLT (Central Capacitor → Sky)
+-- ============================================================================
+
+local function SetupVerticalLightning(building, centralCapacitor)
+	if not building or not centralCapacitor then return end
+
+	-- Create invisible sky anchor ~500 studs above the capacitor
+	local skyAnchor = Instance.new("Part")
+	skyAnchor.Name = "SkyAnchor"
+	skyAnchor.Size = Vector3.new(1, 1, 1)
+	skyAnchor.Position = centralCapacitor.Position + Vector3.new(0, 500, 0)
+	skyAnchor.Anchored = true
+	skyAnchor.CanCollide = false
+	skyAnchor.Transparency = 1
+	skyAnchor.Parent = building
+
+	local skyAttach = Instance.new("Attachment")
+	skyAttach.Parent = skyAnchor
+
+	local capAttach = centralCapacitor:FindFirstChildOfClass("Attachment")
+	if not capAttach then
+		capAttach = Instance.new("Attachment")
+		capAttach.Parent = centralCapacitor
+	end
+
+	-- Lightning beam (initially disabled)
+	local bolt = Instance.new("Beam")
+	bolt.Name = "VerticalLightning"
+	bolt.Attachment0 = capAttach
+	bolt.Attachment1 = skyAttach
+	bolt.Color = ColorSequence.new(
+		Color3.fromRGB(120, 200, 255),
+		Color3.fromRGB(255, 255, 255)
+	)
+	bolt.Width0 = 3
+	bolt.Width1 = 0.5
+	bolt.Segments = 30
+	bolt.FaceCamera = true
+	bolt.LightEmission = 1
+	bolt.LightInfluence = 0
+	bolt.Transparency = NumberSequence.new(0)
+	bolt.Enabled = false
+	bolt.Parent = building
+
+	-- Flash light on the capacitor
+	local flash = Instance.new("PointLight")
+	flash.Name = "LightningFlash"
+	flash.Color = Color3.fromRGB(140, 210, 255)
+	flash.Brightness = 0
+	flash.Range = 120
+	flash.Parent = centralCapacitor
+
+	task.spawn(function()
+		local boltRng = Random.new(SEED + 55)
+
+		while building and building.Parent do
+			-- Wait random interval between bolts (15-60 seconds)
+			task.wait(boltRng:NextNumber(15, 60))
+
+			if not building or not building.Parent then break end
+
+			-- Randomize bolt shape
+			bolt.CurveSize0 = boltRng:NextNumber(-15, 15)
+			bolt.CurveSize1 = boltRng:NextNumber(-15, 15)
+			bolt.Width0 = boltRng:NextNumber(2, 5)
+			bolt.Width1 = boltRng:NextNumber(0.3, 1.0)
+
+			-- FLASH: enable bolt + light burst
+			bolt.Enabled = true
+			flash.Brightness = boltRng:NextNumber(3, 6)
+
+			-- Hold for 0.3-0.8 seconds with flickering
+			local holdTime = boltRng:NextNumber(0.3, 0.8)
+			local flickerEnd = os.clock() + holdTime
+			while os.clock() < flickerEnd do
+				bolt.CurveSize0 = boltRng:NextNumber(-20, 20)
+				bolt.CurveSize1 = boltRng:NextNumber(-20, 20)
+				bolt.Transparency = NumberSequence.new(boltRng:NextNumber(0, 0.3))
+				flash.Brightness = boltRng:NextNumber(1, 6)
+				task.wait(0.05)
+			end
+
+			-- Fade out
+			bolt.Enabled = false
+			TweenService:Create(flash,
+				TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{ Brightness = 0 }
+			):Play()
+		end
+	end)
+
+	print(string.format("[%s] Vertical lightning system active", MODULE_NAME))
+end
+
+-- ============================================================================
+-- STEP 9: FRACTAL TREES (cylindrical, turquoise-agate leaves)
 -- ============================================================================
 
 local function CreateFractalTree(rootPosition)
@@ -1005,11 +1102,12 @@ GenerateBarePatches()
 PickBuildingPosition()
 GenerateTerrain()
 task.wait()
-local building, doorData, domeSymbolLabels, dischargeBeams = CreateBuilding()
+local building, doorData, domeSymbolLabels, dischargeBeams, centralCap = CreateBuilding()
 task.wait()
 SetupDoorSystem(building, doorData)
 SetupDomeSymbolAnimation(building, domeSymbolLabels)
 SetupElectricDischarges(building, dischargeBeams)
+SetupVerticalLightning(building, centralCap)
 PlantTrees()
 
 print(string.format("[%s %s] Generation complete", MODULE_NAME, VERSION))

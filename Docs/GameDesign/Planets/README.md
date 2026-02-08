@@ -14,7 +14,7 @@
 
 | Planet ID | Name | Type | Gravity | Atmosphere | Hazard | Status | Locations |
 |-----------|------|------|---------|------------|--------|--------|-----------|
-| Planet_1 | Біллі Рубін | Habitable | 1.2g | Breathable | Safe | Implemented | 2 |
+| Planet_1 | Біллі Рубін | Habitable | 1.2g | Breathable | Safe | Implemented | 7 |
 | Planet_Earth | Earth | Home World | 1.0g | Breathable | Safe | Planned | 0 |
 
 ---

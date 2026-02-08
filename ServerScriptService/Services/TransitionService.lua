@@ -607,7 +607,8 @@ function TransitionService.StartLandingSequence(player, locationId)
 		context = TransitionConfig.Contexts.Surface,
 		locationId = locationId,
 		locationDisplayName = locationMetadata.displayName,
-		planetDisplayName = planetDisplayName
+		planetDisplayName = planetDisplayName,
+		planetId = planetId,
 	})
 
 	-- === EPIC 8: Update profile with location discovery ===
@@ -868,7 +869,8 @@ function TransitionService.StartLaunchSequence(player)
 		context = TransitionConfig.Contexts.Orbit,
 		restoreCamera = true,
 		locationDisplayName = "Орбіта",
-		planetDisplayName = planetDisplayName
+		planetDisplayName = planetDisplayName,
+		planetId = planetId,
 	})
 
 	-- === EPIC 8: Update profile state after launch ===
@@ -1028,7 +1030,8 @@ function TransitionService.StartGameSequence(player)
 		context = TransitionConfig.Contexts.Orbit,
 		restoreCamera = true,
 		locationDisplayName = "Орбіта",
-		planetDisplayName = planetDisplayName
+		planetDisplayName = planetDisplayName,
+		planetId = planetId,
 	})
 
 	-- === EPIC 8: Update profile with initial state ===
