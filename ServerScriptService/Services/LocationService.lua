@@ -10,13 +10,14 @@ Handles workspace cleanup, content copying, and player spawning.
 Enforces TDD 5.6 "Complete Context Cleanup" principle.
 
 Version:
-0.5
+0.6
 
 Features:
 - Load location from ServerStorage.Planets structure
 - Unload current location with complete cleanup
 - Init/Fini system for Planet, Orbit, and Location levels
 - Copy scripts, models, and lighting with registry tracking
+- ModuleScript levelInit()/levelFini() lifecycle for server scripts
 - Spawn player in PilotSeat or SpawnLocation
 - Track current active location per player
 - Support for Orbit and Surface location types
@@ -62,6 +63,7 @@ Dependencies:
 - ContextRegistryService
 
 ChangeLog:
+- 0.6: ModuleScript levelInit/levelFini framework, rename CopyScriptsToService (2026-02-08)
 - 0.5: Init/Fini system with ContextRegistryService integration (EPIC 4) (2026-01-16)
 - 0.4: Apply animationData positions to models after copying (EPIC 3) (2026-01-16)
 - 0.3: Unanchor character before spawning (fix for silent boot spawn) (2026-01-15)
@@ -108,6 +110,10 @@ local currentLocations = {}
 -- Structure: {[player] = {planet = true/false, orbit = true/false, location = true/false}}
 local activeContexts = {}
 
+-- Track initialized ModuleScript modules for levelFini cleanup
+-- Structure: {[player] = {planet = {}, orbit = {}, location = {}}}
+local initializedModules = {}
+
 -- ============================================================================
 -- PRIVATE HELPERS
 -- ============================================================================
@@ -149,7 +155,14 @@ local function ClearLightingEffects()
 	end
 end
 
-local function CopyScriptsToService(sourceFolder, targetService, player, registerFunc)
+local function EnsureModuleTracking(player)
+	if not initializedModules[player] then
+		initializedModules[player] = { planet = {}, orbit = {}, location = {} }
+	end
+	return initializedModules[player]
+end
+
+local function CopyScriptsToReplicatedStorage(sourceFolder, player, registerFunc)
 	if not sourceFolder then return end
 
 	local registry = GetContextRegistryService()
@@ -157,10 +170,53 @@ local function CopyScriptsToService(sourceFolder, targetService, player, registe
 	for _, child in ipairs(sourceFolder:GetChildren()) do
 		if child:IsA("ModuleScript") or child:IsA("Script") or child:IsA("LocalScript") then
 			local clone = child:Clone()
-			clone.Parent = targetService
+			clone.Parent = ReplicatedStorage
 			registerFunc(registry, player, clone)
 		end
 	end
+end
+
+local function CopyScriptsToServerScriptService(sourceFolder, player, registerFunc, contextLevel)
+	if not sourceFolder then return end
+
+	local registry = GetContextRegistryService()
+	local modules = EnsureModuleTracking(player)
+
+	for _, child in ipairs(sourceFolder:GetChildren()) do
+		if child:IsA("ModuleScript") or child:IsA("Script") or child:IsA("LocalScript") then
+			local clone = child:Clone()
+			clone.Parent = ServerScriptService
+			registerFunc(registry, player, clone)
+
+			-- ModuleScript with levelInit: require and initialize
+			if clone:IsA("ModuleScript") then
+				local ok, mod = pcall(require, clone)
+				if ok and type(mod) == "table" and type(mod.levelInit) == "function" then
+					local initOk, err = pcall(mod.levelInit)
+					if initOk then
+						table.insert(modules[contextLevel], mod)
+					else
+						warn(string.format("[%s %s] levelInit failed for %s: %s", MODULE_NAME, VERSION, child.Name, tostring(err)))
+					end
+				end
+			end
+		end
+	end
+end
+
+local function FiniModules(player, contextLevel)
+	local modules = initializedModules[player]
+	if not modules or not modules[contextLevel] then return end
+
+	for _, mod in ipairs(modules[contextLevel]) do
+		if type(mod.levelFini) == "function" then
+			local ok, err = pcall(mod.levelFini)
+			if not ok then
+				warn(string.format("[%s %s] levelFini failed: %s", MODULE_NAME, VERSION, tostring(err)))
+			end
+		end
+	end
+	modules[contextLevel] = {}
 end
 
 local function CopyModelsToWorkspace(locationWorkspaceFolder, animationData, player, registerFunc)
@@ -276,13 +332,8 @@ function LocationService.InitPlanet(player, planetId)
 	local planetReplicatedStorage = planetFolder:FindFirstChild("ReplicatedStorage")
 	local planetServerScriptService = planetFolder:FindFirstChild("ServerScriptService")
 
-	if planetReplicatedStorage then
-		CopyScriptsToService(planetReplicatedStorage, ReplicatedStorage, player, registry.RegisterPlanetScript)
-	end
-
-	if planetServerScriptService then
-		CopyScriptsToService(planetServerScriptService, ServerScriptService, player, registry.RegisterPlanetScript)
-	end
+	CopyScriptsToReplicatedStorage(planetReplicatedStorage, player, registry.RegisterPlanetScript)
+	CopyScriptsToServerScriptService(planetServerScriptService, player, registry.RegisterPlanetScript, "planet")
 
 	contexts.planet = true
 	return true
@@ -301,6 +352,9 @@ function LocationService.FiniPlanet(player)
 	if contexts.orbit then
 		LocationService.FiniOrbit(player)
 	end
+
+	-- Call levelFini on planet modules before destroying
+	FiniModules(player, "planet")
 
 	-- Clear planet registry
 	local registry = GetContextRegistryService()
@@ -369,13 +423,8 @@ function LocationService.InitOrbit(player, planetId)
 	local orbitReplicatedStorage = orbitFolder:FindFirstChild("ReplicatedStorage")
 	local orbitServerScriptService = orbitFolder:FindFirstChild("ServerScriptService")
 
-	if orbitReplicatedStorage then
-		CopyScriptsToService(orbitReplicatedStorage, ReplicatedStorage, player, registry.RegisterOrbitScript)
-	end
-
-	if orbitServerScriptService then
-		CopyScriptsToService(orbitServerScriptService, ServerScriptService, player, registry.RegisterOrbitScript)
-	end
+	CopyScriptsToReplicatedStorage(orbitReplicatedStorage, player, registry.RegisterOrbitScript)
+	CopyScriptsToServerScriptService(orbitServerScriptService, player, registry.RegisterOrbitScript, "orbit")
 
 	-- Apply Orbit settings
 	local settings = orbitConfig.getSettings and orbitConfig.getSettings()
@@ -400,6 +449,9 @@ function LocationService.FiniOrbit(player)
 	if not contexts or not contexts.orbit then
 		return
 	end
+
+	-- Call levelFini on orbit modules before destroying
+	FiniModules(player, "orbit")
 
 	-- Clear orbit registry (destroys all tracked objects/scripts/lighting)
 	local registry = GetContextRegistryService()
@@ -478,13 +530,8 @@ function LocationService.InitLocation(player, planetId, locationId)
 	local locationReplicatedStorage = locationFolder:FindFirstChild("ReplicatedStorage")
 	local locationServerScriptService = locationFolder:FindFirstChild("ServerScriptService")
 
-	if locationReplicatedStorage then
-		CopyScriptsToService(locationReplicatedStorage, ReplicatedStorage, player, registry.RegisterLocationScript)
-	end
-
-	if locationServerScriptService then
-		CopyScriptsToService(locationServerScriptService, ServerScriptService, player, registry.RegisterLocationScript)
-	end
+	CopyScriptsToReplicatedStorage(locationReplicatedStorage, player, registry.RegisterLocationScript)
+	CopyScriptsToServerScriptService(locationServerScriptService, player, registry.RegisterLocationScript, "location")
 
 	-- Apply Location settings
 	local settings = locationConfig.getSettings and locationConfig.getSettings()
@@ -509,6 +556,9 @@ function LocationService.FiniLocation(player)
 	if not contexts or not contexts.location then
 		return
 	end
+
+	-- Call levelFini on location modules before destroying
+	FiniModules(player, "location")
 
 	-- Clear location registry
 	local registry = GetContextRegistryService()
@@ -678,6 +728,7 @@ Players.PlayerRemoving:Connect(function(player)
 
 	activeContexts[player] = nil
 	currentLocations[player] = nil
+	initializedModules[player] = nil
 end)
 
 -- ============================================================================

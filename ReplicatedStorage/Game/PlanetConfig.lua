@@ -52,9 +52,9 @@ local PlanetConfig = {}
 PlanetConfig.Planets = {
 	Planet_1 = {
 		id = "Planet_1",
-		name = "Бiллi Рубiн",
+		name = "Біллі Рубін",
 		type = "Суперземля",
-		starSystem = "Бiнарна K2V+K5V",
+		starSystem = "Бінарна K2V+K5V",
 		locations = 7,
 		status = "current",
 
@@ -65,12 +65,12 @@ PlanetConfig.Planets = {
 			temperature = "+12..+34\u{00B0}C",
 			radiation = "Низька",
 			magneticField = "Сильне",
-			water = "Рiдка",
+			water = "Рідка",
 			dayNight = "20 хв",
 		},
 
 		weather = {
-			type = "Спокiйна",
+			type = "Спокійна",
 			precipitation = "Дощ (легкий)",
 			wind = "Слабкий",
 			visibility = "Ясно",
@@ -101,13 +101,13 @@ PlanetConfig.Planets = {
 			temperature = "-40..+5\u{00B0}C",
 			radiation = "Середня",
 			magneticField = "Слабке",
-			water = "Лiд",
+			water = "Лід",
 			dayNight = "36 хв",
 		},
 
 		weather = {
-			type = "Суворi",
-			precipitation = "Снiг",
+			type = "Суворі",
+			precipitation = "Сніг",
 			wind = "Сильний",
 			visibility = "Низька",
 		},
@@ -118,14 +118,14 @@ PlanetConfig.Planets = {
 			surfaceTime = "30 хв",
 			speedMod = "\u{00D7}1.1",
 			jumpMod = "\u{00D7}1.2",
-			hazard = "Помiрна",
+			hazard = "Помірна",
 		},
 	},
 
 	Planet_Earth = {
 		id = "Planet_Earth",
 		name = "Земля",
-		type = "Рiдна планета",
+		type = "Рідна планета",
 		starSystem = "Sol (G2V)",
 		locations = 1,
 		status = "locked",
@@ -137,14 +137,14 @@ PlanetConfig.Planets = {
 			temperature = "-20..+40\u{00B0}C",
 			radiation = "Немає",
 			magneticField = "Сильне",
-			water = "Рiдка",
+			water = "Рідка",
 			dayNight = "24 год",
 		},
 
 		weather = {
-			type = "Мiнлива",
-			precipitation = "Дощ / Снiг",
-			wind = "Мiнливий",
+			type = "Мінлива",
+			precipitation = "Дощ / Сніг",
+			wind = "Мінливий",
 			visibility = "Ясно",
 		},
 

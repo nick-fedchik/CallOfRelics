@@ -8,21 +8,23 @@ Procedural content generation for Location_1 "Візитка" surface.
 Generates terrain, bare patches, alien temple with doors, and fractal trees.
 
 Version:
-0.6
+0.8
 
 Features:
 - FBM noise terrain with gentle hills (6x lower than v0.1)
 - Random bare patches (4-24 clearings without grass)
-- Octagonal alien temple with 8 corner towers and 8 capacitor spheres
+- Octagonal alien temple with 8 corner towers, hexagonal windows
 - Proximity-triggered sliding doors on front/back walls
 - Fractal trees with cylindrical trunks/branches, turquoise-agate leaves
 - Random tree height variation
 - Deterministic seed-based generation
 - Circular building exclusion zone for terrain and trees
 - Clear entrance paths to building
-- Periodic vertical lightning bolt from central capacitor into sky with thunder
-- Spires embedded into dome spheres for visual contact
-- Sporadic electrostatic discharge bursts (tower → central)
+- Emitter malfunction system (random cycling, ≥1 always off)
+- Auxiliary discharge with adjacency rule (fires only when adjacent emitter works)
+- Main emitter charge system (0%→100%, 2-12% per aux discharge)
+- Vertical lightning bolt triggered by charge accumulation
+- ModuleScript lifecycle: levelInit()/levelFini()
 
 Dependencies:
 - FastNoise (ReplicatedStorage/Game/FastNoise)
@@ -31,6 +33,8 @@ Dependencies:
 - Players (door proximity detection)
 
 ChangeLog:
+- 0.8: ModuleScript pattern, charge system, adjacency rule, proper hex windows (2026-02-08)
+- 0.7: Hex windows, round pedestal, emitter malfunction, discharge sound (2026-02-08)
 - 0.6: Octagonal temple with 8 corner towers and 8 capacitor spheres (2026-02-08)
 - 0.5: Spire embedding, lightning-like discharges, thunder (2026-02-08)
 - 0.4: Vertical lightning bolt from central spire (2026-02-08)
@@ -40,13 +44,15 @@ ChangeLog:
 ================================================================================
 ]]
 
+local TerrainGenerator = {}
+
 -- ============================================================================
 -- CONFIGURATION
 -- ============================================================================
 
 local SEED = 42
 local MODULE_NAME = "LocationGenerator"
-local VERSION = "0.6"
+local VERSION = "0.8"
 
 -- Terrain
 local FREQUENCY = 0.008
@@ -98,25 +104,18 @@ local Workspace = game:GetService("Workspace")
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 
--- ============================================================================
--- INITIALIZATION
--- ============================================================================
-
-task.wait(1)
-
 local FastNoise = require(ReplicatedStorage:WaitForChild("Game"):WaitForChild("FastNoise"))
 local terrain = Workspace.Terrain
-local rng = Random.new(SEED)
 
-local proceduralFolder = Instance.new("Folder")
-proceduralFolder.Name = "ProceduralContent"
-proceduralFolder.Parent = Workspace
+-- ============================================================================
+-- MODULE STATE (reset in levelInit)
+-- ============================================================================
 
-local fbm = FastNoise.FBM.create({
-	octaves = OCTAVES,
-	lacunarity = LACUNARITY,
-	persistence = PERSISTENCE,
-})
+local rng
+local fbm
+local proceduralFolder
+local barePatches
+local buildingCenter
 
 -- ============================================================================
 -- UTILITY FUNCTIONS
@@ -158,8 +157,6 @@ end
 -- STEP 1: BARE PATCHES
 -- ============================================================================
 
-local barePatches = {}
-
 local function GenerateBarePatches()
 	local count = rng:NextInteger(BARE_PATCHES_MIN, BARE_PATCHES_MAX)
 	for _ = 1, count do
@@ -174,8 +171,6 @@ end
 -- ============================================================================
 -- STEP 2: BUILDING POSITION
 -- ============================================================================
-
-local buildingCenter = nil
 
 local function PickBuildingPosition()
 	local bx = rng:NextNumber(BUILDING_ZONE_MIN_X + BUILDING_RADIUS, BUILDING_ZONE_MAX_X - BUILDING_RADIUS)
@@ -273,9 +268,7 @@ local function CreateBuilding()
 	local WT = 4               -- Wall thickness
 	local DOOR_W = 8           -- Door width
 	local DOOR_H = 12          -- Door height
-	local WIN_W = 6            -- Window width
-	local WIN_H = 12           -- Window height
-	local NUM_WIN = 2          -- Windows per solid wall
+	local HEX_R = 7            -- Hexagonal window circumradius
 
 	-- Colors
 	local C_WALL = Color3.fromRGB(175, 175, 185)
@@ -340,6 +333,8 @@ local function CreateBuilding()
 	local wallCenterY = floorY + WH / 2 + 0.5
 	local doorPanels = {}
 	local doorData = {}
+	local towerSpires = {}
+	local wallNeonTrims = {}
 
 	for i = 1, SIDES do
 		local normalAngle = math.rad(i * 45)
@@ -402,49 +397,73 @@ local function CreateBuilding()
 				},
 			})
 		else
-			-- === SOLID WALL WITH WINDOWS ===
-			local winSillY = floorY + 12 + 0.5
-			local bottomH = winSillY - floorY - 0.5
-			local topH = (floorY + WH + 0.5) - (winSillY + WIN_H)
+			-- === SOLID WALL WITH HEXAGONAL WINDOW ===
+			local hexCenterY = floorY + WH / 2 + 0.5
+			local HEX_H = HEX_R * math.sqrt(3) -- ~12.12 (hex height, flat-top)
+			local HEX_W = HEX_R * 2             -- 14 (hex width)
+			local openH = HEX_H + 1
+			local openW = HEX_W + 1
 
-			-- Full-width bottom strip (below windows)
-			MP("Wall" .. i .. "_Bottom", Vector3.new(WT, bottomH, sideLen),
-				CFrame.new(wallCX, floorY + bottomH / 2 + 0.5, wallCZ) * rot, C_WALL)
-			-- Full-width top strip (above windows)
+			-- Bottom strip (full width, below hex opening)
+			local botH = (hexCenterY - openH / 2) - (floorY + 0.5)
+			MP("Wall" .. i .. "_Bottom", Vector3.new(WT, botH, sideLen),
+				CFrame.new(wallCX, floorY + 0.5 + botH / 2, wallCZ) * rot, C_WALL)
+
+			-- Top strip (full width, above hex opening)
+			local topBase = hexCenterY + openH / 2
+			local topH = (floorY + WH + 0.5) - topBase
 			MP("Wall" .. i .. "_Top", Vector3.new(WT, topH, sideLen),
-				CFrame.new(wallCX, winSillY + WIN_H + topH / 2, wallCZ) * rot, C_WALL)
+				CFrame.new(wallCX, topBase + topH / 2, wallCZ) * rot, C_WALL)
 
-			-- Window positions along the wall (local Z offsets)
-			local winSpacing = sideLen / (NUM_WIN + 1)
-			local winOffsets = {}
-			for w = 1, NUM_WIN do
-				winOffsets[w] = -sideLen / 2 + w * winSpacing
+			-- Left side strip
+			local sideW = (sideLen - openW) / 2
+			MP("Wall" .. i .. "_Left", Vector3.new(WT, openH, sideW),
+				CFrame.new(wallCX + tx * (-(openW / 2 + sideW / 2)), hexCenterY,
+					wallCZ + tz * (-(openW / 2 + sideW / 2))) * rot, C_WALL)
+
+			-- Right side strip
+			MP("Wall" .. i .. "_Right", Vector3.new(WT, openH, sideW),
+				CFrame.new(wallCX + tx * (openW / 2 + sideW / 2), hexCenterY,
+					wallCZ + tz * (openW / 2 + sideW / 2)) * rot, C_WALL)
+
+			-- Glass pane (covers full opening behind hex frame)
+			MP("HexGlass_" .. i, Vector3.new(0.5, openH, openW),
+				CFrame.new(wallCX, hexCenterY, wallCZ) * rot,
+				C_GLASS, Enum.Material.Glass, 0.4)
+
+			-- Hexagonal neon frame: 6 edge strips between hex vertices
+			-- Flat-top hex: vertex v at angle v*60° from center
+			local wallNormalVec = Vector3.new(nx, 0, nz)
+			local hexVerts = {}
+			for v = 0, 5 do
+				local a = math.rad(v * 60)
+				local vz = HEX_R * math.cos(a) -- tangent offset
+				local vy = HEX_R * math.sin(a) -- vertical offset
+				hexVerts[v + 1] = Vector3.new(
+					wallCX + tx * vz,
+					hexCenterY + vy,
+					wallCZ + tz * vz
+				)
 			end
 
-			-- Vertical segments between and around windows
-			for s = 0, NUM_WIN do
-				local segL = (s == 0) and (-sideLen / 2) or (winOffsets[s] + WIN_W / 2)
-				local segR = (s == NUM_WIN) and (sideLen / 2) or (winOffsets[s + 1] - WIN_W / 2)
-				local segW = segR - segL
-				if segW > 0.5 then
-					local segOff = (segL + segR) / 2
-					MP("WallSeg" .. i .. "_" .. s, Vector3.new(WT, WIN_H, segW),
-						CFrame.new(wallCX + tx * segOff, winSillY + WIN_H / 2, wallCZ + tz * segOff) * rot, C_WALL)
-				end
-			end
-
-			-- Window glass panes
-			for w, wOff in ipairs(winOffsets) do
-				MP("Win" .. i .. "_" .. w, Vector3.new(0.5, WIN_H, WIN_W),
-					CFrame.new(wallCX + tx * wOff, winSillY + WIN_H / 2, wallCZ + tz * wOff) * rot,
-					C_GLASS, Enum.Material.Glass, 0.4)
+			for e = 1, 6 do
+				local p1 = hexVerts[e]
+				local p2 = hexVerts[(e % 6) + 1]
+				local mid = (p1 + p2) / 2
+				local edgeLen = (p2 - p1).Magnitude
+				local dir = (p2 - p1).Unit
+				local perp = dir:Cross(wallNormalVec).Unit
+				local cf = CFrame.fromMatrix(mid, perp, wallNormalVec)
+				local strip = MP("HexFrame_" .. i .. "_" .. e,
+					Vector3.new(0.8, 0.4, edgeLen), cf, C_NEON, Enum.Material.Neon)
+				strip.CanCollide = false
 			end
 		end
 
-		-- Neon trim on top of each wall
+		-- Neon trim on top of each wall (tracked for malfunction system)
 		local neonH = 0.5
 		local wallTopY = floorY + WH + 0.5 + neonH / 2
-		MP("NeonTrim_" .. i, Vector3.new(WT + 0.4, neonH, sideLen + 0.4),
+		wallNeonTrims[i] = MP("NeonTrim_" .. i, Vector3.new(WT + 0.4, neonH, sideLen + 0.4),
 			CFrame.new(wallCX, wallTopY, wallCZ) * rot, C_NEON, Enum.Material.Neon)
 	end
 
@@ -612,26 +631,13 @@ local function CreateBuilding()
 		-- Tower spire — embedded into tower dome for visual contact
 		local towerDomeTopY = towerDomeCenterY + towerDomeSizeY / 2
 		local towerEmbed = 2
-		MP("TowerSpire_" .. i, Vector3.new(1, towerSpireH, 1),
+		local spire = MP("TowerSpire_" .. i, Vector3.new(1, towerSpireH, 1),
 			Vector3.new(vtx.x, towerDomeTopY - towerEmbed + towerSpireH / 2, vtx.z), C_NEON, Enum.Material.Neon)
+		towerSpires[i] = spire
 
-		-- Tower capacitor sphere (embedded 1 stud into spire top)
-		local towerCapSize = 4
-		local towerCapY = towerDomeTopY - towerEmbed + towerSpireH - 1 + towerCapSize / 2
-		local towerCap = Instance.new("Part")
-		towerCap.Name = "TowerCapacitor_" .. i
-		towerCap.Shape = Enum.PartType.Ball
-		towerCap.Size = Vector3.new(towerCapSize, towerCapSize, towerCapSize)
-		towerCap.Position = Vector3.new(vtx.x, towerCapY, vtx.z)
-		towerCap.Anchored = true
-		towerCap.CanCollide = false
-		towerCap.Color = C_CAPACITOR
-		towerCap.Material = Enum.Material.Neon
-		towerCap.Parent = building
-
-		-- Electric discharge beam from tower to central capacitor
+		-- Electric discharge beam from tower spire to central capacitor
 		local towerAttach = Instance.new("Attachment")
-		towerAttach.Parent = towerCap
+		towerAttach.Parent = spire
 
 		local beam = Instance.new("Beam")
 		beam.Name = "Discharge_" .. i
@@ -667,10 +673,16 @@ local function CreateBuilding()
 			Vector3.new(px, floorY + WH + 0.2, pz), C_NEON, Enum.Material.Neon)
 	end
 
-	-- Central pedestal (for future artifact)
-	MP("Pedestal", Vector3.new(6, 4, 6), Vector3.new(cx, floorY + 2.5, cz), C_PILLAR)
-	MP("PedestalNeon", Vector3.new(7, 0.3, 7),
-		Vector3.new(cx, floorY + 4.65, cz), C_NEON, Enum.Material.Neon)
+	-- Central pedestal (round, for future artifact)
+	local pedestal = Instance.new("Part")
+	pedestal.Name = "Pedestal"
+	pedestal.Shape = Enum.PartType.Cylinder
+	pedestal.Size = Vector3.new(4, 6, 6)
+	pedestal.CFrame = CFrame.new(cx, floorY + 2.5, cz) * CFrame.Angles(0, 0, math.rad(90))
+	pedestal.Anchored = true
+	pedestal.Color = C_PILLAR
+	pedestal.Material = Enum.Material.SmoothPlastic
+	pedestal.Parent = building
 
 	-- ======= EXTERIOR WALL DECALS (alien cultural art) =======
 	local WALL_GLYPHS = {
@@ -721,7 +733,7 @@ local function CreateBuilding()
 
 	print(string.format("[%s] Octagonal temple at (%.0f, %.0f) — %d parts",
 		MODULE_NAME, cx, cz, #building:GetChildren()))
-	return building, doorData, domeSymbolLabels, dischargeBeams, centralCap
+	return building, doorData, domeSymbolLabels, dischargeBeams, centralCap, towerSpires, wallNeonTrims
 end
 
 -- ============================================================================
@@ -826,27 +838,188 @@ local function SetupDomeSymbolAnimation(building, symbolLabels)
 end
 
 -- ============================================================================
--- STEP 7: ELECTRIC DISCHARGE ANIMATION
+-- STEP 7: EMITTER MALFUNCTION SYSTEM (beacon status: malfunctioning)
 -- ============================================================================
 
-local function SetupElectricDischarges(building, beams)
+local function SetupEmitterMalfunction(building, towerSpires, wallNeonTrims)
+	if not building or not towerSpires or #towerSpires == 0 then return {} end
+
+	local C_NEON_ON = Color3.fromRGB(240, 200, 80)
+	local C_NEON_OFF = Color3.fromRGB(80, 70, 40)
+
+	local emitterOn = {}
+	for i = 1, 8 do emitterOn[i] = true end
+
+	local function countOff()
+		local c = 0
+		for i = 1, 8 do if not emitterOn[i] then c = c + 1 end end
+		return c
+	end
+
+	local function updateVisuals(idx)
+		local on = emitterOn[idx]
+
+		-- Tower spire neon on/off
+		if towerSpires[idx] then
+			towerSpires[idx].Material = on and Enum.Material.Neon or Enum.Material.SmoothPlastic
+			towerSpires[idx].Color = on and C_NEON_ON or C_NEON_OFF
+		end
+
+		-- Adjacent wall neon trims: tower idx is at vertex idx
+		-- Wall k goes from vertex k to vertex (k%8)+1
+		-- So tower idx affects wall (idx-1) and wall idx
+		local wallA = ((idx - 2) % 8) + 1 -- wall before this tower
+		local wallB = idx                   -- wall starting at this tower
+
+		for _, wIdx in ipairs({ wallA, wallB }) do
+			if wallNeonTrims[wIdx] then
+				local startTower = wIdx
+				local endTower = (wIdx % 8) + 1
+				local wallOn = emitterOn[startTower] and emitterOn[endTower]
+				wallNeonTrims[wIdx].Material = wallOn and Enum.Material.Neon or Enum.Material.SmoothPlastic
+				wallNeonTrims[wIdx].Color = wallOn and C_NEON_ON or C_NEON_OFF
+			end
+		end
+	end
+
+	-- Force one random emitter off at start (beacon is malfunctioning)
+	local malfRng = Random.new(SEED + 200)
+	local startOff = malfRng:NextInteger(1, 8)
+	emitterOn[startOff] = false
+	updateVisuals(startOff)
+
+	-- Spawn malfunction cycle for each emitter
+	for idx = 1, 8 do
+		task.spawn(function()
+			local cycleRng = Random.new(SEED + 200 + idx)
+
+			-- Stagger start times so emitters don't all cycle in sync
+			task.wait(cycleRng:NextNumber(0, 15))
+
+			while building and building.Parent do
+				if emitterOn[idx] then
+					-- ON phase: wait before turning off (10-50 sec)
+					task.wait(cycleRng:NextNumber(10, 50))
+					if not building or not building.Parent then break end
+
+					-- Turn off
+					emitterOn[idx] = false
+					updateVisuals(idx)
+
+					-- OFF phase: wait before trying to turn on (5-30 sec)
+					task.wait(cycleRng:NextNumber(5, 30))
+					if not building or not building.Parent then break end
+
+					-- Turn on only if at least 2 are off (keep ≥1 always off)
+					if countOff() > 1 then
+						emitterOn[idx] = true
+						updateVisuals(idx)
+					else
+						-- We're the only one off — wait until another turns off
+						while countOff() <= 1 and building and building.Parent do
+							task.wait(1)
+						end
+						if building and building.Parent then
+							emitterOn[idx] = true
+							updateVisuals(idx)
+						end
+					end
+				else
+					-- Started off (initial state) — wait then try to turn on
+					task.wait(cycleRng:NextNumber(5, 30))
+					if not building or not building.Parent then break end
+
+					if countOff() > 1 then
+						emitterOn[idx] = true
+						updateVisuals(idx)
+					else
+						while countOff() <= 1 and building and building.Parent do
+							task.wait(1)
+						end
+						if building and building.Parent then
+							emitterOn[idx] = true
+							updateVisuals(idx)
+						end
+					end
+				end
+			end
+		end)
+	end
+
+	print(string.format("[%s] Emitter malfunction system active (8 emitters, ≥1 always off)", MODULE_NAME))
+	return emitterOn
+end
+
+-- ============================================================================
+-- STEP 8: AUXILIARY DISCHARGE WITH ADJACENCY + CHARGE SYSTEM
+-- ============================================================================
+
+local function SetupElectricDischarges(building, beams, emitterStates, fireBoltFunc)
 	if not building or not beams or #beams == 0 then return end
+
+	-- Main emitter charge (0%→100%, fires at ≥100%)
+	local mainCharge = 0
+
+	-- Electrostatic discharge sound
+	local centralCapPart = building:FindFirstChild("CentralCapacitor")
+	local dischargeSound = Instance.new("Sound")
+	dischargeSound.Name = "ElectrostaticDischarge"
+	dischargeSound.SoundId = "rbxassetid://12222084"
+	dischargeSound.Volume = 0.15
+	dischargeSound.RollOffMaxDistance = 120
+	dischargeSound.RollOffMinDistance = 10
+	dischargeSound.RollOffMode = Enum.RollOffMode.LinearSquare
+	dischargeSound.Parent = centralCapPart or building
+
+	-- Adjacency check: tower idx has neighbors (idx-1) and (idx+1) on octagon
+	local function hasAdjacentWorkingEmitter(idx)
+		if not emitterStates then return true end
+		local prev = ((idx - 2) % 8) + 1
+		local next = (idx % 8) + 1
+		return emitterStates[prev] or emitterStates[next]
+	end
 
 	task.spawn(function()
 		local arcRng = Random.new(SEED + 77)
 
 		while building and building.Parent do
-			-- Long quiet period between discharges (8-25 seconds)
-			task.wait(arcRng:NextNumber(8, 25))
+			-- Faster discharge interval (2-6 seconds, was 4-12)
+			task.wait(arcRng:NextNumber(2, 6))
 
 			if not building or not building.Parent then break end
 
 			-- Pick 1-3 random beams to fire simultaneously
+			-- Only fire if: emitter is active AND has adjacent working emitter
 			local fireCount = arcRng:NextInteger(1, math.min(3, #beams))
 			local fireIndices = {}
 			for _ = 1, fireCount do
 				local idx = arcRng:NextInteger(1, #beams)
-				fireIndices[idx] = true
+				if (not emitterStates or emitterStates[idx]) and hasAdjacentWorkingEmitter(idx) then
+					fireIndices[idx] = true
+				end
+			end
+
+			-- Skip if no beams to fire
+			local hasAny = false
+			for _ in pairs(fireIndices) do hasAny = true; break end
+			if not hasAny then continue end
+
+			-- Play sound only if a player is near the building on the surface
+			local soundPos = dischargeSound.Parent and dischargeSound.Parent:IsA("BasePart")
+				and dischargeSound.Parent.Position or nil
+			if soundPos then
+				local anyNear = false
+				for _, player in ipairs(Players:GetPlayers()) do
+					local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+					if hrp and (hrp.Position - soundPos).Magnitude < 150 then
+						anyNear = true
+						break
+					end
+				end
+				if anyNear then
+					dischargeSound.PlaybackSpeed = arcRng:NextNumber(1.8, 2.8)
+					dischargeSound:Play()
+				end
 			end
 
 			-- Burst: 3-6 rapid flickers over 0.3-1.0 seconds
@@ -889,18 +1062,29 @@ local function SetupElectricDischarges(building, beams)
 					beam.Enabled = false
 				end
 			end
+
+			-- Each fired auxiliary discharge adds 2-12% charge to main emitter
+			for _ in pairs(fireIndices) do
+				mainCharge = mainCharge + arcRng:NextInteger(2, 12)
+			end
+
+			-- Fire main vertical lightning when charge reaches 100%
+			if mainCharge >= 100 and fireBoltFunc then
+				mainCharge = 0
+				fireBoltFunc()
+			end
 		end
 	end)
 
-	print(string.format("[%s] Electric discharge system active (%d beams)", MODULE_NAME, #beams))
+	print(string.format("[%s] Auxiliary discharge system active (%d beams, charge-based main bolt)", MODULE_NAME, #beams))
 end
 
 -- ============================================================================
--- STEP 8: VERTICAL LIGHTNING BOLT (Central Capacitor → Sky)
+-- STEP 9: VERTICAL LIGHTNING BOLT (triggered by charge, not timer)
 -- ============================================================================
 
 local function SetupVerticalLightning(building, centralCapacitor)
-	if not building or not centralCapacitor then return end
+	if not building or not centralCapacitor then return nil end
 
 	-- Create invisible sky anchor ~500 studs above the capacitor
 	local skyAnchor = Instance.new("Part")
@@ -976,75 +1160,72 @@ local function SetupVerticalLightning(building, centralCapacitor)
 	thunder.RollOffMinDistance = 50
 	thunder.Parent = centralCapacitor
 
-	task.spawn(function()
-		local boltRng = Random.new(SEED + 55)
+	local boltRng = Random.new(SEED + 55)
 
-		while building and building.Parent do
-			-- Wait random interval between bolts (12-40 seconds)
-			task.wait(boltRng:NextNumber(12, 40))
+	-- Return a function that fires the bolt on demand (called when charge ≥100%)
+	local function FireBolt()
+		if not building or not building.Parent then return end
 
-			if not building or not building.Parent then break end
+		-- Multiple re-strikes (2-4 bolts in rapid succession, like real lightning)
+		local strikeCount = boltRng:NextInteger(2, 4)
 
-			-- Multiple re-strikes (2-4 bolts in rapid succession, like real lightning)
-			local strikeCount = boltRng:NextInteger(2, 4)
+		for strike = 1, strikeCount do
+			-- Randomize bolt shape — large jagged curves
+			bolt.CurveSize0 = boltRng:NextNumber(-30, 30)
+			bolt.CurveSize1 = boltRng:NextNumber(-30, 30)
+			bolt.Width0 = boltRng:NextNumber(3, 7)
+			bolt.Width1 = boltRng:NextNumber(0.2, 0.8)
 
-			for strike = 1, strikeCount do
-				-- Randomize bolt shape — large jagged curves
-				bolt.CurveSize0 = boltRng:NextNumber(-30, 30)
-				bolt.CurveSize1 = boltRng:NextNumber(-30, 30)
-				bolt.Width0 = boltRng:NextNumber(3, 7)
-				bolt.Width1 = boltRng:NextNumber(0.2, 0.8)
+			-- Branch bolt with different curve (offset path)
+			bolt2.CurveSize0 = boltRng:NextNumber(-25, 25)
+			bolt2.CurveSize1 = boltRng:NextNumber(-25, 25)
 
-				-- Branch bolt with different curve (offset path)
-				bolt2.CurveSize0 = boltRng:NextNumber(-25, 25)
-				bolt2.CurveSize1 = boltRng:NextNumber(-25, 25)
+			-- FLASH: both bolts + light burst
+			bolt.Enabled = true
+			bolt2.Enabled = true
+			flash.Brightness = boltRng:NextNumber(5, 10)
 
-				-- FLASH: both bolts + light burst
-				bolt.Enabled = true
-				bolt2.Enabled = true
-				flash.Brightness = boltRng:NextNumber(5, 10)
-
-				-- Play thunder on first strike
-				if strike == 1 then
-					thunder.PlaybackSpeed = boltRng:NextNumber(0.7, 1.3)
-					thunder:Play()
-				end
-
-				-- Brief bright hold with jitter
-				local holdTime = boltRng:NextNumber(0.05, 0.15)
-				local flickerEnd = os.clock() + holdTime
-				while os.clock() < flickerEnd do
-					bolt.CurveSize0 = boltRng:NextNumber(-35, 35)
-					bolt.CurveSize1 = boltRng:NextNumber(-35, 35)
-					bolt.Transparency = NumberSequence.new(boltRng:NextNumber(0, 0.15))
-					flash.Brightness = boltRng:NextNumber(3, 10)
-					task.wait(0.03)
-				end
-
-				-- Off between re-strikes
-				bolt.Enabled = false
-				bolt2.Enabled = false
-				flash.Brightness = 0
-
-				if strike < strikeCount then
-					task.wait(boltRng:NextNumber(0.05, 0.20))
-				end
+			-- Play thunder on first strike
+			if strike == 1 then
+				thunder.PlaybackSpeed = boltRng:NextNumber(0.7, 1.3)
+				thunder:Play()
 			end
 
-			-- Slow flash fade out (afterglow)
-			flash.Brightness = 1
-			TweenService:Create(flash,
-				TweenInfo.new(1.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-				{ Brightness = 0 }
-			):Play()
-		end
-	end)
+			-- Brief bright hold with jitter
+			local holdTime = boltRng:NextNumber(0.05, 0.15)
+			local flickerEnd = os.clock() + holdTime
+			while os.clock() < flickerEnd do
+				bolt.CurveSize0 = boltRng:NextNumber(-35, 35)
+				bolt.CurveSize1 = boltRng:NextNumber(-35, 35)
+				bolt.Transparency = NumberSequence.new(boltRng:NextNumber(0, 0.15))
+				flash.Brightness = boltRng:NextNumber(3, 10)
+				task.wait(0.03)
+			end
 
-	print(string.format("[%s] Vertical lightning system active", MODULE_NAME))
+			-- Off between re-strikes
+			bolt.Enabled = false
+			bolt2.Enabled = false
+			flash.Brightness = 0
+
+			if strike < strikeCount then
+				task.wait(boltRng:NextNumber(0.05, 0.20))
+			end
+		end
+
+		-- Slow flash fade out (afterglow)
+		flash.Brightness = 1
+		TweenService:Create(flash,
+			TweenInfo.new(1.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{ Brightness = 0 }
+		):Play()
+	end
+
+	print(string.format("[%s] Vertical lightning system ready (charge-triggered)", MODULE_NAME))
+	return FireBolt
 end
 
 -- ============================================================================
--- STEP 9: FRACTAL TREES (cylindrical, turquoise-agate leaves)
+-- STEP 10: FRACTAL TREES (cylindrical, turquoise-agate leaves)
 -- ============================================================================
 
 local function CreateFractalTree(rootPosition)
@@ -1178,21 +1359,63 @@ local function PlantTrees()
 end
 
 -- ============================================================================
--- MAIN EXECUTION
+-- LIFECYCLE: levelInit / levelFini
 -- ============================================================================
 
-print(string.format("[%s %s] Starting generation (seed=%d)", MODULE_NAME, VERSION, SEED))
+function TerrainGenerator.levelInit()
+	print(string.format("[%s %s] Starting generation (seed=%d)", MODULE_NAME, VERSION, SEED))
 
-GenerateBarePatches()
-PickBuildingPosition()
-GenerateTerrain()
-task.wait()
-local building, doorData, domeSymbolLabels, dischargeBeams, centralCap = CreateBuilding()
-task.wait()
-SetupDoorSystem(building, doorData)
-SetupDomeSymbolAnimation(building, domeSymbolLabels)
-SetupElectricDischarges(building, dischargeBeams)
-SetupVerticalLightning(building, centralCap)
-PlantTrees()
+	-- Reset module state
+	rng = Random.new(SEED)
+	barePatches = {}
+	buildingCenter = nil
 
-print(string.format("[%s %s] Generation complete", MODULE_NAME, VERSION))
+	proceduralFolder = Instance.new("Folder")
+	proceduralFolder.Name = "ProceduralContent"
+	proceduralFolder.Parent = Workspace
+
+	fbm = FastNoise.FBM.create({
+		octaves = OCTAVES,
+		lacunarity = LACUNARITY,
+		persistence = PERSISTENCE,
+	})
+
+	-- Generate world
+	GenerateBarePatches()
+	PickBuildingPosition()
+	GenerateTerrain()
+	task.wait()
+	local building, doorData, domeSymbolLabels, dischargeBeams, centralCap, towerSpires, wallNeonTrims = CreateBuilding()
+	task.wait()
+
+	-- Setup interactive systems
+	SetupDoorSystem(building, doorData)
+	SetupDomeSymbolAnimation(building, domeSymbolLabels)
+	local emitterStates = SetupEmitterMalfunction(building, towerSpires, wallNeonTrims)
+	local fireBolt = SetupVerticalLightning(building, centralCap)
+	SetupElectricDischarges(building, dischargeBeams, emitterStates, fireBolt)
+	PlantTrees()
+
+	print(string.format("[%s %s] Generation complete", MODULE_NAME, VERSION))
+end
+
+function TerrainGenerator.levelFini()
+	print(string.format("[%s %s] Cleaning up", MODULE_NAME, VERSION))
+
+	-- Destroy procedural content (stops all while-loops checking building.Parent)
+	if proceduralFolder then
+		proceduralFolder:Destroy()
+		proceduralFolder = nil
+	end
+
+	-- Clear generated terrain
+	terrain:Clear()
+
+	-- Reset state
+	barePatches = nil
+	buildingCenter = nil
+	rng = nil
+	fbm = nil
+end
+
+return TerrainGenerator

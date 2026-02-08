@@ -6,7 +6,24 @@
 
 ## [0.20.0] - 2026-02-08 - Octagonal Temple
 
+### Changed - Framework & Architecture
+
+- **LocationService v0.6** — фреймворк levelInit/levelFini для ModuleScript
+  - Перейменування `CopyScriptsToService` → `CopyScriptsToReplicatedStorage` + `CopyScriptsToServerScriptService`
+  - `CopyScriptsToServerScriptService()` автоматично require + levelInit() для ModuleScript'ів
+  - `FiniModules()` викликає levelFini() перед очищенням реєстру
+  - Відстеження ініціалізованих модулів per-player, per-context (planet/orbit/location)
+
 ### Changed - Octagonal Temple (Location_1)
+
+- **TerrainGenerator v0.8** — ModuleScript з levelInit/levelFini, система заряду, гексагональні вікна
+  - Конвертація з Script (.server.luau) → ModuleScript (.luau) з levelInit()/levelFini()
+  - levelFini(): Destroy ProceduralContent, Clear terrain, скидання стану
+  - Гексагональні вікна: CFrame.fromMatrix між вершинами гексагона (було CFrame.Angles)
+  - Система заряду головного емітера: 0%→100%, кожний допоміжний розряд +2-12% рандомно
+  - Вертикальна блискавка тепер тригерна (при ≥100% заряду), не таймерна
+  - Правило сусідства: допоміжний емітер розряджається лише якщо поруч є інший працюючий
+  - Частіші допоміжні розряди (2-6 сек, було 4-12)
 
 - **TerrainGenerator v0.6** — конвертація будівлі маяка з прямокутної на 8-кутну
   - Правильний октагон з circumradius 80 (sideLen ~61.24, apothem ~73.9)
