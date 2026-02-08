@@ -4,6 +4,27 @@
 
 ---
 
+## [0.21.0] - 2026-02-08 - LevelController Framework
+
+### Changed - LevelController Pattern
+
+- **LocationService v0.7** — паттерн LevelController для рівнів гри
+  - `CopyScriptsToServerScriptService()` клонує цілу папку (зберігає ієрархію скриптів)
+  - Єдина точка входу: шукає `LevelController.luau` в папці рівня
+  - LevelController керує порядком ініціалізації/завершення модулів рівня
+  - Скрипти бачать сусідів через `script.Parent` (не плоске копіювання)
+  - Працює однаково для орбіти, локації та планети
+
+### Added - LevelController (Location_1)
+
+- **LevelController.luau** (v0.1) — контролер рівня "Візитка" (Planet_1/Location_1)
+  - Оркеструє TerrainGenerator.levelInit()/levelFini()
+  - LandingLightsModule, LandingPadEffectsModule доступні як сусідні модулі
+
+- **GameConfig v0.12** — Version 0.21.0, codename "LevelController Framework"
+
+---
+
 ## [0.20.0] - 2026-02-08 - Octagonal Temple
 
 ### Changed - Framework & Architecture

@@ -10,14 +10,15 @@ Handles workspace cleanup, content copying, and player spawning.
 Enforces TDD 5.6 "Complete Context Cleanup" principle.
 
 Version:
-0.6
+0.7
 
 Features:
 - Load location from ServerStorage.Planets structure
 - Unload current location with complete cleanup
 - Init/Fini system for Planet, Orbit, and Location levels
 - Copy scripts, models, and lighting with registry tracking
-- ModuleScript levelInit()/levelFini() lifecycle for server scripts
+- LevelController pattern: single entry point per level (orbit/location/planet)
+- Folder-based script copying (preserves hierarchy, scripts see siblings)
 - Spawn player in PilotSeat or SpawnLocation
 - Track current active location per player
 - Support for Orbit and Surface location types
@@ -63,6 +64,7 @@ Dependencies:
 - ContextRegistryService
 
 ChangeLog:
+- 0.7: LevelController pattern — folder-based copy, single entry point per level (2026-02-08)
 - 0.6: ModuleScript levelInit/levelFini framework, rename CopyScriptsToService (2026-02-08)
 - 0.5: Init/Fini system with ContextRegistryService integration (EPIC 4) (2026-01-16)
 - 0.4: Apply animationData positions to models after copying (EPIC 3) (2026-01-16)
@@ -73,7 +75,7 @@ ChangeLog:
 ]]
 
 local MODULE_NAME = "LocationService"
-local VERSION = "0.5"
+local VERSION = "0.7"
 
 local ServerStorage = game:GetService("ServerStorage")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -179,27 +181,40 @@ end
 local function CopyScriptsToServerScriptService(sourceFolder, player, registerFunc, contextLevel)
 	if not sourceFolder then return end
 
+	-- Skip empty folders (no scripts to copy)
+	local hasScripts = false
+	for _, child in ipairs(sourceFolder:GetChildren()) do
+		if child:IsA("ModuleScript") or child:IsA("Script") or child:IsA("LocalScript") then
+			hasScripts = true
+			break
+		end
+	end
+	if not hasScripts then return end
+
 	local registry = GetContextRegistryService()
 	local modules = EnsureModuleTracking(player)
 
-	for _, child in ipairs(sourceFolder:GetChildren()) do
-		if child:IsA("ModuleScript") or child:IsA("Script") or child:IsA("LocalScript") then
-			local clone = child:Clone()
-			clone.Parent = ServerScriptService
-			registerFunc(registry, player, clone)
+	-- Clone entire folder to preserve hierarchy (LevelController can find siblings)
+	local clone = sourceFolder:Clone()
+	clone.Name = sourceFolder.Parent.Name .. "_Scripts"
+	clone.Parent = ServerScriptService
+	registerFunc(registry, player, clone)
 
-			-- ModuleScript with levelInit: require and initialize
-			if clone:IsA("ModuleScript") then
-				local ok, mod = pcall(require, clone)
-				if ok and type(mod) == "table" and type(mod.levelInit) == "function" then
-					local initOk, err = pcall(mod.levelInit)
-					if initOk then
-						table.insert(modules[contextLevel], mod)
-					else
-						warn(string.format("[%s %s] levelInit failed for %s: %s", MODULE_NAME, VERSION, child.Name, tostring(err)))
-					end
-				end
+	-- Find and initialize LevelController (single entry point for the level)
+	local controller = clone:FindFirstChild("LevelController")
+	if controller and controller:IsA("ModuleScript") then
+		local ok, mod = pcall(require, controller)
+		if ok and type(mod) == "table" and type(mod.levelInit) == "function" then
+			local initOk, err = pcall(mod.levelInit)
+			if initOk then
+				table.insert(modules[contextLevel], mod)
+			else
+				warn(string.format("[%s %s] levelInit failed for %s/LevelController: %s",
+					MODULE_NAME, VERSION, sourceFolder.Parent.Name, tostring(err)))
 			end
+		elseif not ok then
+			warn(string.format("[%s %s] Failed to require %s/LevelController: %s",
+				MODULE_NAME, VERSION, sourceFolder.Parent.Name, tostring(mod)))
 		end
 	end
 end
